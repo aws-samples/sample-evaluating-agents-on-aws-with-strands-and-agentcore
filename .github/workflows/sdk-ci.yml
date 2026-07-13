@@ -1,0 +1,71 @@
+name: sdk-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege: this workflow only reads the repo to lint, test, and build.
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.14"]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: repo
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies (SDK + dev)
+        working-directory: repo
+        run: uv sync --all-extras --dev
+
+      - name: Ruff lint
+        working-directory: repo
+        run: uv run ruff check .
+
+      - name: Ruff format --check
+        working-directory: repo
+        run: uv run ruff format --check .
+
+      - name: Offline unit tests with coverage
+        working-directory: repo
+        # --cov-fail-under=40: floor based on measured ~42% on offline suite; TODO raise as coverage improves
+        run: |
+          uv run pytest tests/unit/ tests/sdk/ -m "not deployed" \
+            --cov=agentic_evaluation --cov-report=term-missing \
+            --cov-fail-under=40 \
+            -v --tb=short
+
+      - name: agentic-eval CLI smoke
+        working-directory: repo
+        run: uv run agentic-eval --help
+
+  build-wheel:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: repo
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+      - name: Build sdist + wheel
+        working-directory: repo
+        run: uv build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dist
+          path: repo/dist/

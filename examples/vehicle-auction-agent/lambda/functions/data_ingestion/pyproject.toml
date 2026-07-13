@@ -1,0 +1,12 @@
+[project]
+name = "data-ingestion"
+version = "0.1.0"
+description = "Data ingestion Lambda function with flexible field mapping"
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.42.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

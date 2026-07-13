@@ -1,0 +1,1195 @@
+{
+  "dealerships": [
+    {
+      "dealer_id": {
+        "S": "DLR10000"
+      },
+      "name": {
+        "S": "Acme Motors"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "51.4545"
+          },
+          "longitude": {
+            "N": "-2.5879"
+          },
+          "city": {
+            "S": "Bristol"
+          },
+          "region": {
+            "S": "South West"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel",
+              "electric",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "suv",
+              "pickup",
+              "van",
+              "estate"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "2242"
+              },
+              "max": {
+                "N": "20300"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2019"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "23"
+          },
+          "avg_price": {
+            "N": "20639.51"
+          },
+          "favorite_makes": {
+            "SS": [
+              "mazda",
+              "nissan",
+              "honda"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-12-07T01:08:35.941737"
+      },
+      "updated_at": {
+        "S": "2026-01-26T01:08:35.941745"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10001"
+      },
+      "name": {
+        "S": "Sunrise Auto"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "51.4816"
+          },
+          "longitude": {
+            "N": "-3.1791"
+          },
+          "city": {
+            "S": "Cardiff"
+          },
+          "region": {
+            "S": "Wales"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel",
+              "hybrid",
+              "petrol"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "pickup",
+              "coupe"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "26998"
+              },
+              "max": {
+                "N": "61730"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "75000"
+          },
+          "min_year": {
+            "N": "2018"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "264"
+          },
+          "avg_price": {
+            "N": "19414.68"
+          },
+          "favorite_makes": {
+            "SS": [
+              "audi",
+              "honda"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-10-09T01:08:35.941782"
+      },
+      "updated_at": {
+        "S": "2025-12-01T01:08:35.941786"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10002"
+      },
+      "name": {
+        "S": "Valley Cars"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "50.9097"
+          },
+          "longitude": {
+            "N": "-1.4044"
+          },
+          "city": {
+            "S": "Southampton"
+          },
+          "region": {
+            "S": "South East"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "electric",
+              "hybrid",
+              "petrol"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "estate",
+              "coupe",
+              "hatchback",
+              "saloon"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "23166"
+              },
+              "max": {
+                "N": "69287"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2018"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "202"
+          },
+          "avg_price": {
+            "N": "43259.55"
+          },
+          "favorite_makes": {
+            "SS": [
+              "mercedes",
+              "ford",
+              "vauxhall"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-03-23T01:08:35.941803"
+      },
+      "updated_at": {
+        "S": "2025-05-11T01:08:35.941805"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10003"
+      },
+      "name": {
+        "S": "Metro Vehicles"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "51.5074"
+          },
+          "longitude": {
+            "N": "-0.1278"
+          },
+          "city": {
+            "S": "London"
+          },
+          "region": {
+            "S": "London"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "hybrid",
+              "diesel",
+              "petrol"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "suv",
+              "estate",
+              "hatchback",
+              "saloon"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "24233"
+              },
+              "max": {
+                "N": "59190"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "50000"
+          },
+          "min_year": {
+            "N": "2022"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "478"
+          },
+          "avg_price": {
+            "N": "33544.99"
+          },
+          "favorite_makes": {
+            "SS": [
+              "audi",
+              "ford",
+              "honda"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-09-25T01:08:35.941817"
+      },
+      "updated_at": {
+        "S": "2025-11-17T01:08:35.941819"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10004"
+      },
+      "name": {
+        "S": "Coastal Motors"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "54.9783"
+          },
+          "longitude": {
+            "N": "-1.6178"
+          },
+          "city": {
+            "S": "Newcastle"
+          },
+          "region": {
+            "S": "North East"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "electric",
+              "petrol",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "estate",
+              "van",
+              "suv",
+              "coupe"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "10391"
+              },
+              "max": {
+                "N": "38183"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2021"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "177"
+          },
+          "avg_price": {
+            "N": "24398.72"
+          },
+          "favorite_makes": {
+            "SS": [
+              "tesla"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-10-24T01:08:35.941828"
+      },
+      "updated_at": {
+        "S": "2025-08-19T01:08:35.941830"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10005"
+      },
+      "name": {
+        "S": "Highland Auto"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "53.4084"
+          },
+          "longitude": {
+            "N": "-2.9916"
+          },
+          "city": {
+            "S": "Liverpool"
+          },
+          "region": {
+            "S": "North West"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel",
+              "electric",
+              "petrol"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "saloon",
+              "suv"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "24225"
+              },
+              "max": {
+                "N": "68728"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "100000"
+          },
+          "min_year": {
+            "N": "2019"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "371"
+          },
+          "avg_price": {
+            "N": "41601.3"
+          },
+          "favorite_makes": {
+            "SS": [
+              "land rover",
+              "nissan"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-06-04T01:08:35.941842"
+      },
+      "updated_at": {
+        "S": "2026-01-20T01:08:35.941844"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10006"
+      },
+      "name": {
+        "S": "Riverside Cars"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "52.4862"
+          },
+          "longitude": {
+            "N": "-1.8904"
+          },
+          "city": {
+            "S": "Birmingham"
+          },
+          "region": {
+            "S": "West Midlands"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "saloon",
+              "suv",
+              "estate",
+              "van"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "4785"
+              },
+              "max": {
+                "N": "12710"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2021"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "42"
+          },
+          "avg_price": {
+            "N": "32726.76"
+          },
+          "favorite_makes": {
+            "SS": [
+              "ford",
+              "audi"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-06-10T01:08:35.941854"
+      },
+      "updated_at": {
+        "S": "2024-08-07T01:08:35.941856"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10007"
+      },
+      "name": {
+        "S": "Summit Vehicles"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "53.4808"
+          },
+          "longitude": {
+            "N": "-2.2426"
+          },
+          "city": {
+            "S": "Manchester"
+          },
+          "region": {
+            "S": "North West"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "saloon",
+              "estate",
+              "coupe",
+              "van"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "4717"
+              },
+              "max": {
+                "N": "19143"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "100000"
+          },
+          "min_year": {
+            "N": "2022"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "346"
+          },
+          "avg_price": {
+            "N": "26975.39"
+          },
+          "favorite_makes": {
+            "SS": [
+              "volkswagen",
+              "land rover",
+              "audi"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-11-23T01:08:35.941867"
+      },
+      "updated_at": {
+        "S": "2026-01-12T01:08:35.941868"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10008"
+      },
+      "name": {
+        "S": "Lakeside Motors"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "55.8642"
+          },
+          "longitude": {
+            "N": "-4.2518"
+          },
+          "city": {
+            "S": "Glasgow"
+          },
+          "region": {
+            "S": "Scotland"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "pickup",
+              "van"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "50446"
+              },
+              "max": {
+                "N": "148504"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "100000"
+          },
+          "min_year": {
+            "N": "2021"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "380"
+          },
+          "avg_price": {
+            "N": "16598.33"
+          },
+          "favorite_makes": {
+            "SS": [
+              "land rover"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-02-18T01:08:35.941876"
+      },
+      "updated_at": {
+        "S": "2025-12-18T01:08:35.941878"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10009"
+      },
+      "name": {
+        "S": "Parkway Auto"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "52.9548"
+          },
+          "longitude": {
+            "N": "-1.1581"
+          },
+          "city": {
+            "S": "Nottingham"
+          },
+          "region": {
+            "S": "East Midlands"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "saloon",
+              "coupe",
+              "pickup"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "50047"
+              },
+              "max": {
+                "N": "154607"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "50000"
+          },
+          "min_year": {
+            "N": "2019"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "193"
+          },
+          "avg_price": {
+            "N": "43098.94"
+          },
+          "favorite_makes": {
+            "SS": [
+              "toyota",
+              "land rover",
+              "vauxhall"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-10-03T01:08:35.941885"
+      },
+      "updated_at": {
+        "S": "2026-01-19T01:08:35.941886"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10010"
+      },
+      "name": {
+        "S": "AnyCompany Cars"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "52.6369"
+          },
+          "longitude": {
+            "N": "-1.1398"
+          },
+          "city": {
+            "S": "Leicester"
+          },
+          "region": {
+            "S": "East Midlands"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "petrol",
+              "diesel"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "coupe",
+              "saloon",
+              "pickup"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "24512"
+              },
+              "max": {
+                "N": "58935"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2022"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "443"
+          },
+          "avg_price": {
+            "N": "32497.43"
+          },
+          "favorite_makes": {
+            "SS": [
+              "nissan"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-12-11T01:08:35.941895"
+      },
+      "updated_at": {
+        "S": "2025-12-06T01:08:35.941896"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10011"
+      },
+      "name": {
+        "S": "Westside Vehicles"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "55.8642"
+          },
+          "longitude": {
+            "N": "-4.2518"
+          },
+          "city": {
+            "S": "Glasgow"
+          },
+          "region": {
+            "S": "Scotland"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "diesel"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "coupe",
+              "pickup",
+              "estate"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "4744"
+              },
+              "max": {
+                "N": "13245"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "150000"
+          },
+          "min_year": {
+            "N": "2021"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "214"
+          },
+          "avg_price": {
+            "N": "20227.37"
+          },
+          "favorite_makes": {
+            "SS": [
+              "mercedes"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-10-31T01:08:35.941904"
+      },
+      "updated_at": {
+        "S": "2026-01-22T01:08:35.941905"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10012"
+      },
+      "name": {
+        "S": "Northgate Motors"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "55.8642"
+          },
+          "longitude": {
+            "N": "-4.2518"
+          },
+          "city": {
+            "S": "Glasgow"
+          },
+          "region": {
+            "S": "Scotland"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "petrol",
+              "electric",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "estate",
+              "suv"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "2620"
+              },
+              "max": {
+                "N": "21641"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "75000"
+          },
+          "min_year": {
+            "N": "2022"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "262"
+          },
+          "avg_price": {
+            "N": "34996.85"
+          },
+          "favorite_makes": {
+            "SS": [
+              "mercedes",
+              "vauxhall",
+              "volkswagen"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-12-29T01:08:35.941912"
+      },
+      "updated_at": {
+        "S": "2025-09-14T01:08:35.941913"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10013"
+      },
+      "name": {
+        "S": "Eastway Auto"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "51.5074"
+          },
+          "longitude": {
+            "N": "-0.1278"
+          },
+          "city": {
+            "S": "London"
+          },
+          "region": {
+            "S": "London"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "hybrid",
+              "electric"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "van",
+              "hatchback",
+              "coupe"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "50939"
+              },
+              "max": {
+                "N": "158380"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "50000"
+          },
+          "min_year": {
+            "N": "2018"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "146"
+          },
+          "avg_price": {
+            "N": "26841.85"
+          },
+          "favorite_makes": {
+            "SS": [
+              "ford"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2025-06-15T01:08:35.941922"
+      },
+      "updated_at": {
+        "S": "2025-06-25T01:08:35.941923"
+      }
+    },
+    {
+      "dealer_id": {
+        "S": "DLR10014"
+      },
+      "name": {
+        "S": "Southfield Cars"
+      },
+      "location": {
+        "M": {
+          "latitude": {
+            "N": "53.3811"
+          },
+          "longitude": {
+            "N": "-1.4701"
+          },
+          "city": {
+            "S": "Sheffield"
+          },
+          "region": {
+            "S": "Yorkshire"
+          }
+        }
+      },
+      "preferences": {
+        "M": {
+          "fuel_types": {
+            "SS": [
+              "electric",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "SS": [
+              "pickup",
+              "saloon"
+            ]
+          },
+          "price_range": {
+            "M": {
+              "min": {
+                "N": "3071"
+              },
+              "max": {
+                "N": "20982"
+              }
+            }
+          },
+          "max_mileage": {
+            "N": "50000"
+          },
+          "min_year": {
+            "N": "2020"
+          }
+        }
+      },
+      "buying_history": {
+        "M": {
+          "total_purchases": {
+            "N": "37"
+          },
+          "avg_price": {
+            "N": "36108.33"
+          },
+          "favorite_makes": {
+            "SS": [
+              "volkswagen",
+              "bmw"
+            ]
+          }
+        }
+      },
+      "created_at": {
+        "S": "2024-07-28T01:08:35.941931"
+      },
+      "updated_at": {
+        "S": "2025-11-25T01:08:35.941932"
+      }
+    }
+  ]
+}

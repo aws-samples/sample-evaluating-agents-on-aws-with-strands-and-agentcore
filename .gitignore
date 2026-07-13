@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# AWS CDK
+cdk.out/
+.cdk.staging/
+cdk.context.json
+
+# ASH (Automated Security Helper) — do not commit any ASH files
+.ash/
+
+# Internal-only security tooling artifacts — never publish to the public repo
+.holmes/
+.holmesignore
+.threatmodel/
+threatforest-output/
+.gitlab-ci.yml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+# Catch per-environment files (.env.staging, .env.production, ...) but keep the
+# committed template.
+.env.*
+!.env.example
+
+# Secrets
+secrets/
+*.pem
+*.key
+credentials.json
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# LanceDB
+*.lance
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.hypothesis/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# AgentCore CLI artifacts
+.bedrock_agentcore/
+
+# Ruff cache
+.ruff_cache/
+
+# AI assistant configs (workspace-only)
+.claude/
+.kiro/

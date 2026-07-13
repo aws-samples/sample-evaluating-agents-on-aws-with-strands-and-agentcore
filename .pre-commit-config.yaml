@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/awslabs/git-secrets
+    rev: "99d01d58ebcc06e10e8738f078c1e2d6bce88353"
+    hooks:
+      - id: git-secrets
+        name: git-secrets
+        entry: git-secrets --scan
+        language: system
+        types: [text]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      - id: ruff
+        args: [--fix, --ignore, E501]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]

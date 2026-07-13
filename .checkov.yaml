@@ -1,0 +1,18 @@
+# Checkov configuration for the agentic-evaluation reference deployment.
+#
+# Suppressions below are deliberate and documented. Each entry explains why the
+# finding does not apply to this codebase so a reviewer can audit the decision.
+
+skip-check:
+  # CKV_OPENAPI_5 — "Ensure that security operations is not empty."
+  #
+  # Why skipped: the only operations in dealer-api.json with `security: []` are
+  # the CORS preflight OPTIONS operations (operationId corsPreflightDealers,
+  # corsPreflightDealerDetails). Per the CORS specification, browsers send
+  # preflight OPTIONS requests WITHOUT credentials, so these operations must be
+  # unauthenticated by design. All data-returning operations (GET /dealers,
+  # GET /dealers/{dealer_id}) require ApiKeyAuth and, at deploy time, are
+  # additionally protected by API Gateway IAM SigV4 (authorization_type=IAM,
+  # api_key_required=True in cdk/lib/dealer_api_stack.py). dealer-api.json is a
+  # standalone API contract document, not the deployment source of truth.
+  - CKV_OPENAPI_5

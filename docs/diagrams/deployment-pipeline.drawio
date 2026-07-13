@@ -1,0 +1,106 @@
+<mxfile host="Claude" type="device">
+  <diagram id="deployment-pipeline" name="Deployment Pipeline">
+    <mxGraphModel dx="1800" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1760" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Six-Stage Deployment Pipeline with Evaluation Gates" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="530" y="18" width="700" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Phase band labels -->
+        <mxCell id="ph1" value="Build-Time (strands-agents-evals)" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#B35A00;" vertex="1" parent="1">
+          <mxGeometry x="230" y="90" width="520" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ph2" value="LLM Evaluation" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#2A4B9B;" vertex="1" parent="1">
+          <mxGeometry x="770" y="90" width="240" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ph3" value="Production (AgentCore Evaluations)" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#5A2D9C;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="90" width="520" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Git Push -->
+        <mxCell id="git" value="Git Push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#232F3E;strokeColor=none;fontSize=13;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="120" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 1 -->
+        <mxCell id="s1" value="Stage 1&#10;Unit Tests&#10;and Lint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#ED7100;strokeWidth=2;fontSize=12;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="145" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s1n" value="code quality" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ED7100;strokeColor=none;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="245" y="235" width="100" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 2 -->
+        <mxCell id="s2" value="Stage 2&#10;Tool Correctness&#10;(ToolSelectionGrader,&#10;TrajectoryOrderGrader)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#ED7100;strokeWidth=2;fontSize=11;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="145" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s2n" value="≥ 0.95 accuracy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ED7100;strokeColor=none;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="455" y="235" width="100" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 3 -->
+        <mxCell id="s3" value="Stage 3&#10;Trajectory Tests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3ECFB;strokeColor=#527FFF;strokeWidth=2;fontSize=12;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="145" width="150" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s3n" value="multi-step pass" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#527FFF;strokeColor=none;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="665" y="235" width="100" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 4 -->
+        <mxCell id="s4" value="Stage 4&#10;LLM-as-Judge&#10;(OutputEvaluator, Helpfulness,&#10;GoalSuccessRate)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3ECFB;strokeColor=#527FFF;strokeWidth=2;fontSize=11;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="145" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s4n" value="≥ 0.85 / ≥ 0.90" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#527FFF;strokeColor=none;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="880" y="235" width="100" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 5 -->
+        <mxCell id="s5" value="Stage 5&#10;Staging Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#8C4FFF;strokeWidth=2;fontSize=12;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="145" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s5n" value="on-demand AgentCore eval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#8C4FFF;strokeColor=none;fontSize=9;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="235" width="130" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Stage 6 -->
+        <mxCell id="s6" value="Stage 6&#10;Online Evaluation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2;fontSize=12;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="145" width="170" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="s6n" value="1–5% live sampling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#2E7D32;strokeColor=none;fontSize=10;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1520" y="235" width="130" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- flow edges -->
+        <mxCell id="f0" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#232F3E;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="git" target="s1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="f1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="f2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="f3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#527FFF;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="f4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#527FFF;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="s4" target="s5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="f5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=2;endArrow=block;" edge="1" parent="1" source="s5" target="s6"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Block deployment -->
+        <mxCell id="block" value="Block Deployment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;strokeWidth=2;fontSize=13;fontColor=#B71C1C;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="420" width="200" height="70" as="geometry" />
+        </mxCell>
+        <!-- fail edges -->
+        <mxCell id="fail2" value="fail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#C62828;strokeWidth=2;fontColor=#C62828;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s2" target="block"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="fail4" value="fail" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#C62828;strokeWidth=2;fontColor=#C62828;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s4" target="block"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- feedback loop -->
+        <mxCell id="fb" value="Production failures become new test cases" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;dashed=1;fontColor=#2E7D32;fontSize=11;fontStyle=1;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="s6" target="s2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1585" y="640" />
+              <mxPoint x="505" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

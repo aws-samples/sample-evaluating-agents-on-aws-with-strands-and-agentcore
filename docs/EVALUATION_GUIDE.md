@@ -197,10 +197,10 @@ The single configuration file controls all evaluation behavior:
 project:
   name: "my-agent"
   description: "Evaluation pipeline for my-agent"
-  region: "us-east-1"
+  region: "eu-west-1"
 
-# Judge model for LLM-based evaluators
-judge_model: "us.anthropic.claude-sonnet-4-6"
+# Judge model for LLM-based evaluators (prefix must match the region — see below)
+judge_model: "eu.anthropic.claude-sonnet-4-6"
 
 # Tool descriptions (used by TrajectoryEvaluator)
 tools:
@@ -320,11 +320,11 @@ grader = TrajectoryOrderGrader(threshold=0.85)
 from strands_evals.evaluators import HelpfulnessEvaluator, TrajectoryEvaluator
 
 # Both require a judge model ID
-helpfulness = HelpfulnessEvaluator(model="us.anthropic.claude-sonnet-4-6")
+helpfulness = HelpfulnessEvaluator(model="eu.anthropic.claude-sonnet-4-6")
 trajectory = TrajectoryEvaluator(
     rubric="The agent should select appropriate tools...",
     trajectory_description={"search": "Searches the database", ...},
-    model="us.anthropic.claude-sonnet-4-6",
+    model="eu.anthropic.claude-sonnet-4-6",
 )
 ```
 
@@ -339,9 +339,9 @@ from strands_evals.evaluators import OutputEvaluator, GoalSuccessRateEvaluator
 
 output_eval = OutputEvaluator(
     rubric="Score 1.0 if helpful and complete. Score 0.0 if irrelevant.",
-    model="us.anthropic.claude-sonnet-4-6",
+    model="eu.anthropic.claude-sonnet-4-6",
 )
-goal_eval = GoalSuccessRateEvaluator(model="us.anthropic.claude-sonnet-4-6")
+goal_eval = GoalSuccessRateEvaluator(model="eu.anthropic.claude-sonnet-4-6")
 ```
 
 ### Domain Evaluators (custom, deterministic)
@@ -553,7 +553,7 @@ Scaffold a new project with `agentic-eval init` (see the SDK quickstart).
 from strands import Agent
 
 agent = Agent(
-    model="us.anthropic.claude-sonnet-4-6",
+    model="eu.anthropic.claude-sonnet-4-6",
     tools=[search_tool, analyze_tool],
 )
 

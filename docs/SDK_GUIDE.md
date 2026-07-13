@@ -117,7 +117,7 @@ from agentic_evaluation.adapters.agentcore import make_task_fn
 
 task_fn = make_task_fn(
     runtime_arn="arn:aws:bedrock-agentcore:...",
-    region="us-east-1",
+    region="eu-west-1",
 )
 ```
 

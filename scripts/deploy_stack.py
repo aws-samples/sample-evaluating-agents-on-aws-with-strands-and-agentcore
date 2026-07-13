@@ -59,7 +59,9 @@ def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
     # cmd is built entirely from static/operator-controlled values (sys.executable,
     # repo-internal paths from Path(__file__), and argparse inputs). No external
     # or user-supplied shell strings are involved; shell=True is not used.
-    return subprocess.run(cmd, check=True, **kw)  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit -- args are static/operator-controlled, not external input  # nosec B603
+    return subprocess.run(
+        cmd, check=True, **kw
+    )  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit -- args are static/operator-controlled, not external input  # nosec B603
 
 
 def _build_image(region: str, ecr_repo: str, image_tag: str) -> str:

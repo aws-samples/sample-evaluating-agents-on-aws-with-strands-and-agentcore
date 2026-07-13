@@ -1,0 +1,38 @@
+# Dependabot keeps dependencies patched and surfaces security fixes as PRs.
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # Python packages across every pyproject/uv.lock/requirements tree in the repo.
+  # `directories` (plural) lets one entry watch multiple manifest locations.
+  - package-ecosystem: "pip"
+    directories:
+      - "/"
+      - "/examples/vehicle-auction-agent/agent"
+      - "/examples/vehicle-auction-agent/cdk"
+      - "/examples/vehicle-auction-agent/lambda/functions/data_ingestion"
+      - "/examples/vehicle-auction-agent/lambda/functions/dealer_api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    # ruff is pinned deliberately: its 0.15.x formatter rewrites valid
+    # `except (A, B):` into invalid `except A, B:`. Do not let Dependabot
+    # bump it; version changes go through a reviewed PR that runs the formatter.
+    ignore:
+      - dependency-name: "ruff"
+    # Batch routine version bumps into a few PRs instead of one-per-package.
+    # Security updates always open as their own PRs regardless of grouping.
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  # Keep pinned GitHub Actions (SHA-pinned in workflows) current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"

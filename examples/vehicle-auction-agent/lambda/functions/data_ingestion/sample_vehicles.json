@@ -1,0 +1,6128 @@
+{
+  "vehicles": [
+    {
+      "enquiry_id": {
+        "N": "10000000"
+      },
+      "vrm": {
+        "S": "XX52HBU"
+      },
+      "vehicle_make": {
+        "S": "tesla"
+      },
+      "vehicle_model": {
+        "S": "model x"
+      },
+      "vehicle_detailed_model": {
+        "S": "model x black edition auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.89"
+      },
+      "mileage": {
+        "N": "76980"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "3"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "East"
+      },
+      "seller_area": {
+        "S": "Cambridgeshire"
+      },
+      "seller_town": {
+        "S": "Cambridge"
+      },
+      "seller_city": {
+        "S": "cambridge"
+      },
+      "seller_latitude": {
+        "N": "52.2053"
+      },
+      "seller_longitude": {
+        "N": "0.1218"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sound_system",
+          "cruise_control",
+          "leather_seats",
+          "alloy_wheels",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000001"
+      },
+      "vrm": {
+        "S": "XX54QND"
+      },
+      "vehicle_make": {
+        "S": "toyota"
+      },
+      "vehicle_model": {
+        "S": "camry"
+      },
+      "vehicle_detailed_model": {
+        "S": "camry s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2023"
+      },
+      "engine_size": {
+        "N": "1400"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "18700"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "1.59"
+      },
+      "mileage": {
+        "N": "11644"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "sat_nav",
+          "leather_seats",
+          "heated_seats",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Parking Sensors Front and Rear"
+      },
+      "additional_details": {
+        "S": "Full service history available"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000002"
+      },
+      "vrm": {
+        "S": "XX38YAL"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "qashqai"
+      },
+      "vehicle_detailed_model": {
+        "S": "qashqai gt auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "1600"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "9900"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "3.55"
+      },
+      "mileage": {
+        "N": "34120"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "alloy_wheels",
+          "sound_system",
+          "parking_cam",
+          "leather_seats",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "additional_spec": {
+        "S": "Parking Sensors Front and Rear"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000003"
+      },
+      "vrm": {
+        "S": "XX87REQ"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "a6"
+      },
+      "vehicle_detailed_model": {
+        "S": "a6 premium"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "3000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "14520"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "3.01"
+      },
+      "mileage": {
+        "N": "36290"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "East"
+      },
+      "seller_area": {
+        "S": "Cambridgeshire"
+      },
+      "seller_town": {
+        "S": "Cambridge"
+      },
+      "seller_city": {
+        "S": "cambridge"
+      },
+      "seller_latitude": {
+        "N": "52.2053"
+      },
+      "seller_longitude": {
+        "N": "0.1218"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sound_system",
+          "alloy_wheels",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "Excellent condition throughout"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000004"
+      },
+      "vrm": {
+        "S": "XX17HTR"
+      },
+      "vehicle_make": {
+        "S": "vauxhall"
+      },
+      "vehicle_model": {
+        "S": "vivaro"
+      },
+      "vehicle_detailed_model": {
+        "S": "vivaro s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car",
+          "lcv"
+        ]
+      },
+      "body_category": {
+        "S": "van"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "3"
+      },
+      "reserve_price": {
+        "N": "8910"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "3.82"
+      },
+      "mileage": {
+        "N": "40272"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "panoramic_roof",
+          "cruise_control",
+          "leather_seats",
+          "heated_seats",
+          "parking_cam",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Leather Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000005"
+      },
+      "vrm": {
+        "S": "XX25DEC"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "fiesta"
+      },
+      "vehicle_detailed_model": {
+        "S": "fiesta premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "2500"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5600"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "4.5"
+      },
+      "mileage": {
+        "N": "46245"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "panoramic_roof",
+          "cruise_control",
+          "heated_seats",
+          "sound_system",
+          "climate_control",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "Full service history available"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000006"
+      },
+      "vrm": {
+        "S": "XX74KCZ"
+      },
+      "vehicle_make": {
+        "S": "tesla"
+      },
+      "vehicle_model": {
+        "S": "model y"
+      },
+      "vehicle_detailed_model": {
+        "S": "model y sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.2"
+      },
+      "mileage": {
+        "N": "73386"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "alloy_wheels",
+          "panoramic_roof",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000007"
+      },
+      "vrm": {
+        "S": "XX41PKY"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "a4"
+      },
+      "vehicle_detailed_model": {
+        "S": "a4 premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5775"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "5.07"
+      },
+      "mileage": {
+        "N": "46541"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "South West"
+      },
+      "seller_area": {
+        "S": "Bristol"
+      },
+      "seller_town": {
+        "S": "Bristol"
+      },
+      "seller_city": {
+        "S": "bristol"
+      },
+      "seller_latitude": {
+        "N": "51.4545"
+      },
+      "seller_longitude": {
+        "N": "-2.5879"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "heated_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Cloth Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000008"
+      },
+      "vrm": {
+        "S": "XX18XQM"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "evoque"
+      },
+      "vehicle_detailed_model": {
+        "S": "evoque gt"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1600"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "12800"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "4.89"
+      },
+      "mileage": {
+        "N": "54575"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "sound_system",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000009"
+      },
+      "vrm": {
+        "S": "XX35YXM"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "q5"
+      },
+      "vehicle_detailed_model": {
+        "S": "q5 sport"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "10560"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "4.23"
+      },
+      "mileage": {
+        "N": "50547"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "climate_control",
+          "cruise_control",
+          "sat_nav",
+          "panoramic_roof",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Red Paint, Cloth Interior"
+      },
+      "additional_details": {
+        "S": "Excellent condition throughout"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000010"
+      },
+      "vrm": {
+        "S": "XX85CAW"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "navara"
+      },
+      "vehicle_detailed_model": {
+        "S": "navara black edition"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "2000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "20000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "0.53"
+      },
+      "mileage": {
+        "N": "1040"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "heated_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "White Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "MOT until 2025"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000011"
+      },
+      "vrm": {
+        "S": "XX19RVV"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "x-trail"
+      },
+      "vehicle_detailed_model": {
+        "S": "x-trail m sport"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "2000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "11200"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "2.33"
+      },
+      "mileage": {
+        "N": "21110"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sound_system",
+          "panoramic_roof",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000012"
+      },
+      "vrm": {
+        "S": "XX12DXP"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "q7"
+      },
+      "vehicle_detailed_model": {
+        "S": "q7 s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "3000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "18480"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "2.03"
+      },
+      "mileage": {
+        "N": "18233"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "panoramic_roof",
+          "sound_system",
+          "leather_seats",
+          "cruise_control",
+          "sat_nav"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000013"
+      },
+      "vrm": {
+        "S": "XX25GDQ"
+      },
+      "vehicle_make": {
+        "S": "volkswagen"
+      },
+      "vehicle_model": {
+        "S": "passat"
+      },
+      "vehicle_detailed_model": {
+        "S": "passat m sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "1400"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "22500"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "0.88"
+      },
+      "mileage": {
+        "N": "100"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "East"
+      },
+      "seller_area": {
+        "S": "Cambridgeshire"
+      },
+      "seller_town": {
+        "S": "Cambridge"
+      },
+      "seller_city": {
+        "S": "cambridge"
+      },
+      "seller_latitude": {
+        "N": "52.2053"
+      },
+      "seller_longitude": {
+        "N": "0.1218"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "parking_cam",
+          "panoramic_roof",
+          "sat_nav",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "MOT until 2025"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000014"
+      },
+      "vrm": {
+        "S": "XX91JXL"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "defender"
+      },
+      "vehicle_detailed_model": {
+        "S": "defender black edition auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2023"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "30600"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "1.59"
+      },
+      "mileage": {
+        "N": "11654"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "cruise_control",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000015"
+      },
+      "vrm": {
+        "S": "XX16TPN"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "focus"
+      },
+      "vehicle_detailed_model": {
+        "S": "focus s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "18000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "0.12"
+      },
+      "mileage": {
+        "N": "100"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sat_nav",
+          "panoramic_roof",
+          "sound_system",
+          "leather_seats",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Blue Paint, Cloth Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000016"
+      },
+      "vrm": {
+        "S": "XX75QAJ"
+      },
+      "vehicle_make": {
+        "S": "bmw"
+      },
+      "vehicle_model": {
+        "S": "5 series"
+      },
+      "vehicle_detailed_model": {
+        "S": "5 series m sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.36"
+      },
+      "mileage": {
+        "N": "87829"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "South West"
+      },
+      "seller_area": {
+        "S": "Bristol"
+      },
+      "seller_town": {
+        "S": "Bristol"
+      },
+      "seller_city": {
+        "S": "bristol"
+      },
+      "seller_latitude": {
+        "N": "51.4545"
+      },
+      "seller_longitude": {
+        "N": "-2.5879"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "alloy_wheels",
+          "sound_system",
+          "heated_seats",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "White Paint, Cloth Interior"
+      },
+      "additional_details": {
+        "S": "MOT until 2019"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000017"
+      },
+      "vrm": {
+        "S": "XX53IHL"
+      },
+      "vehicle_make": {
+        "S": "mercedes"
+      },
+      "vehicle_model": {
+        "S": "e-class"
+      },
+      "vehicle_detailed_model": {
+        "S": "e-class premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "2000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "23940"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "2.37"
+      },
+      "mileage": {
+        "N": "27843"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "heated_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000018"
+      },
+      "vrm": {
+        "S": "XX48PEV"
+      },
+      "vehicle_make": {
+        "S": "volkswagen"
+      },
+      "vehicle_model": {
+        "S": "golf"
+      },
+      "vehicle_detailed_model": {
+        "S": "golf s line"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "1800"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.36"
+      },
+      "mileage": {
+        "N": "54189"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "South West"
+      },
+      "seller_area": {
+        "S": "Bristol"
+      },
+      "seller_town": {
+        "S": "Bristol"
+      },
+      "seller_city": {
+        "S": "bristol"
+      },
+      "seller_latitude": {
+        "N": "51.4545"
+      },
+      "seller_longitude": {
+        "N": "-2.5879"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "cruise_control",
+          "panoramic_roof",
+          "sound_system",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Blue Paint, Cloth Interior"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000019"
+      },
+      "vrm": {
+        "S": "XX94BZS"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "qashqai"
+      },
+      "vehicle_detailed_model": {
+        "S": "qashqai m sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "2500"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "20000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "0.49"
+      },
+      "mileage": {
+        "N": "764"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Blue Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Parking Sensors Front and Rear"
+      },
+      "additional_details": {
+        "S": "MOT until 2025"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000020"
+      },
+      "vrm": {
+        "S": "XX67SGA"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "ranger"
+      },
+      "vehicle_detailed_model": {
+        "S": "ranger s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car",
+          "lcv"
+        ]
+      },
+      "body_category": {
+        "S": "pickup"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "4"
+      },
+      "number_of_seats": {
+        "N": "2"
+      },
+      "reserve_price": {
+        "N": "9900"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "3.25"
+      },
+      "mileage": {
+        "N": "34208"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      },
+      "additional_details": {
+        "S": "Full service history available"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000021"
+      },
+      "vrm": {
+        "S": "XX53KTK"
+      },
+      "vehicle_make": {
+        "S": "mercedes"
+      },
+      "vehicle_model": {
+        "S": "e-class"
+      },
+      "vehicle_detailed_model": {
+        "S": "e-class sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "12160"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "4.65"
+      },
+      "mileage": {
+        "N": "50758"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "cruise_control",
+          "climate_control"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "White Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000022"
+      },
+      "vrm": {
+        "S": "XX59OTV"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "fiesta"
+      },
+      "vehicle_detailed_model": {
+        "S": "fiesta se auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "2000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "6.88"
+      },
+      "mileage": {
+        "N": "58803"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "South East"
+      },
+      "seller_area": {
+        "S": "Surrey"
+      },
+      "seller_town": {
+        "S": "Guildford"
+      },
+      "seller_city": {
+        "S": "guildford"
+      },
+      "seller_latitude": {
+        "N": "51.2362"
+      },
+      "seller_longitude": {
+        "N": "-0.5704"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "climate_control",
+          "alloy_wheels",
+          "panoramic_roof",
+          "sound_system",
+          "sat_nav"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000023"
+      },
+      "vrm": {
+        "S": "XX89VVI"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "range rover"
+      },
+      "vehicle_detailed_model": {
+        "S": "range rover premium"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "1000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "9000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "5.38"
+      },
+      "mileage": {
+        "N": "45797"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "panoramic_roof",
+          "parking_cam",
+          "cruise_control",
+          "sound_system",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000024"
+      },
+      "vrm": {
+        "S": "XX82BJQ"
+      },
+      "vehicle_make": {
+        "S": "mercedes"
+      },
+      "vehicle_model": {
+        "S": "glc"
+      },
+      "vehicle_detailed_model": {
+        "S": "glc s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "3000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "38000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "0.45"
+      },
+      "mileage": {
+        "N": "100"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "South East"
+      },
+      "seller_area": {
+        "S": "Surrey"
+      },
+      "seller_town": {
+        "S": "Guildford"
+      },
+      "seller_city": {
+        "S": "guildford"
+      },
+      "seller_latitude": {
+        "N": "51.2362"
+      },
+      "seller_longitude": {
+        "N": "-0.5704"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "parking_cam",
+          "alloy_wheels",
+          "sat_nav",
+          "climate_control",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000025"
+      },
+      "vrm": {
+        "S": "XX54TOO"
+      },
+      "vehicle_make": {
+        "S": "toyota"
+      },
+      "vehicle_model": {
+        "S": "prius"
+      },
+      "vehicle_detailed_model": {
+        "S": "prius gt auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "3000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "6160"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "4.41"
+      },
+      "mileage": {
+        "N": "39647"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "3"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "Excellent condition throughout"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000026"
+      },
+      "vrm": {
+        "S": "XX94PWL"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "defender"
+      },
+      "vehicle_detailed_model": {
+        "S": "defender gt auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "1800"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "7000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "5.73"
+      },
+      "mileage": {
+        "N": "58287"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "cruise_control",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Blue Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "Excellent condition throughout"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000027"
+      },
+      "vrm": {
+        "S": "XX37BKE"
+      },
+      "vehicle_make": {
+        "S": "toyota"
+      },
+      "vehicle_model": {
+        "S": "yaris"
+      },
+      "vehicle_detailed_model": {
+        "S": "yaris gt auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "1400"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "13859"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "2.49"
+      },
+      "mileage": {
+        "N": "18335"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "sat_nav",
+          "sound_system",
+          "alloy_wheels",
+          "heated_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Cloth Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000028"
+      },
+      "vrm": {
+        "S": "XX56LRU"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "micra"
+      },
+      "vehicle_detailed_model": {
+        "S": "micra sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "2500"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "20000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "0.18"
+      },
+      "mileage": {
+        "N": "1520"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "East"
+      },
+      "seller_area": {
+        "S": "Cambridgeshire"
+      },
+      "seller_town": {
+        "S": "Cambridge"
+      },
+      "seller_city": {
+        "S": "cambridge"
+      },
+      "seller_latitude": {
+        "N": "52.2053"
+      },
+      "seller_longitude": {
+        "N": "0.1218"
+      },
+      "equipment": {
+        "SS": [
+          "sound_system",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000029"
+      },
+      "vrm": {
+        "S": "XX72VSB"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "qashqai"
+      },
+      "vehicle_detailed_model": {
+        "S": "qashqai s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "5.06"
+      },
+      "mileage": {
+        "N": "67593"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "alloy_wheels",
+          "climate_control"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      },
+      "additional_details": {
+        "S": "Full service history available"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000030"
+      },
+      "vrm": {
+        "S": "XX21JJY"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "juke"
+      },
+      "vehicle_detailed_model": {
+        "S": "juke gt auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "5.17"
+      },
+      "mileage": {
+        "N": "65017"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "alloy_wheels",
+          "parking_cam",
+          "sat_nav",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000031"
+      },
+      "vrm": {
+        "S": "XX10XDT"
+      },
+      "vehicle_make": {
+        "S": "tesla"
+      },
+      "vehicle_model": {
+        "S": "model 3"
+      },
+      "vehicle_detailed_model": {
+        "S": "model 3 premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "22275"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "3.68"
+      },
+      "mileage": {
+        "N": "28897"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "West Midlands"
+      },
+      "seller_area": {
+        "S": "Birmingham"
+      },
+      "seller_town": {
+        "S": "Birmingham"
+      },
+      "seller_city": {
+        "S": "birmingham"
+      },
+      "seller_latitude": {
+        "N": "52.4862"
+      },
+      "seller_longitude": {
+        "N": "-1.8904"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "DAB Radio, USB Ports"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000032"
+      },
+      "vrm": {
+        "S": "XX25VEG"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "a3"
+      },
+      "vehicle_detailed_model": {
+        "S": "a3 se"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "9240"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "4.2"
+      },
+      "mileage": {
+        "N": "44229"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "3"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "parking_cam",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000033"
+      },
+      "vrm": {
+        "S": "XX27KZM"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "kuga"
+      },
+      "vehicle_detailed_model": {
+        "S": "kuga se"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "12600"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "2.09"
+      },
+      "mileage": {
+        "N": "23233"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "sound_system",
+          "climate_control",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000034"
+      },
+      "vrm": {
+        "S": "XX41RAL"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "range rover"
+      },
+      "vehicle_detailed_model": {
+        "S": "range rover premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "19800"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "3.58"
+      },
+      "mileage": {
+        "N": "33498"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "East"
+      },
+      "seller_area": {
+        "S": "Cambridgeshire"
+      },
+      "seller_town": {
+        "S": "Cambridge"
+      },
+      "seller_city": {
+        "S": "cambridge"
+      },
+      "seller_latitude": {
+        "N": "52.2053"
+      },
+      "seller_longitude": {
+        "N": "0.1218"
+      },
+      "equipment": {
+        "SS": [
+          "alloy_wheels",
+          "leather_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000035"
+      },
+      "vrm": {
+        "S": "XX89QDX"
+      },
+      "vehicle_make": {
+        "S": "toyota"
+      },
+      "vehicle_model": {
+        "S": "yaris"
+      },
+      "vehicle_detailed_model": {
+        "S": "yaris sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2023"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "14960"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "1.38"
+      },
+      "mileage": {
+        "N": "16662"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "panoramic_roof",
+          "climate_control",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "White Paint, Cloth Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000036"
+      },
+      "vrm": {
+        "S": "XX86BUX"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "a3"
+      },
+      "vehicle_detailed_model": {
+        "S": "a3 se auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5775"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "5.1"
+      },
+      "mileage": {
+        "N": "65452"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "3"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "alloy_wheels",
+          "panoramic_roof",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "White Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000037"
+      },
+      "vrm": {
+        "S": "XX25ITS"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "defender"
+      },
+      "vehicle_detailed_model": {
+        "S": "defender black edition"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "7000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "5.88"
+      },
+      "mileage": {
+        "N": "47805"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Scotland"
+      },
+      "seller_area": {
+        "S": "Edinburgh"
+      },
+      "seller_town": {
+        "S": "Edinburgh"
+      },
+      "seller_city": {
+        "S": "edinburgh"
+      },
+      "seller_latitude": {
+        "N": "55.9533"
+      },
+      "seller_longitude": {
+        "N": "-3.1883"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "sat_nav",
+          "parking_cam",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Parking Sensors Front and Rear"
+      },
+      "additional_details": {
+        "S": "Excellent condition throughout"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000038"
+      },
+      "vrm": {
+        "S": "XX50TSN"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "qashqai"
+      },
+      "vehicle_detailed_model": {
+        "S": "qashqai s line"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "1000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "6.83"
+      },
+      "mileage": {
+        "N": "68690"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Scotland"
+      },
+      "seller_area": {
+        "S": "Edinburgh"
+      },
+      "seller_town": {
+        "S": "Edinburgh"
+      },
+      "seller_city": {
+        "S": "edinburgh"
+      },
+      "seller_latitude": {
+        "N": "55.9533"
+      },
+      "seller_longitude": {
+        "N": "-3.1883"
+      },
+      "equipment": {
+        "SS": [
+          "cruise_control",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Red Paint, Cloth Interior"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000039"
+      },
+      "vrm": {
+        "S": "XX42MTT"
+      },
+      "vehicle_make": {
+        "S": "volkswagen"
+      },
+      "vehicle_model": {
+        "S": "tiguan"
+      },
+      "vehicle_detailed_model": {
+        "S": "tiguan m sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "11000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "3.8"
+      },
+      "mileage": {
+        "N": "28734"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "climate_control",
+          "cruise_control",
+          "heated_seats",
+          "parking_cam",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "Full service history available"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000040"
+      },
+      "vrm": {
+        "S": "XX12MVB"
+      },
+      "vehicle_make": {
+        "S": "land rover"
+      },
+      "vehicle_model": {
+        "S": "defender"
+      },
+      "vehicle_detailed_model": {
+        "S": "defender black edition auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "1400"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "17600"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "3.88"
+      },
+      "mileage": {
+        "N": "39499"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "alloy_wheels",
+          "climate_control",
+          "panoramic_roof",
+          "parking_cam",
+          "leather_seats",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "MOT until 2022"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000041"
+      },
+      "vrm": {
+        "S": "XX12MTR"
+      },
+      "vehicle_make": {
+        "S": "bmw"
+      },
+      "vehicle_model": {
+        "S": "x3"
+      },
+      "vehicle_detailed_model": {
+        "S": "x3 black edition"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2023"
+      },
+      "engine_size": {
+        "N": "1000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "26775"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "1.56"
+      },
+      "mileage": {
+        "N": "10264"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "parking_cam",
+          "alloy_wheels",
+          "sat_nav",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000042"
+      },
+      "vrm": {
+        "S": "XX13YVN"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "fiesta"
+      },
+      "vehicle_detailed_model": {
+        "S": "fiesta se"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "3000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "18000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "0.08"
+      },
+      "mileage": {
+        "N": "100"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "leather_seats",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000043"
+      },
+      "vrm": {
+        "S": "XX31YAT"
+      },
+      "vehicle_make": {
+        "S": "toyota"
+      },
+      "vehicle_model": {
+        "S": "corolla"
+      },
+      "vehicle_detailed_model": {
+        "S": "corolla premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2024"
+      },
+      "engine_size": {
+        "N": "2500"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "22000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "0.68"
+      },
+      "mileage": {
+        "N": "691"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "leather_seats",
+          "sat_nav",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000044"
+      },
+      "vrm": {
+        "S": "XX25ERO"
+      },
+      "vehicle_make": {
+        "S": "ford"
+      },
+      "vehicle_model": {
+        "S": "mustang"
+      },
+      "vehicle_detailed_model": {
+        "S": "mustang s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "12600"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "2.57"
+      },
+      "mileage": {
+        "N": "22497"
+      },
+      "service_history": {
+        "SS": [
+          "no"
+        ]
+      },
+      "previous_keepers": {
+        "N": "0"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Wales"
+      },
+      "seller_area": {
+        "S": "Cardiff"
+      },
+      "seller_town": {
+        "S": "Cardiff"
+      },
+      "seller_city": {
+        "S": "cardiff"
+      },
+      "seller_latitude": {
+        "N": "51.4816"
+      },
+      "seller_longitude": {
+        "N": "-3.1791"
+      },
+      "equipment": {
+        "SS": [
+          "parking_cam",
+          "cruise_control",
+          "alloy_wheels",
+          "heated_seats",
+          "sound_system",
+          "climate_control"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000045"
+      },
+      "vrm": {
+        "S": "XX51WUX"
+      },
+      "vehicle_make": {
+        "S": "vauxhall"
+      },
+      "vehicle_model": {
+        "S": "corsa"
+      },
+      "vehicle_detailed_model": {
+        "S": "corsa s line"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1000"
+      },
+      "number_of_doors": {
+        "N": "3"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5040"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "4.43"
+      },
+      "mileage": {
+        "N": "35788"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Scotland"
+      },
+      "seller_area": {
+        "S": "Edinburgh"
+      },
+      "seller_town": {
+        "S": "Edinburgh"
+      },
+      "seller_city": {
+        "S": "edinburgh"
+      },
+      "seller_latitude": {
+        "N": "55.9533"
+      },
+      "seller_longitude": {
+        "N": "-3.1883"
+      },
+      "equipment": {
+        "SS": [
+          "sound_system",
+          "climate_control",
+          "heated_seats"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "White Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "MOT until 2021"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000046"
+      },
+      "vrm": {
+        "S": "XX80DIT"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "a6"
+      },
+      "vehicle_detailed_model": {
+        "S": "a6 s line auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "electric"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "0"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.82"
+      },
+      "mileage": {
+        "N": "82945"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "4"
+      },
+      "condition_category": {
+        "SS": [
+          "Fair"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "climate_control",
+          "sound_system",
+          "parking_cam",
+          "heated_seats",
+          "panoramic_roof",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Red Paint, Cloth Interior"
+      },
+      "additional_details": {
+        "S": "One owner from new"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000047"
+      },
+      "vrm": {
+        "S": "XX52ZQN"
+      },
+      "vehicle_make": {
+        "S": "volkswagen"
+      },
+      "vehicle_model": {
+        "S": "golf"
+      },
+      "vehicle_detailed_model": {
+        "S": "golf premium"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "hatchback"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2019"
+      },
+      "engine_size": {
+        "N": "2000"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "5.73"
+      },
+      "mileage": {
+        "N": "51899"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "Yorkshire"
+      },
+      "seller_area": {
+        "S": "West Yorkshire"
+      },
+      "seller_town": {
+        "S": "Leeds"
+      },
+      "seller_city": {
+        "S": "leeds"
+      },
+      "seller_latitude": {
+        "N": "53.8008"
+      },
+      "seller_longitude": {
+        "N": "-1.5491"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "alloy_wheels"
+        ]
+      },
+      "keys_count": {
+        "N": "3"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Silver Paint, Leather Interior"
+      },
+      "additional_details": {
+        "S": "MOT until 2020"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000048"
+      },
+      "vrm": {
+        "S": "XX68PKI"
+      },
+      "vehicle_make": {
+        "S": "nissan"
+      },
+      "vehicle_model": {
+        "S": "juke"
+      },
+      "vehicle_detailed_model": {
+        "S": "juke premium auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "suv"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "6400"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "4.08"
+      },
+      "mileage": {
+        "N": "34647"
+      },
+      "service_history": {
+        "SS": [
+          "partial"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "South West"
+      },
+      "seller_area": {
+        "S": "Bristol"
+      },
+      "seller_town": {
+        "S": "Bristol"
+      },
+      "seller_city": {
+        "S": "bristol"
+      },
+      "seller_latitude": {
+        "N": "51.4545"
+      },
+      "seller_longitude": {
+        "N": "-2.5879"
+      },
+      "equipment": {
+        "SS": [
+          "leather_seats",
+          "panoramic_roof"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Red Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000049"
+      },
+      "vrm": {
+        "S": "XX47VSU"
+      },
+      "vehicle_make": {
+        "S": "audi"
+      },
+      "vehicle_model": {
+        "S": "q5"
+      },
+      "vehicle_detailed_model": {
+        "S": "q5 se"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "manual"
+      },
+      "manufacture_year": {
+        "N": "2018"
+      },
+      "engine_size": {
+        "N": "1200"
+      },
+      "number_of_doors": {
+        "N": "5"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "5000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "6.83"
+      },
+      "mileage": {
+        "N": "75340"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "3"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": true
+      },
+      "has_private_plate": {
+        "BOOL": true
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Cheshire West and Chester"
+      },
+      "seller_town": {
+        "S": "Chester"
+      },
+      "seller_city": {
+        "S": "chester"
+      },
+      "seller_latitude": {
+        "N": "53.1906"
+      },
+      "seller_longitude": {
+        "N": "-2.8908"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "leather_seats",
+          "sound_system"
+        ]
+      },
+      "keys_count": {
+        "N": "1"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": false
+      },
+      "optional_spec": {
+        "S": "Grey Paint, Cloth Interior"
+      },
+      "additional_spec": {
+        "S": "Bluetooth, Android Auto, Apple CarPlay"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000050"
+      },
+      "vrm": {
+        "S": "XX19BMW"
+      },
+      "vehicle_make": {
+        "S": "bmw"
+      },
+      "vehicle_model": {
+        "S": "3 series"
+      },
+      "vehicle_detailed_model": {
+        "S": "3 series 320i m sport auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "petrol"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2021"
+      },
+      "engine_size": {
+        "N": "1998"
+      },
+      "number_of_doors": {
+        "N": "4"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "24500"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "3.10"
+      },
+      "mileage": {
+        "N": "22150"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "2"
+      },
+      "condition_category": {
+        "SS": [
+          "Very Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "London"
+      },
+      "seller_area": {
+        "S": "Greater London"
+      },
+      "seller_town": {
+        "S": "Westminster"
+      },
+      "seller_city": {
+        "S": "westminster"
+      },
+      "seller_latitude": {
+        "N": "51.4975"
+      },
+      "seller_longitude": {
+        "N": "-0.1357"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sat_nav",
+          "parking_cam",
+          "alloy_wheels",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Black Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "Full BMW service history"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000051"
+      },
+      "vrm": {
+        "S": "XX20BMX"
+      },
+      "vehicle_make": {
+        "S": "bmw"
+      },
+      "vehicle_model": {
+        "S": "3 series"
+      },
+      "vehicle_detailed_model": {
+        "S": "3 series 320d se auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "diesel"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2020"
+      },
+      "engine_size": {
+        "N": "1995"
+      },
+      "number_of_doors": {
+        "N": "4"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "21000"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": true
+      },
+      "age_at_sale_start": {
+        "N": "4.05"
+      },
+      "mileage": {
+        "N": "41800"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "2"
+      },
+      "condition_grade": {
+        "N": "3"
+      },
+      "condition_category": {
+        "SS": [
+          "Good"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "North West"
+      },
+      "seller_area": {
+        "S": "Greater Manchester"
+      },
+      "seller_town": {
+        "S": "Manchester"
+      },
+      "seller_city": {
+        "S": "manchester"
+      },
+      "seller_latitude": {
+        "N": "53.4808"
+      },
+      "seller_longitude": {
+        "N": "-2.2426"
+      },
+      "equipment": {
+        "SS": [
+          "sat_nav",
+          "leather_seats",
+          "cruise_control",
+          "parking_cam"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "Blue Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Parking Sensors Front and Rear"
+      },
+      "additional_details": {
+        "S": "Recently serviced"
+      }
+    },
+    {
+      "enquiry_id": {
+        "N": "10000052"
+      },
+      "vrm": {
+        "S": "XX22BMZ"
+      },
+      "vehicle_make": {
+        "S": "bmw"
+      },
+      "vehicle_model": {
+        "S": "3 series"
+      },
+      "vehicle_detailed_model": {
+        "S": "3 series 330e m sport hybrid auto"
+      },
+      "vehicle_class": {
+        "SS": [
+          "car"
+        ]
+      },
+      "body_category": {
+        "S": "saloon"
+      },
+      "fuel": {
+        "S": "hybrid"
+      },
+      "transmission": {
+        "S": "automatic"
+      },
+      "manufacture_year": {
+        "N": "2022"
+      },
+      "engine_size": {
+        "N": "1998"
+      },
+      "number_of_doors": {
+        "N": "4"
+      },
+      "number_of_seats": {
+        "N": "5"
+      },
+      "reserve_price": {
+        "N": "28900"
+      },
+      "is_vehicle_on_finance": {
+        "BOOL": false
+      },
+      "age_at_sale_start": {
+        "N": "2.20"
+      },
+      "mileage": {
+        "N": "15400"
+      },
+      "service_history": {
+        "SS": [
+          "full"
+        ]
+      },
+      "previous_keepers": {
+        "N": "1"
+      },
+      "condition_grade": {
+        "N": "1"
+      },
+      "condition_category": {
+        "SS": [
+          "Excellent"
+        ]
+      },
+      "has_been_smoked_in": {
+        "BOOL": false
+      },
+      "has_private_plate": {
+        "BOOL": false
+      },
+      "seller_region": {
+        "S": "Scotland"
+      },
+      "seller_area": {
+        "S": "Edinburgh"
+      },
+      "seller_town": {
+        "S": "Edinburgh"
+      },
+      "seller_city": {
+        "S": "edinburgh"
+      },
+      "seller_latitude": {
+        "N": "55.9533"
+      },
+      "seller_longitude": {
+        "N": "-3.1883"
+      },
+      "equipment": {
+        "SS": [
+          "heated_seats",
+          "sat_nav",
+          "panoramic_roof",
+          "parking_cam",
+          "leather_seats",
+          "cruise_control"
+        ]
+      },
+      "keys_count": {
+        "N": "2"
+      },
+      "has_locking_wheel_nut": {
+        "BOOL": true
+      },
+      "optional_spec": {
+        "S": "White Paint, Leather Interior"
+      },
+      "additional_spec": {
+        "S": "Adaptive Cruise Control, Lane Assist"
+      },
+      "additional_details": {
+        "S": "One owner from new, MOT until 2026"
+      }
+    }
+  ]
+}

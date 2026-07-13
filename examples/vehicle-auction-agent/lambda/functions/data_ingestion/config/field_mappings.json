@@ -1,0 +1,53 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-02-17T14:45:00Z",
+  "field_mappings": {
+    "id": ["enquiry_id", "id", "vehicle_id", "vin"],
+    "make": ["vehicle_make", "make", "manufacturer", "brand"],
+    "model": ["vehicle_model", "model", "variant"],
+    "year": ["manufacture_year", "year", "model_year", "registration_year"],
+    "fuel_type": ["fuel", "fuel_type", "fuel_category", "energy_type"],
+    "body_type": ["body_category", "body_type", "vehicle_type", "body_style"],
+    "mileage": ["mileage", "odometer", "miles", "km"],
+    "price": ["reserve_price", "price", "valuation", "asking_price"],
+    "transmission": ["transmission", "gearbox", "transmission_type"],
+    "condition": ["condition_grade", "condition", "condition_score", "quality_rating"],
+    "seller_latitude": ["seller_latitude", "latitude", "lat"],
+    "seller_longitude": ["seller_longitude", "longitude", "lon", "lng"],
+    "seller_city": ["seller_city", "city", "seller_town", "town"],
+    "seller_region": ["seller_region", "region", "seller_area", "area"],
+    "registration": ["registration", "reg", "reg_number"],
+    "colour": ["colour", "color", "exterior_colour"],
+    "doors": ["doors", "door_count", "number_of_doors"],
+    "previous_owners": ["previous_owners", "owners", "keeper_count"],
+    "service_history": ["service_history", "full_service_history"]
+  },
+  "required_fields": ["id", "make", "model"],
+  "optional_fields": [
+    "year", "fuel_type", "body_type", "mileage", "price",
+    "transmission", "condition", "registration", "colour",
+    "doors", "previous_owners", "service_history"
+  ],
+  "fallback_values": {
+    "year": "Unknown",
+    "fuel_type": "unknown",
+    "body_type": "vehicle",
+    "condition": "good",
+    "mileage": 0,
+    "price": 0,
+    "transmission": "unknown",
+    "colour": "unknown",
+    "doors": 0,
+    "previous_owners": 0
+  },
+  "type_conversions": {
+    "year": "int",
+    "mileage": "int",
+    "price": "int",
+    "doors": "int",
+    "previous_owners": "int",
+    "id": "string",
+    "seller_latitude": "float",
+    "seller_longitude": "float"
+  }
+}

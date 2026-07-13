@@ -1,0 +1,35 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+#
+# CodeBuild buildspec for the AgentCore Runtime agent container.
+# Builds an ARM64 image and pushes it to ECR. CodeBuild project must be
+# configured with image type ARM_CONTAINER and a Linux 2 image (e.g.
+# aws/codebuild/amazonlinux2-aarch64-standard:3.0) and privilegedMode=true.
+#
+# Required environment variables (set on the project, not in source):
+#   AWS_DEFAULT_REGION  e.g. eu-west-1
+#   AWS_ACCOUNT_ID
+#   IMAGE_REPO_NAME     ECR repo name, e.g. agent-eval-runtime
+#   IMAGE_TAG           immutable tag — the git SHA (the ECR repo rejects
+#                       overwrites, so this must be unique per build)
+
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to ECR ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - REPO_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME"
+  build:
+    commands:
+      - echo "Building ARM64 image $REPO_URI:$IMAGE_TAG"
+      - docker build --platform linux/arm64 -t "$REPO_URI:$IMAGE_TAG" .
+  post_build:
+    commands:
+      - echo "Pushing image"
+      - docker push "$REPO_URI:$IMAGE_TAG"
+      - printf '{"image_uri":"%s:%s"}' "$REPO_URI" "$IMAGE_TAG" > image.json
+artifacts:
+  files:
+    - image.json

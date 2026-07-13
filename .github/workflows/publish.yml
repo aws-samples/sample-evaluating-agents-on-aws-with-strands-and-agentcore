@@ -1,0 +1,45 @@
+name: publish
+
+# Manual-only. This project is currently clone-only (not published to PyPI).
+# When you decide to ship to PyPI, register the project as a trusted publisher
+# (OIDC), then switch this back to `on: push: tags: ["v*.*.*"]` to auto-publish
+# on each version tag.
+on:
+  workflow_dispatch:
+
+# Least privilege by default; jobs opt into more where needed (publish-pypi sets id-token: write).
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: repo
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+      - name: Build distributions
+        working-directory: repo
+        run: uv build
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dist
+          path: repo/dist/
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/agentic-evaluation
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI via OIDC trusted publisher
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1

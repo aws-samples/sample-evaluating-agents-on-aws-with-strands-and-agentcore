@@ -1,0 +1,626 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dealer API",
+    "description": "REST API for accessing dealer data stored in Amazon DynamoDB. Used for AgentCore Gateway integration to retrieve dealer profiles, preferences, and buying history.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Example Corp Support Team",
+      "email": "support@example.com"
+    },
+    "license": {
+      "name": "MIT-0"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/dealers",
+      "description": "Production API Gateway endpoint (replace with your deployed URL)",
+      "variables": {}
+    },
+    {
+      "url": "https://api-dev.example.com/dealers",
+      "description": "Development environment (replace with your deployed URL)"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/dealers": {
+      "get": {
+        "tags": [
+          "Dealers"
+        ],
+        "summary": "List all dealers",
+        "description": "Retrieve a list of all dealers with their profiles, preferences, and buying history",
+        "operationId": "listDealers",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of dealers to return (default: 50)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with list of dealers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealerListResponse"
+                },
+                "example": {
+                  "dealers": [
+                    {
+                      "dealer_id": "car17097",
+                      "name": "Select Motors",
+                      "location": {
+                        "region": "South West",
+                        "city": "Bristol",
+                        "latitude": 51.4545,
+                        "longitude": -2.5879
+                      },
+                      "preferences": {
+                        "fuel_types": [
+                          "diesel",
+                          "electric",
+                          "hybrid"
+                        ],
+                        "body_types": [
+                          "suv",
+                          "pickup",
+                          "van",
+                          "estate"
+                        ],
+                        "price_range": {
+                          "min": 2242,
+                          "max": 20300
+                        },
+                        "max_mileage": 150000,
+                        "min_year": 2019
+                      },
+                      "buying_history": {
+                        "total_purchases": 23,
+                        "avg_price": 20639.51,
+                        "favorite_makes": [
+                          "mazda",
+                          "nissan",
+                          "honda"
+                        ]
+                      },
+                      "created_at": "2025-12-07T01:08:35.941737",
+                      "updated_at": "2026-01-26T01:08:35.941745"
+                    }
+                  ],
+                  "count": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Invalid limit parameter"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Method not allowed"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Internal server error occurred"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "options": {
+        "tags": [
+          "Dealers"
+        ],
+        "summary": "CORS preflight",
+        "description": "Handle CORS preflight requests. Empty security is intentional: per the CORS spec, browsers send preflight OPTIONS requests without credentials, so this operation must be unauthenticated. All data operations require ApiKeyAuth + API Gateway IAM auth. (CKV_OPENAPI_5 suppressed in .checkov.yaml)",
+        "operationId": "corsPreflightDealers",
+        "responses": {
+          "204": {
+            "description": "CORS preflight successful"
+          }
+        },
+        "security": []
+      }
+    },
+    "/dealers/{dealer_id}": {
+      "get": {
+        "tags": [
+          "Dealers"
+        ],
+        "summary": "Get specific dealer",
+        "description": "Retrieve detailed information for a specific dealer by their ID",
+        "operationId": "getDealer",
+        "parameters": [
+          {
+            "name": "dealer_id",
+            "in": "path",
+            "description": "The unique identifier of the dealer",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9]+$",
+              "minLength": 1,
+              "maxLength": 20
+            },
+            "example": "car17097"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with dealer details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dealer"
+                },
+                "example": {
+                  "dealer_id": "car17097",
+                  "name": "Select Motors",
+                  "location": {
+                    "region": "South West",
+                    "city": "Bristol",
+                    "latitude": 51.4545,
+                    "longitude": -2.5879
+                  },
+                  "preferences": {
+                    "fuel_types": [
+                      "diesel",
+                      "electric",
+                      "hybrid"
+                    ],
+                    "body_types": [
+                      "suv",
+                      "pickup",
+                      "van",
+                      "estate"
+                    ],
+                    "price_range": {
+                      "min": 2242,
+                      "max": 20300
+                    },
+                    "max_mileage": 150000,
+                    "min_year": 2019
+                  },
+                  "buying_history": {
+                    "total_purchases": 23,
+                    "avg_price": 20639.51,
+                    "favorite_makes": [
+                      "mazda",
+                      "nissan",
+                      "honda"
+                    ]
+                  },
+                  "created_at": "2025-12-07T01:08:35.941737",
+                  "updated_at": "2026-01-26T01:08:35.941745"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Dealer not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Dealer car17097 not found"
+                }
+              }
+            }
+          },
+          "405": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Method not allowed"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Internal server error occurred"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "options": {
+        "tags": [
+          "Dealers"
+        ],
+        "summary": "CORS preflight for dealer details",
+        "description": "Handle CORS preflight requests for specific dealer endpoint. Empty security is intentional: CORS preflight OPTIONS requests are unauthenticated by spec. All data operations require ApiKeyAuth + API Gateway IAM auth. (CKV_OPENAPI_5 suppressed in .checkov.yaml)",
+        "operationId": "corsPreflightDealerDetails",
+        "parameters": [
+          {
+            "name": "dealer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "CORS preflight successful"
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Dealer": {
+        "type": "object",
+        "required": [
+          "dealer_id",
+          "name",
+          "location",
+          "preferences",
+          "buying_history",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "dealer_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9]+$",
+            "minLength": 1,
+            "maxLength": 20,
+            "description": "Unique identifier for the dealer",
+            "example": "car17097"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "Name of the dealership",
+            "example": "Select Motors"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/Preferences"
+          },
+          "buying_history": {
+            "$ref": "#/components/schemas/BuyingHistory"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the dealer record was created",
+            "example": "2025-12-07T01:08:35.941737"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO 8601 timestamp when the dealer record was last updated",
+            "example": "2026-01-26T01:08:35.941745"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "required": [
+          "region",
+          "city",
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "region": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Geographic region (e.g., South West, London, Scotland)",
+            "example": "South West"
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "City name",
+            "example": "Bristol"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double",
+            "minimum": -90,
+            "maximum": 90,
+            "description": "Latitude coordinate for dealer location",
+            "example": 51.4545
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double",
+            "minimum": -180,
+            "maximum": 180,
+            "description": "Longitude coordinate for dealer location",
+            "example": -2.5879
+          }
+        }
+      },
+      "Preferences": {
+        "type": "object",
+        "required": [
+          "fuel_types",
+          "body_types",
+          "price_range",
+          "max_mileage",
+          "min_year"
+        ],
+        "properties": {
+          "fuel_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "petrol",
+                "diesel",
+                "electric",
+                "hybrid"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "description": "Preferred fuel types for inventory",
+            "example": [
+              "diesel",
+              "electric",
+              "hybrid"
+            ]
+          },
+          "body_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "saloon",
+                "coupe",
+                "hatchback",
+                "estate",
+                "suv",
+                "pickup",
+                "van"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 7,
+            "uniqueItems": true,
+            "description": "Preferred body types for inventory",
+            "example": [
+              "suv",
+              "pickup",
+              "van",
+              "estate"
+            ]
+          },
+          "price_range": {
+            "$ref": "#/components/schemas/PriceRange"
+          },
+          "max_mileage": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999999,
+            "description": "Maximum acceptable mileage in miles",
+            "example": 150000
+          },
+          "min_year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2100,
+            "description": "Minimum acceptable vehicle year",
+            "example": 2019
+          }
+        }
+      },
+      "PriceRange": {
+        "type": "object",
+        "required": [
+          "min",
+          "max"
+        ],
+        "properties": {
+          "min": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "description": "Minimum acceptable price in currency units",
+            "example": 2242
+          },
+          "max": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "description": "Maximum acceptable price in currency units",
+            "example": 20300
+          }
+        }
+      },
+      "BuyingHistory": {
+        "type": "object",
+        "required": [
+          "total_purchases",
+          "avg_price",
+          "favorite_makes"
+        ],
+        "properties": {
+          "total_purchases": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Total number of vehicles purchased",
+            "example": 23
+          },
+          "avg_price": {
+            "type": "number",
+            "format": "double",
+            "minimum": 0,
+            "description": "Average price of vehicles purchased",
+            "example": 20639.51
+          },
+          "favorite_makes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "minItems": 1,
+            "maxItems": 50,
+            "uniqueItems": true,
+            "description": "List of favorite vehicle manufacturers",
+            "example": [
+              "mazda",
+              "nissan",
+              "honda"
+            ]
+          }
+        }
+      },
+      "DealerListResponse": {
+        "type": "object",
+        "required": [
+          "dealers",
+          "count"
+        ],
+        "properties": {
+          "dealers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dealer"
+            },
+            "maxItems": 100,
+            "description": "Array of dealer objects (bounded by the `limit` query parameter)"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of dealers returned",
+            "example": 10
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message describing what went wrong",
+            "example": "Internal server error"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "API Key for authentication. Provide your API key in the x-api-key header."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Dealers",
+      "description": "Dealer management endpoints"
+    }
+  ],
+  "x-amazon-apigateway-request-validators": {
+    "all": {
+      "validateRequestBody": true,
+      "validateRequestParameters": true
+    }
+  }
+}

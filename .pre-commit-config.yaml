@@ -9,7 +9,8 @@ repos:
         types: [text]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+    # Keep in lockstep with the ruff pin in pyproject.toml [dependency-groups].
+    rev: v0.14.14
     hooks:
       - id: ruff
         args: [--fix, --ignore, E501]

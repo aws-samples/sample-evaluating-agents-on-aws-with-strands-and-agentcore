@@ -55,9 +55,7 @@ def test_redacts_actor_and_session_via_child_logger(root_with_stream):
     """Mirrors app.py:640 — a child logger emitting the actual log line."""
     log_redactor.install_redaction_filter()
 
-    logging.getLogger("agent.app").info(
-        "Processing: actor=%s, session=%s", "DEALER123", "SESS999"
-    )
+    logging.getLogger("agent.app").info("Processing: actor=%s, session=%s", "DEALER123", "SESS999")
 
     out = root_with_stream.getvalue()
     assert "DEALER123" not in out
@@ -106,9 +104,7 @@ def test_disabled_via_env_passes_through(monkeypatch):
 
     try:
         log_redactor.install_redaction_filter()
-        assert not any(
-            isinstance(f, log_redactor.SensitiveFieldFilter) for f in handler.filters
-        )
+        assert not any(isinstance(f, log_redactor.SensitiveFieldFilter) for f in handler.filters)
         logging.getLogger("agent.app").info("Processing: actor=%s", "PLAINTEXT")
         assert "PLAINTEXT" in buf.getvalue()
     finally:

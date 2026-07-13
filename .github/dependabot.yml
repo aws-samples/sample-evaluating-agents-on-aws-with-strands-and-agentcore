@@ -14,6 +14,11 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    # ruff is pinned deliberately: its 0.15.x formatter rewrites valid
+    # `except (A, B):` into invalid `except A, B:`. Do not let Dependabot
+    # bump it; version changes go through a reviewed PR that runs the formatter.
+    ignore:
+      - dependency-name: "ruff"
     # Batch routine version bumps into a few PRs instead of one-per-package.
     # Security updates always open as their own PRs regardless of grouping.
     groups:

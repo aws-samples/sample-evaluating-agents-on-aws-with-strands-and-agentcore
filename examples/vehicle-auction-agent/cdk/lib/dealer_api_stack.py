@@ -153,7 +153,7 @@ class DealerApiStack(Stack):
                     else [f"https://agent-eval.{env_name}.example.com"]
                 ),
                 allow_methods=["GET", "OPTIONS"],
-                allow_headers=["Content-Type", "X-Api-Key", "Authorization"],
+                allow_headers=["Content-Type", "Authorization"],
             ),
             endpoint_types=[apigw.EndpointType.REGIONAL],  # Regional endpoint
         )
@@ -208,8 +208,8 @@ class DealerApiStack(Stack):
         )
 
         # AWS WAF WebACL — edge protection for the only internet-facing HTTP
-        # surface in this project. Layers on top of the usage-plan throttling
-        # (per-key quota) with volumetric + signature defenses:
+        # surface in this project. Layers on top of the stage-level throttling
+        # (deploy_options) with volumetric + signature defenses:
         #   - rate-based rule: block IPs exceeding 2000 requests / 5 min
         #   - AWS managed common rule set (OWASP-style signatures)
         #   - AWS managed known-bad-inputs rule set

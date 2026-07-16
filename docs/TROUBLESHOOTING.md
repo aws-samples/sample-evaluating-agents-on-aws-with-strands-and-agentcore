@@ -477,7 +477,7 @@ aws cloudformation describe-stacks \
 
 ### Community
 
-- **GitHub Issues**: [Report an issue on GitHub](https://github.com/aws-samples/evaluating-agents-on-aws-with-strands-and-agentcore/issues)
+- **GitHub Issues**: [Report an issue on GitHub](https://github.com/aws-samples/sample-evaluating-agents-on-aws-with-strands-and-agentcore/issues)
 - **Slack**: #agent-eval-support
 
 ---

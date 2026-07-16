@@ -354,7 +354,7 @@ Use CodeBuild instead of local Docker build:
 ```bash
 # Trigger CodeBuild
 aws codebuild start-build \
-  --project-name agent-eval-runtime-build-dev \
+  --project-name agent-eval-runtime-build \
   --region eu-west-1
 
 # Monitor build
@@ -365,26 +365,26 @@ aws codebuild batch-get-builds \
 
 ---
 
-### Issue: Lambda function fails to pull ECR image
+### Issue: AgentCore Runtime fails to pull ECR image
 
 **Error**:
-```
+```text
 CannotPullContainerError: Error response from daemon: pull access denied
 ```
 
 **Solution**:
-1. **Grant Lambda permission to pull from ECR**:
+The AgentCore Runtime (not a Lambda function) pulls the agent's container image. The CDK grants the runtime execution role ECR pull access via `ecr_repo.grant_pull(execution_role)` in `cdk/lib/agent_runtime_stack.py`. If a pull fails:
+
+1. **Verify the runtime execution role can pull from ECR**:
 ```bash
-# Check Lambda execution role has AmazonEC2ContainerRegistryReadOnly
-aws iam attach-role-policy \
-  --role-name agent-eval-runtime-dev \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+# The runtime execution role is agent-eval-runtime-role-<env>
+aws iam list-role-policies --role-name agent-eval-runtime-role-dev
 ```
 
-2. **Verify image exists**:
+2. **Verify the image exists** (repo name has no environment suffix):
 ```bash
 aws ecr describe-images \
-  --repository-name agent-eval-runtime-dev \
+  --repository-name agent-eval-runtime \
   --region eu-west-1
 ```
 
@@ -522,13 +522,12 @@ aws lambda get-function-configuration \
   --function-name agent-eval-data-ingestion-dev \
   --region eu-west-1
 
-# Update function code
-# The ECR repo is IMMUTABLE, so reference an exact image tag (the git SHA the
-# image was built from) rather than a mutable "latest" tag.
-aws lambda update-function-code \
-  --function-name agent-eval-runtime-dev \
-  --image-uri {account}.dkr.ecr.eu-west-1.amazonaws.com/agent-eval-runtime-dev:{git-sha} \
-  --region eu-west-1
+# Update the AGENT RUNTIME image (the agent runs on AgentCore Runtime, not
+# Lambda). Rebuild + redeploy through the project's deploy script, which builds
+# the image in CodeBuild and points the runtime at the new immutable tag:
+python scripts/deploy_stack.py --region eu-west-1 --image-tag <git-sha>
+# (Under the hood this calls bedrock-agentcore-control update-agent-runtime with
+# the new container image; do not use `aws lambda update-function-code`.)
 ```
 
 ### S3 Operations
@@ -568,7 +567,7 @@ aws s3 rm s3://amzn-s3-demo-bucket-agent-eval-dev/ --recursive --region eu-west-
 **Amazon ECR repository** (if not removed by CDK destroy):
 ```bash
 aws ecr delete-repository \
-  --repository-name agent-eval-runtime-dev \
+  --repository-name agent-eval-runtime \
   --force \
   --region eu-west-1
 ```
@@ -576,7 +575,9 @@ aws ecr delete-repository \
 **Amazon CloudWatch Log groups** (if not removed by CDK destroy):
 ```bash
 aws logs delete-log-group --log-group-name /aws/lambda/agent-eval-data-ingestion-dev --region eu-west-1
-aws logs delete-log-group --log-group-name /aws/lambda/agent-eval-runtime-dev --region eu-west-1
+# The agent runtime logs under the AgentCore path (not /aws/lambda), using the
+# underscore-based runtime name:
+aws logs delete-log-group --log-group-name /aws/bedrock-agentcore/runtimes/agent_eval_runtime_dev --region eu-west-1
 ```
 
 ## Conclusion

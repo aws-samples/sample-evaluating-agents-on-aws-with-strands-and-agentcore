@@ -8,12 +8,17 @@ No local Docker bundling. Uses ``AgentRuntimeArtifact.from_image_uri``
 so the container image is built outside CDK (by CodeBuild) and the stack
 just registers the runtime.
 
+The agent uses Amazon Bedrock AgentCore Memory for cross-session dealer memory
+and reaches dealer profiles through an AgentCore Gateway (owned by the dealer-api
+stack) rather than calling Amazon DynamoDB directly.
+
 Security hardening:
 - IAM execution role is pre-created with ``aws:SourceAccount`` and
   ``aws:SourceArn`` confused-deputy guards in the trust policy.
 - Optional Cognito JWT authorizer when a ``user_pool`` is supplied;
   otherwise IAM auth is used.
-- Least-privilege resource ARNs for Amazon Bedrock / DynamoDB / S3 / ECR.
+- Least-privilege resource ARNs for Amazon Bedrock / S3 / ECR, scoped
+  AgentCore Memory grants, and a Gateway-scoped invoke grant.
 
 Cleanup:
     Important: Destroying this stack removes the AgentCore Runtime and its
@@ -35,6 +40,9 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
 from aws_cdk.aws_bedrockagentcore import (
     AgentRuntimeArtifact,
+    IGateway,
+    Memory,
+    MemoryStrategy,
     ProtocolType,
     Runtime,
     RuntimeAuthorizerConfiguration,
@@ -53,6 +61,12 @@ class AgentRuntimeStack(Stack):
         ``123456789012.dkr.ecr.eu-west-1.amazonaws.com/agent-eval-runtime:latest``.
     data_bucket : s3.IBucket
         S3 bucket holding LanceDB / vehicle data.
+    dealer_gateway : optional IGateway
+        AgentCore Gateway (from the dealer-api stack) that fronts the Dealer
+        API as an MCP tool. When supplied, the runtime role is granted invoke
+        access to it.
+    gateway_url : optional str
+        The Gateway MCP endpoint, passed to the agent as ``GATEWAY_URL``.
     user_pool / user_pool_client : optional Cognito resources for JWT auth.
         If omitted, the runtime falls back to IAM authorization.
     """
@@ -64,6 +78,8 @@ class AgentRuntimeStack(Stack):
         *,
         image_uri: str,
         data_bucket: s3.IBucket,
+        dealer_gateway: Optional[IGateway] = None,
+        gateway_url: Optional[str] = None,
         user_pool: Optional[cognito.IUserPool] = None,
         user_pool_client: Optional[cognito.IUserPoolClient] = None,
         enable_cognito: bool = False,
@@ -194,6 +210,25 @@ class AgentRuntimeStack(Stack):
         self.guardrail_arn = guardrail.attr_guardrail_arn
         self.guardrail_version = guardrail_version.attr_version
 
+        # ── Amazon Bedrock AgentCore Memory ─────────────────────────────────
+        # Long-term memory so the agent recalls dealer preferences and facts
+        # across sessions. The built-in user-preference and semantic strategies
+        # extract structured memory from raw conversation events; the agent's
+        # session manager retrieves from the /preferences/{actorId}/ and
+        # /facts/{actorId}/ namespaces (see agent/app.py). Short-term (session)
+        # transcript persistence is included by default.
+        self.memory = Memory(
+            self,
+            "AgentMemory",
+            memory_name=f"agent_eval_memory_{env_name}",
+            description=f"Dealer long-term memory ({env_name})",
+            memory_strategies=[
+                MemoryStrategy.using_built_in_user_preference(),
+                MemoryStrategy.using_built_in_semantic(),
+            ],
+        )
+        self.memory_id = self.memory.memory_id
+
         # ── Reference the existing ECR image (no local Docker) ──────────────
         agent_artifact = AgentRuntimeArtifact.from_image_uri(image_uri)
 
@@ -218,9 +253,13 @@ class AgentRuntimeStack(Stack):
                 "DATA_BUCKET": data_bucket.bucket_name,
                 "ENVIRONMENT": env_name,
                 "LANCEDB_PATH": "lancedb/latest.json",
-                "DEALERS_TABLE": f"agent-eval-dealers-{env_name}",
                 "GUARDRAIL_ID": self.guardrail_id,
                 "GUARDRAIL_VERSION": self.guardrail_version,
+                # AgentCore Memory (cross-session dealer memory) and Gateway
+                # (dealer-profile tool). The agent reads dealer profiles through
+                # the Gateway, not DynamoDB, so no DEALERS_TABLE var is needed.
+                "MEMORY_ID": self.memory_id,
+                "GATEWAY_URL": gateway_url or "",
             },
             authorizer_configuration=authorizer,
             network_configuration=RuntimeNetworkConfiguration.using_public_network(),
@@ -278,16 +317,21 @@ class AgentRuntimeStack(Stack):
             )
         )
 
-        # ── DynamoDB dealer profiles ────────────────────────────────────────
-        self.runtime.add_to_role_policy(
-            iam.PolicyStatement(
-                actions=["dynamodb:GetItem", "dynamodb:Query"],
-                resources=[
-                    f"arn:aws:dynamodb:{self.region}:{self.account}"
-                    f":table/agent-eval-dealers-{env_name}",
-                ],
-            )
-        )
+        # ── AgentCore Memory (read + write + short-term delete) ─────────────
+        # The Strands session manager writes conversation events, reads back
+        # extracted long-term memory, and DELETES+recreates short-term events
+        # when redacting a message — so DeleteEvent is required in addition to
+        # read/write. All grants are scoped to this memory resource.
+        self.memory.grant_read(execution_role)
+        self.memory.grant_write(execution_role)
+        self.memory.grant_delete_short_term_memory(execution_role)
+
+        # ── AgentCore Gateway invocation (dealer-profile tool over MCP) ─────
+        # The runtime signs its MCP calls to the Gateway with SigV4. Use the
+        # Gateway L2's own grant so the exact IAM action stays owned by the
+        # construct (least-privilege, scoped to this Gateway ARN).
+        if dealer_gateway is not None:
+            dealer_gateway.grant_invoke(execution_role)
 
         # ── HTTP endpoint ───────────────────────────────────────────────────
         self.endpoint = self.runtime.add_endpoint(

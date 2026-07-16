@@ -38,7 +38,9 @@ def task_fn(case) -> TaskFnResult:
     }
 ```
 
-`case` is an instance of `agentic_evaluation.test_cases.TestCase`. The SDK gives the
+`case` is an instance of `strands_evals.Case`, built from your
+`agentic_evaluation.test_cases.TestCase` config entries by `build_cases_from_registry()`.
+Read the query with `case.input`. The SDK gives the
 runner the test case; your adapter is responsible for invoking the agent and
 extracting the final output, the tool trajectory, and any metadata you want
 domain evaluators to see. The metadata keys the built-in evaluators read are
@@ -74,9 +76,9 @@ pip install "agentic-evaluation[all]"
 
 Verify the installation:
 ```bash
-agentic-eval --version
-# or
 python -c "import agentic_evaluation; print('SDK installed')"
+# or confirm the CLI is on PATH:
+agentic-eval --help
 ```
 
 ## CLI
@@ -136,7 +138,7 @@ def task_fn(case):
     t0 = time.time()
     resp = client.responses.create(
         model="gpt-4o-mini",
-        input=case.query,
+        input=case.input,
         tools=[...],
     )
     return {

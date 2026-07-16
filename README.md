@@ -6,7 +6,7 @@
 
 > **Note:** AWS code samples are example code that demonstrates practical implementations of AWS services for specific use cases and scenarios.
 >
-> These application solutions are not supported products in their own right, but educational examples to help our customers use our products for their applications. As our customer, any applications you integrate these examples into should be thoroughly tested, secured, and optimized according to your business's security standards & policies before deploying to production or handling production workloads.
+> These application solutions are not supported products in their own right, but educational examples to help our customers use our products for their applications. As our customer, any applications you integrate these examples into should be thoroughly tested, secured, and optimized according to your business's security standards and policies before deploying to production or handling production workloads.
 >
 > Before any real-world use, review the security controls in [docs/SECURITY.md](docs/SECURITY.md) and the [Production security recommendations](#production-security-recommendations) below, and adapt the code to your own requirements.
 
@@ -31,8 +31,8 @@ Install uv: `curl -LsSf https://astral.sh/uv/install.sh | sh`
 ## SDK quickstart (no AWS, <60s)
 
 ```bash
-git clone https://github.com/aws-samples/evaluating-agents-on-aws-with-strands-and-agentcore.git
-cd evaluating-agents-on-aws-with-strands-and-agentcore
+git clone https://github.com/aws-samples/sample-evaluating-agents-on-aws-with-strands-and-agentcore.git
+cd sample-evaluating-agents-on-aws-with-strands-and-agentcore
 uv sync
 uv run python quickstart/run_demo.py
 ```
@@ -99,22 +99,24 @@ The diagrams below are rendered from editable source in [`docs/diagrams/`](docs/
 
 ### Data Ingestion Pipeline
 
-![Architecture diagram showing a daily Amazon EventBridge trigger invoking an AWS Lambda ingestion function that reads vehicle data from a source (BigQuery, mocked in this sample by reading sample data from Amazon S3), enriches text with Amazon Nova Lite v1, generates embeddings with Amazon Titan Text Embeddings V2, and writes a LanceDB dataset to Amazon S3 that the Amazon Bedrock AgentCore Runtime loads into an in-memory LanceDB at cold start. All in eu-west-1.](docs/images/data-ingestion-pipeline.png)
+![Architecture diagram showing a daily Amazon EventBridge trigger invoking an AWS Lambda ingestion function that reads vehicle data from a source (BigQuery, mocked in this sample by reading sample data from Amazon S3), generates embeddings with Amazon Titan Text Embeddings V2, and writes a LanceDB dataset to Amazon S3 that the Amazon Bedrock AgentCore Runtime loads into an in-memory LanceDB at cold start. All in eu-west-1.](docs/images/data-ingestion-pipeline.png)
 
 Daily automated refresh of vehicle inventory:
 - **Amazon EventBridge**: Scheduled daily trigger before auction starts
-- **AWS Lambda**: Ingestion function that reads vehicle data from the source (BigQuery is mocked in this sample — it reads sample data from Amazon S3)
+- **AWS Lambda**: Ingestion function that reads vehicle data from the source (BigQuery is mocked in this sample; it reads sample data from Amazon S3)
 - **Amazon Nova Lite v1**: Text contextualization for semantic search
 - **Amazon Titan Text Embeddings V2**: 1,024-dimension vector generation
 - **Amazon S3**: Persistent storage for the LanceDB dataset, loaded into an in-memory LanceDB by the AgentCore Runtime at cold start
 
 ### Agent Runtime Architecture
 
-![Architecture diagram showing Amazon Bedrock AgentCore Runtime orchestrating 8 tools (search_vehicles, run_sql, hybrid_search, filter_by_distance, get_schema, get_embedding, get_bids, get_dealer_profile), using Claude Sonnet 4.6 via Amazon Bedrock for reasoning and LanceDB combining Amazon S3 persistence with in-memory performance.](docs/images/agent-runtime.png)
+![Architecture diagram showing Amazon Bedrock AgentCore Runtime orchestrating 7 local tools (search_vehicles, run_sql, hybrid_search, filter_by_distance, get_schema, get_embedding, get_bids) plus a dealer-profile tool served through Amazon Bedrock AgentCore Gateway, using Claude Sonnet 4.6 via Amazon Bedrock for reasoning, Amazon Bedrock AgentCore Memory for cross-session dealer memory, and LanceDB combining Amazon S3 persistence with in-memory performance.](docs/images/agent-runtime.png)
 
-AgentCore Runtime orchestrates **8 tools** (see `examples/vehicle-auction-agent/agent/app.py`):
-- **Search & retrieval**: `search_vehicles` (structured filters), `run_sql` (validated pandas query), `hybrid_search` (semantic), `filter_by_distance` (geo)
-- **Supporting**: `get_schema`, `get_embedding`, `get_bids`, `get_dealer_profile` (Amazon DynamoDB lookup)
+AgentCore Runtime orchestrates **8 tools** — 7 local plus 1 served through the Gateway (see `examples/vehicle-auction-agent/agent/app.py`):
+- **Search and retrieval**: `search_vehicles` (structured filters), `run_sql` (validated pandas query), `hybrid_search` (semantic), `filter_by_distance` (geo)
+- **Supporting**: `get_schema`, `get_embedding`, `get_bids`
+- **Dealer profile**: served through **Amazon Bedrock AgentCore Gateway**, which fronts the Dealer API as an MCP tool (the agent no longer reads Amazon DynamoDB directly)
+- **Amazon Bedrock AgentCore Memory**: cross-session dealer memory (preferences and facts) via built-in user-preference and semantic strategies
 - **Claude Sonnet 4.6 from Anthropic (available through Amazon Bedrock)**: Reasoning and orchestration
 - **LanceDB**: Dual-layer architecture (Amazon S3 persistence + in-memory performance)
 
@@ -191,10 +193,10 @@ Amazon Bedrock AgentCore Evaluations provides continuous production monitoring w
 ## Prerequisites
 
 - **AWS Account** with access to Amazon Bedrock and Amazon Bedrock AgentCore
-- **AWS CDK** v2.100+ installed and bootstrapped: `npm install -g aws-cdk`
+- **AWS CDK** v2.241+ installed and bootstrapped: `npm install -g aws-cdk`
 - **Python 3.14+**: Check with `python --version`
 - **[uv](https://docs.astral.sh/uv/) package manager (v0.4+)**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **GitLab account** (for CI/CD pipeline)
+- **GitHub account** (for CI/CD pipeline via GitHub Actions)
 - **Amazon Bedrock model access**: Request access to the following foundation models in Amazon Bedrock:
   - Amazon Titan Text Embeddings V2
   - Amazon Nova Lite v1
@@ -215,8 +217,8 @@ Verify that you have sufficient quotas for:
 Clone the repository:
 
 ```bash
-git clone https://github.com/aws-samples/evaluating-agents-on-aws-with-strands-and-agentcore.git
-cd evaluating-agents-on-aws-with-strands-and-agentcore
+git clone https://github.com/aws-samples/sample-evaluating-agents-on-aws-with-strands-and-agentcore.git
+cd sample-evaluating-agents-on-aws-with-strands-and-agentcore
 ```
 
 Install dependencies with uv:
@@ -251,19 +253,17 @@ Bootstrap the CDK environment. Skip this step if you have already bootstrapped t
 cdk bootstrap aws://ACCOUNT-ID/REGION
 ```
 
-Change to the CDK directory:
+Deploy everything with the end-to-end script (run from the repository root):
 
 ```bash
-cd examples/vehicle-auction-agent/cdk
+python scripts/deploy_stack.py --region eu-west-1
 ```
 
-Deploy the stack:
+This is the supported one-shot flow. It builds the agent container in AWS CodeBuild (no local Docker), pushes it to Amazon ECR, then runs `cdk deploy --all` with the resulting image URI so the **agent-runtime stack is included**. Note the outputs (AgentCore Runtime endpoint, S3 bucket name, etc.).
 
-```bash
-uv run cdk deploy --all --require-approval never
-```
-
-Note the outputs (AgentCore Runtime endpoint, S3 bucket name, etc.).
+> **Why not bare `cdk deploy --all`?** The agent-runtime stack only deploys when an `agent_image_uri` context value is present (see `examples/vehicle-auction-agent/cdk/app.py`). Running `cdk deploy --all` directly with no prebuilt image **silently skips the agent runtime**. You get the data, dealer-API, evaluation, and monitoring stacks but not the agent itself. Use `deploy_stack.py` so the image is built and wired in for you.
+>
+> Later, to re-deploy CDK-only changes without rebuilding the image, add `--skip-build` (reuses the existing `:latest` image in ECR).
 
 ### 5. Run Build-Time Quality Checks
 
@@ -283,7 +283,7 @@ uv run pytest tests/ -m deployed -v
 
 All tests should pass with no failures. A successful run produces output similar to:
 
-```
+```text
 ===== X passed in Y.YYs =====
 ```
 
@@ -296,15 +296,19 @@ After completing these steps, you have deployed the agent evaluation infrastruct
 To enable Amazon Bedrock AgentCore Online Evaluation, use the AWS Console or CLI:
 
 ```bash
-aws bedrock-agentcore create-evaluation-config \
-  --agent-id YOUR_AGENT_ID \
-  --sampling-rate 0.03 \
-  --evaluators Builtin.Helpfulness Builtin.GoalSuccessRate Builtin.ToolSelection
+aws bedrock-agentcore-control create-online-evaluation-config \
+  --online-evaluation-config-name dealer-search-online-eval \
+  --rule '{"samplingConfig":{"samplingPercentage":3.0},"sessionConfig":{"sessionTimeoutMinutes":30}}' \
+  --data-source-config '{"cloudWatchLogs":{"logGroupNames":["/aws/bedrock-agentcore/agent-eval-dev"],"serviceNames":["agent-eval-dev-agent-runtime"]}}' \
+  --evaluators '[{"evaluatorId":"Builtin.Helpfulness"},{"evaluatorId":"Builtin.GoalSuccessRate"},{"evaluatorId":"Builtin.ToolSelection"}]' \
+  --evaluation-execution-role-arn arn:aws:iam::123456789012:role/agentcore-eval-execution-role
 ```
+
+`samplingPercentage` is a percentage from 0.01 to 100, so `3.0` samples 3% of traffic.
 
 ## Repository Structure
 
-```
+```text
 .
 ├── README.md                          # This file
 ├── CONTRIBUTING.md                    # Contribution guidelines
@@ -312,7 +316,7 @@ aws bedrock-agentcore create-evaluation-config \
 ├── pyproject.toml                     # uv package configuration
 ├── eval_config.yaml                   # Evaluation config (tools, rubrics, thresholds, test cases)
 ├── .gitignore                         # Git ignore patterns
-├── .gitlab-ci.yml                     # GitLab CI/CD pipeline
+├── .github/workflows/                 # GitHub Actions CI/CD (sdk-ci.yml, publish.yml)
 │
 ├── docs/                              # Documentation
 │   ├── EVALUATION_GUIDE.md     # Reference guide for using this framework
@@ -335,8 +339,9 @@ aws bedrock-agentcore create-evaluation-config \
 │
 ├── examples/vehicle-auction-agent/    # THE EXAMPLE: reference agent the SDK is tested against
 │   ├── agent/                         # Agent code (AgentCore Runtime)
-│   │   ├── app.py                     # Strands agent with 8 tools
+│   │   ├── app.py                     # Strands agent: 7 local tools + Memory + Gateway
 │   │   ├── requirements.txt           # Agent dependencies
+│   │   ├── utils/gateway.py           # AgentCore Gateway MCP client (dealer profile)
 │   │   └── utils/geo.py               # Haversine + bounding box
 │   ├── cdk/                           # AWS CDK infrastructure (Python)
 │   │   ├── app.py                     # CDK app entry point
@@ -480,7 +485,7 @@ Illustrative monthly costs at a production-scale workload (1,500 concurrent user
 | AWS Lambda (data pipeline) | $50-75 |
 | Amazon S3 (LanceDB storage) | $20-30 |
 | Amazon EventBridge | $5-10 |
-| CloudWatch Logs & Metrics | $50-100 |
+| CloudWatch Logs and Metrics | $50-100 |
 | **Total** | **$875-1,340** |
 
 **Dev/Test Environment**: $50-100/month (minimal traffic, shorter log retention)
@@ -519,7 +524,7 @@ aws dynamodb list-tables --region eu-west-1 | grep agent-eval
 Delete Amazon Bedrock AgentCore evaluation configs (via AWS Console or CLI):
 
 ```bash
-aws bedrock-agentcore delete-evaluation-config --config-id YOUR_CONFIG_ID
+aws bedrock-agentcore-control delete-online-evaluation-config --online-evaluation-config-id YOUR_CONFIG_ID
 ```
 
 To delete S3 buckets, first back up any needed data, then empty and remove them:
@@ -613,55 +618,55 @@ This repository is an educational AWS sample. The reference deployment already
 implements several controls (AWS WAF with rate-based rules, API Gateway usage-plan
 throttling and quotas, Amazon Bedrock Guardrails, KMS encryption, least-privilege
 IAM with confused-deputy guards, and ECR scan-on-push). Before using this code for
-production or any real workload, we recommend the additional hardening below. These
-map to the P1 ("fix before production deployment") findings from our security review.
+production or any real workload, we recommend the additional hardening below. Treat
+these as fix-before-production items.
 
 ### Agent endpoint
-- **Amazon Bedrock Guardrails** — keep them enabled and fail-closed. The sample
+- **Amazon Bedrock Guardrails**: keep them enabled and fail-closed. The sample
   configures denied topics (bid placement/outcome), a HIGH prompt-attack content
   filter, and PII redaction (EMAIL, PHONE). For production, also add output-side
   topic avoidance so the agent refuses to describe its own tools, prompts, or
   internal reasoning, and extend PII entities to match your data.
-- **AWS WAF + API Gateway** — keep WAF rate-based rules and API Gateway
+- **AWS WAF and API Gateway**: keep WAF rate-based rules and API Gateway
   rate-limiting/quotas in front of every public endpoint. Note that WAF cannot front
   the AgentCore Runtime data-plane directly; gate browser/API traffic through
   CloudFront or API Gateway.
-- **Authentication** — require authenticated access (Amazon Cognito JWT or IAM
+- **Authentication**: require authenticated access (Amazon Cognito JWT or IAM
   SigV4) on the agent endpoint; do not expose it anonymously. Bind the dealer/tenant
   identity to the verified principal (a Cognito/JWT claim) rather than trusting a
   caller-supplied `dealer_id` in the request body.
 
 ### Secrets and supply chain
-- **Secrets management** — when wiring a real data source (the sample mocks
+- **Secrets management**: when wiring a real data source (the sample mocks
   BigQuery via `MOCK_BIGQUERY=true`), store any GCP or third-party credentials in
   **AWS Secrets Manager** with automatic rotation and least-privilege IAM
   conditions. Do not embed credentials in code or environment variables.
-- **Container image integrity** — ECR scan-on-push is enabled in the sample. For
+- **Container image integrity**: ECR scan-on-push is enabled in the sample. For
   production, add image scanning in CI (e.g. Trivy) and consider **AWS Signer** for
   container image signing with verification at runtime pull.
 
-### Anti-scraping / model-behavior extraction (threat T9)
+### Anti-scraping and model-behavior extraction
 A determined caller can send many structured queries to reverse-engineer the
 agent's tools, ranking logic, and prompts ("model scraping" / "prompt extraction").
 The API Gateway throughput limit alone does not distinguish heavy legitimate use
 from adversarial probing. For production, layer on:
 
-1. **Per-identity rate limiting (highest priority)** — enforce per-API-key or
+1. **Per-identity rate limiting (highest priority)**: enforce per-API-key or
    per-Cognito-user quotas (e.g. 50 req/min, 500 req/hour) via API Gateway usage
    plans with per-key caps, or a DynamoDB-backed counter in a Lambda authorizer.
-2. **Probing-pattern detection** — log query sequences per identity and alert/block
+2. **Probing-pattern detection**: log query sequences per identity and alert/block
    on high volume + low result diversity (single-parameter sweeps, sequential ID
    probing, identical queries from rotating IPs).
-3. **Response minimization** — in production responses, strip internal metadata
+3. **Response minimization**: in production responses, strip internal metadata
    (selected tool names, embedding similarity scores, the SQL/`where_clause`, and the
    full trajectory) and return only the final answer. **Note:** the agent currently
    returns `trajectory` and `available_tools` because the build-time evaluation SDK
    needs them to score tool selection and reasoning. Gate this behind an
    environment flag so evaluation builds keep the full trajectory while production
    responses are minimized.
-4. **Output-side Guardrails** — configure topic avoidance so the agent refuses to
+4. **Output-side Guardrails**: configure topic avoidance so the agent refuses to
    explain its own architecture, tools, or prompts.
-5. **Authentication requirement** — require API key or Cognito token to eliminate
+5. **Authentication requirement**: require API key or Cognito token to eliminate
    anonymous bulk scraping, and tie rate limits to verified dealer identities.
 
 The cheapest immediate step is adding per-API-key usage-plan quotas (the API

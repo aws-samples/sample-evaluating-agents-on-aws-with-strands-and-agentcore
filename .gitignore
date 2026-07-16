@@ -49,6 +49,9 @@ cdk.context.json
 threatforest-output/
 .gitlab-ci.yml
 
+# Blog post staging/review material — never publish to the public repo
+docs/stage_blog_post_in_review/
+
 # Environment variables
 .env
 .env.local

@@ -199,7 +199,7 @@ project:
   description: "Evaluation pipeline for my-agent"
   region: "eu-west-1"
 
-# Judge model for LLM-based evaluators (prefix must match the region — see below)
+# Judge model for LLM-based evaluators (prefix must match the region; see below)
 judge_model: "eu.anthropic.claude-sonnet-4-6"
 
 # Tool descriptions (used by TrajectoryEvaluator)
@@ -252,7 +252,7 @@ domain_evaluators:
   cost:
     enabled: true
     max_cost_per_query: 0.50
-    max_tokens_per_query: 10000
+    max_tokens_per_query: 15000
 
 # Test cases
 test_cases:
@@ -616,7 +616,7 @@ LLM-based evaluators (HelpfulnessEvaluator, TrajectoryEvaluator, OutputEvaluator
 1. **Reduce test case count for development**: Run a smaller subset of test cases during iterative development (such as 5-10 cases) and run the full suite only in CI or before release.
 2. **Use cheaper models for simple evaluations**: For early development, use a less expensive model (such as Claude Haiku from Anthropic) for quick feedback. Switch to Claude Sonnet 4.6 from Anthropic for final validation.
 3. **Cache evaluation results**: Store evaluation outputs locally or in Amazon S3 so you can re-analyze results without re-invoking the LLM.
-4. **Layer selectively**: Run only the layers you need. Use `--layers layer_1_tool_usage` for deterministic checks that cost nothing, and add LLM layers only when needed.
+4. **Layer selectively**: Run only the layers you need. Use `--layers layer_1` for deterministic checks that cost nothing, and add LLM layers only when needed.
 
 ## Cleaning Up
 

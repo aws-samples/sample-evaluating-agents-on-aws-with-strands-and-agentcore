@@ -85,8 +85,9 @@ dealer_api = DealerApiStack(
 )
 
 # 3. Agent Runtime Stack - AgentCore Runtime (managed serverless compute).
-#    The agent reads dealer profiles straight from DynamoDB (granted in the
-#    runtime stack), so no Dealer API URL/key plumbing is needed here.
+#    The agent uses AgentCore Memory (cross-session dealer memory) and reaches
+#    dealer profiles through the AgentCore Gateway owned by the dealer-api
+#    stack, so the Gateway construct and URL are passed in here.
 agent_runtime = None
 if not skip_agent_runtime:
     agent_runtime = AgentRuntimeStack(
@@ -94,6 +95,8 @@ if not skip_agent_runtime:
         f"{stack_prefix}-agent-runtime",
         image_uri=agent_image_uri,
         data_bucket=data_pipeline.data_bucket,
+        dealer_gateway=dealer_api.gateway,
+        gateway_url=dealer_api.gateway_url,
         enable_cognito=enable_cognito,
         env=env,
         description=f"AgentCore Runtime ({env_name})",

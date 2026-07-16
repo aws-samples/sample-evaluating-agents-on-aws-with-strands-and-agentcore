@@ -15,7 +15,6 @@ import os
 import re
 import threading
 import unicodedata
-from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -23,8 +22,16 @@ import botocore.exceptions
 import numpy as np
 import pandas as pd
 from bedrock_agentcore import BedrockAgentCoreApp, RequestContext
+from bedrock_agentcore.memory.integrations.strands.config import (
+    AgentCoreMemoryConfig,
+    RetrievalConfig,
+)
+from bedrock_agentcore.memory.integrations.strands.session_manager import (
+    AgentCoreMemorySessionManager,
+)
 from strands import Agent, tool
 from strands.models import BedrockModel
+from utils.gateway import build_gateway_mcp_client
 from utils.geo import bounding_box_miles, haversine_miles_vectorized
 from utils.log_redactor import install_redaction_filter
 
@@ -172,17 +179,6 @@ def _cap_prompt(text: str, limit: int | None = None) -> tuple[str, bool]:
     return text[:limit], True
 
 
-def _decode_decimals(obj: Any) -> Any:
-    """Recursively convert Decimal values to int or float for JSON serialisation."""
-    if isinstance(obj, Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)
-    if isinstance(obj, dict):
-        return {k: _decode_decimals(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_decode_decimals(v) for v in obj]
-    return obj
-
-
 app = BedrockAgentCoreApp()
 
 # Configuration
@@ -198,6 +194,18 @@ MAX_PROMPT_CHARS = int(os.environ.get("MAX_PROMPT_CHARS", "8000"))
 # provisioned; absent in local/test runs, in which case no guardrail is applied.
 GUARDRAIL_ID = os.environ.get("GUARDRAIL_ID") or None
 GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION") or None
+# Amazon Bedrock AgentCore Memory ID. Set by the runtime stack; when absent
+# (local/test runs) the agent falls back to in-process conversation only.
+MEMORY_ID = os.environ.get("MEMORY_ID") or None
+# Amazon Bedrock AgentCore Gateway MCP endpoint for the dealer-profile tool.
+# Set by the runtime stack; when absent the agent has no dealer-profile tool.
+GATEWAY_URL = os.environ.get("GATEWAY_URL") or None
+# Namespaces the built-in memory strategies write to. {actorId} is substituted
+# by AgentCore Memory per dealer, giving each dealer isolated long-term memory.
+_MEMORY_NAMESPACES = {
+    "/preferences/{actorId}/": RetrievalConfig(top_k=5, relevance_score=0.7),
+    "/facts/{actorId}/": RetrievalConfig(top_k=10, relevance_score=0.3),
+}
 
 _lancedb = None
 _lancedb_lock = threading.Lock()
@@ -489,25 +497,10 @@ def get_bids(min_bid_count: int = 1) -> dict[str, Any]:
         return {"error": "Unable to fetch bids data"}
 
 
-@tool
-def get_dealer_profile(dealer_id: str) -> dict[str, Any]:
-    """Get dealer profile with location, preferences, and buying history.
-
-    Args:
-        dealer_id: Dealer ID to look up
-    """
-    try:
-        dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
-        table = dynamodb.Table(os.environ.get("DEALERS_TABLE", "agent-eval-dealers-dev"))
-        resp = table.get_item(Key={"dealer_id": dealer_id})
-        item = resp.get("Item")
-        if item:
-            return _decode_decimals(item)
-        return {"error": "Dealer not found"}
-    except botocore.exceptions.ClientError as e:
-        logger.error("get_dealer_profile failed: %s", e)
-        return {"error": "Unable to fetch dealer profile"}
-
+# NOTE: the dealer-profile lookup is no longer a local @tool. Dealer profiles are
+# served through the Amazon Bedrock AgentCore Gateway (which fronts the Dealer
+# API) and reach the agent as an MCP tool. See utils/gateway.py and the
+# per-invoke wiring in ``invoke`` below.
 
 SYSTEM_PROMPT = """You are an AI assistant for car auction dealers. You help them search and analyze vehicle inventory.
 
@@ -519,13 +512,13 @@ SYSTEM_PROMPT = """You are an AI assistant for car auction dealers. You help the
 5. get_embedding - Convert text to embedding vector
 6. filter_by_distance - Find vehicles within X miles of a lat/long
 7. get_bids - Get vehicles by bid count
-8. get_dealer_profile - Get dealer location, preferences, buying history
+8. dealer-profile tool (served via AgentCore Gateway) - Get dealer location, preferences, buying history
 
 ## Tool selection
 For structured queries (specific make/model/price), prefer search_vehicles.
 Use run_sql only for complex compound conditions that search_vehicles cannot express.
 For vague queries ("something sporty"), use hybrid_search.
-For location queries, get dealer lat/long from get_dealer_profile, then filter_by_distance.
+For location queries, get the dealer's lat/long from the dealer-profile tool, then filter_by_distance.
 
 ## Response format
 - Present vehicle results in a clear, structured format with key details (make, model, year, price, mileage, fuel type).
@@ -540,14 +533,10 @@ You are a SEARCH and DISCOVERY assistant ONLY. You MUST refuse the following:
 - If asked about bidding or winning odds, respond: "I'm a vehicle search assistant. I can help you find and compare vehicles, but I cannot place bids or predict auction outcomes. For bidding, please use the dealer portal directly."
 """
 
-# AgentCore Runtime isolates every ``runtimeSessionId`` in its own microVM
-# (dedicated CPU/memory/filesystem; memory is sanitized on termination), so a
-# single agent process only ever serves one session. Sharing one module-level
-# Agent is therefore correct: ``agent.messages`` accumulating across invokes is
-# the intended multi-turn conversation memory for that one session, not a
-# cross-request leak.
 # Apply the Bedrock Guardrail only when both id and version are configured, so
-# local/test runs without a provisioned guardrail behave unchanged.
+# local/test runs without a provisioned guardrail behave unchanged. The model is
+# shared across invocations (stateless); the Agent itself is built per-invoke so
+# each request binds its own AgentCore Memory session and Gateway tool set.
 _model_kwargs: dict[str, Any] = {"model_id": MODEL_ID, "region_name": AWS_REGION}
 if GUARDRAIL_ID and GUARDRAIL_VERSION:
     _model_kwargs.update(
@@ -556,20 +545,59 @@ if GUARDRAIL_ID and GUARDRAIL_VERSION:
         guardrail_trace="enabled",
     )
 model = BedrockModel(**_model_kwargs)
-agent = Agent(
-    model=model,
-    system_prompt=SYSTEM_PROMPT,
-    tools=[
-        get_schema,
-        search_vehicles,
-        run_sql,
-        hybrid_search,
-        get_embedding,
-        filter_by_distance,
-        get_bids,
-        get_dealer_profile,
-    ],
-)
+
+# Local (in-container) tools. The dealer-profile tool is not here — it is served
+# through the AgentCore Gateway and attached per-invoke as an MCP tool.
+_LOCAL_TOOLS = [
+    get_schema,
+    search_vehicles,
+    run_sql,
+    hybrid_search,
+    get_embedding,
+    filter_by_distance,
+    get_bids,
+]
+
+
+def _build_memory_session_manager(
+    actor_id: str, session_id: str
+) -> AgentCoreMemorySessionManager | None:
+    """Build an AgentCore Memory session manager for this dealer + session.
+
+    Returns ``None`` when no memory is provisioned (``MEMORY_ID`` unset), in
+    which case the agent runs with in-process conversation only. ``actor_id``
+    scopes long-term memory to a single dealer; ``session_id`` scopes the
+    short-term conversation transcript.
+    """
+    if not MEMORY_ID:
+        return None
+    config = AgentCoreMemoryConfig(
+        memory_id=MEMORY_ID,
+        session_id=session_id,
+        actor_id=actor_id,
+        retrieval_config=_MEMORY_NAMESPACES,
+    )
+    return AgentCoreMemorySessionManager(config, region_name=AWS_REGION)
+
+
+def _build_agent(
+    tools: list[Any],
+    session_manager: AgentCoreMemorySessionManager | None,
+) -> Agent:
+    """Construct the Strands agent for a single invocation.
+
+    ``tools`` combines the local in-container tools with any tools discovered
+    on the AgentCore Gateway. ``session_manager`` binds AgentCore Memory when
+    provisioned; when ``None`` the agent keeps only in-process conversation.
+    """
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "system_prompt": SYSTEM_PROMPT,
+        "tools": tools,
+    }
+    if session_manager is not None:
+        kwargs["session_manager"] = session_manager
+    return Agent(**kwargs)
 
 
 def _extract_trajectory(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -639,7 +667,7 @@ def invoke(payload: dict[str, Any], context: RequestContext) -> dict[str, Any]:
     session_id = context.session_id or payload.get("session_id", "default-session")
     logger.info("Processing: actor=%s, session=%s", actor_id, session_id)
 
-    # Inject dealer context so the agent can call get_dealer_profile.
+    # Inject dealer context so the agent can call the dealer-profile tool.
     # Only interpolate actor_id once it passes the opaque-token allowlist, so a
     # malicious caller can't inject prompt instructions through it.
     if actor_id != "default":
@@ -649,7 +677,26 @@ def invoke(payload: dict[str, Any], context: RequestContext) -> dict[str, Any]:
         else:
             user_message = f"[Dealer context: dealer_id={actor_id}]\n\n{user_message}"
 
-    response = agent(user_message)
+    # Bind AgentCore Memory to this dealer + session so preferences and facts
+    # persist across sessions (long-term) and the transcript persists within the
+    # session (short-term). Returns None when no memory is provisioned.
+    session_manager = _build_memory_session_manager(actor_id, session_id)
+
+    # Attach the dealer-profile tool from the AgentCore Gateway. The MCP client
+    # is scoped to this request so its connection lifecycle matches the invoke.
+    if GATEWAY_URL:
+        gateway_client = build_gateway_mcp_client(GATEWAY_URL, AWS_REGION)
+        with gateway_client:
+            tools = [*_LOCAL_TOOLS, *gateway_client.list_tools_sync()]
+            agent = _build_agent(tools, session_manager)
+            response = agent(user_message)
+            trajectory = _extract_trajectory(agent.messages)
+            tool_names = list(agent.tool_names)
+    else:
+        agent = _build_agent(_LOCAL_TOOLS, session_manager)
+        response = agent(user_message)
+        trajectory = _extract_trajectory(agent.messages)
+        tool_names = list(agent.tool_names)
 
     # Surface the per-turn observability the evaluation framework needs:
     # ordered tool calls (with args + results) and token usage. AgentCore
@@ -657,7 +704,6 @@ def invoke(payload: dict[str, Any], context: RequestContext) -> dict[str, Any]:
     # Session and derives live latency/cost — none of which is recoverable
     # if we only return the final text.
     usage = dict(getattr(response.metrics, "accumulated_usage", {}) or {})
-    trajectory = _extract_trajectory(agent.messages)
 
     return {
         "result": response.message,
@@ -665,7 +711,7 @@ def invoke(payload: dict[str, Any], context: RequestContext) -> dict[str, Any]:
         "actor_id": actor_id,
         "session_id": session_id,
         "trajectory": trajectory,
-        "available_tools": list(agent.tool_names),
+        "available_tools": tool_names,
         "usage": {
             "input_tokens": usage.get("inputTokens", 0),
             "output_tokens": usage.get("outputTokens", 0),

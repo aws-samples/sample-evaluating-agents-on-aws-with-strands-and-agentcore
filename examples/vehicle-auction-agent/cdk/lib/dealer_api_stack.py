@@ -40,6 +40,15 @@ from aws_cdk import (
 from aws_cdk import (
     aws_wafv2 as wafv2,
 )
+from aws_cdk.aws_bedrockagentcore import (
+    ApiGatewayHttpMethod,
+    ApiGatewayToolConfiguration,
+    ApiGatewayToolFilter,
+    Gateway,
+    GatewayAuthorizer,
+    GatewayCredentialProvider,
+    GatewayTarget,
+)
 from constructs import Construct
 
 
@@ -144,34 +153,18 @@ class DealerApiStack(Stack):
                     else [f"https://agent-eval.{env_name}.example.com"]
                 ),
                 allow_methods=["GET", "OPTIONS"],
-                allow_headers=["Content-Type", "X-Api-Key", "Authorization"],
+                allow_headers=["Content-Type", "Authorization"],
             ),
             endpoint_types=[apigw.EndpointType.REGIONAL],  # Regional endpoint
         )
 
-        # API Key for authentication (Security best practice)
-        api_key = api.add_api_key(
-            "DealerApiKey",
-            api_key_name=f"agent-eval-dealer-api-key-{env_name}",
-            description="API key for AgentCore Gateway",
-        )
-
-        # Usage Plan with rate limiting and quota (Security best practice)
-        usage_plan = api.add_usage_plan(
-            "DealerApiUsagePlan",
-            name=f"agent-eval-dealer-usage-plan-{env_name}",
-            throttle=apigw.ThrottleSettings(
-                rate_limit=100,  # Requests per second
-                burst_limit=200,  # Burst capacity
-            ),
-            quota=apigw.QuotaSettings(
-                limit=10000,  # Daily quota
-                period=apigw.Period.DAY,
-            ),
-        )
-
-        usage_plan.add_api_key(api_key)
-        usage_plan.add_api_stage(stage=api.deployment_stage)
+        # Authentication is IAM (SigV4) on every method (see the GET methods
+        # below). The AgentCore Gateway signs its outbound calls with the runtime
+        # execution role's credentials, so no API key or shared secret is needed.
+        # AWS does not support AgentCore Gateway targets whose methods require
+        # BOTH AWS_IAM auth and an API key, so this API is IAM-only. Rate limiting
+        # is still enforced by stage-level throttling (deploy_options above) and
+        # the AWS WAF WebACL below.
 
         # Lambda integration (proxy mode for full event passthrough)
         dealer_integration = apigw.LambdaIntegration(
@@ -179,31 +172,44 @@ class DealerApiStack(Stack):
             proxy=True,  # Pass full API Gateway event to Lambda
         )
 
+        # Declared method responses. AgentCore Gateway builds the MCP tool schema
+        # from API Gateway's exported OpenAPI spec, which requires every GET
+        # operation to declare a `responses` block — without this the Gateway
+        # target fails to stabilize ("responses is missing").
+        json_ok = apigw.MethodResponse(
+            status_code="200",
+            response_models={"application/json": apigw.Model.EMPTY_MODEL},
+        )
+
         # /dealers resource
         dealers = api.root.add_resource("dealers")
 
-        # GET /dealers - List all dealers (IAM auth for authn, API key for usage-plan throttling)
+        # GET /dealers - List all dealers (IAM SigV4 auth). operation_name sets
+        # the OpenAPI operationId, which AgentCore Gateway requires to name the
+        # MCP tool it derives from this operation.
         dealers.add_method(
             "GET",
             dealer_integration,
             authorization_type=apigw.AuthorizationType.IAM,
-            api_key_required=True,
+            operation_name="listDealers",
+            method_responses=[json_ok],
         )
 
         # /dealers/{dealer_id} resource
         dealer = dealers.add_resource("{dealer_id}")
 
-        # GET /dealers/{dealer_id} - Get specific dealer (IAM auth for authn, API key for usage-plan throttling)
+        # GET /dealers/{dealer_id} - Get specific dealer (IAM SigV4 auth).
         dealer.add_method(
             "GET",
             dealer_integration,
             authorization_type=apigw.AuthorizationType.IAM,
-            api_key_required=True,
+            operation_name="getDealerProfile",
+            method_responses=[json_ok],
         )
 
         # AWS WAF WebACL — edge protection for the only internet-facing HTTP
-        # surface in this project. Layers on top of the usage-plan throttling
-        # (per-key quota) with volumetric + signature defenses:
+        # surface in this project. Layers on top of the stage-level throttling
+        # (deploy_options) with volumetric + signature defenses:
         #   - rate-based rule: block IPs exceeding 2000 requests / 5 min
         #   - AWS managed common rule set (OWASP-style signatures)
         #   - AWS managed known-bad-inputs rule set
@@ -280,6 +286,45 @@ class DealerApiStack(Stack):
             web_acl_arn=web_acl.attr_arn,
         )
 
+        # ── Amazon Bedrock AgentCore Gateway ────────────────────────────────
+        # The Gateway fronts the Dealer REST API as an MCP tool so the agent
+        # reaches dealer profiles through AgentCore Gateway rather than calling
+        # DynamoDB directly. Inbound auth to the Gateway is IAM (the runtime's
+        # execution role signs its MCP calls); outbound auth to the Dealer API is
+        # also IAM — the Gateway's service role signs SigV4 requests to the REST
+        # API. No API key or shared secret is involved (AWS excludes methods that
+        # require both AWS_IAM and an API key from AgentCore Gateway processing).
+        gateway = Gateway(
+            self,
+            "DealerGateway",
+            gateway_name=f"agent-eval-dealer-gw-{env_name}",
+            authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
+        )
+
+        # Expose the REST API's GET operations as MCP tools. The Gateway derives
+        # the tool schema from API Gateway's exported OpenAPI 3.0 spec, which is
+        # why every method declares method_responses above.
+        GatewayTarget.for_api_gateway(
+            self,
+            "DealerApiTarget",
+            gateway=gateway,
+            rest_api=api,
+            api_gateway_tool_configuration=ApiGatewayToolConfiguration(
+                tool_filters=[
+                    ApiGatewayToolFilter(
+                        filter_path="/dealers/*",
+                        methods=[ApiGatewayHttpMethod.GET],
+                    )
+                ],
+            ),
+            credential_provider_configurations=[
+                GatewayCredentialProvider.from_iam_role(),
+            ],
+        )
+
+        self.gateway = gateway
+        self.gateway_url = gateway.gateway_url
+
         # Outputs
         cdk.CfnOutput(
             self,
@@ -290,16 +335,16 @@ class DealerApiStack(Stack):
 
         cdk.CfnOutput(
             self,
-            "DealerApiWebAclArn",
-            value=web_acl.attr_arn,
-            description="WAF WebACL protecting the Dealer API",
+            "DealerGatewayUrl",
+            value=gateway.gateway_url or "",
+            description="AgentCore Gateway MCP endpoint for the dealer-profile tool",
         )
 
         cdk.CfnOutput(
             self,
-            "DealerApiKeyId",
-            value=api_key.key_id,
-            description="API Key ID for AgentCore Gateway",
+            "DealerApiWebAclArn",
+            value=web_acl.attr_arn,
+            description="WAF WebACL protecting the Dealer API",
         )
 
         cdk.CfnOutput(
@@ -312,5 +357,4 @@ class DealerApiStack(Stack):
         # Export for use in other stacks
         self.api_url = api.url
         self.api = api
-        self.api_key = api_key
         self.dealers_table_name = self.dealers_table.table_name

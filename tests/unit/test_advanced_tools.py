@@ -118,7 +118,6 @@ def _get_tool_fn(tool_name: str):
         "get_embedding": app.get_embedding,
         "filter_by_distance": app.filter_by_distance,
         "get_bids": app.get_bids,
-        "get_dealer_profile": app.get_dealer_profile,
     }
     return tool_map[tool_name]
 
@@ -313,44 +312,10 @@ class TestGetBids:
 
 
 # ---------------------------------------------------------------------------
-# get_dealer_profile tests
+# Dealer profiles are now served through the AgentCore Gateway (MCP), not a
+# local tool, so there is no in-process get_dealer_profile to unit-test here.
+# Gateway wiring is exercised by the deployed smoke test (scripts/post_deploy_eval.py).
 # ---------------------------------------------------------------------------
-
-
-class TestGetDealerProfile:
-    """Test get_dealer_profile tool."""
-
-    def test_returns_profile(self):
-        fn = _get_tool_fn("get_dealer_profile")
-        mock_item = {
-            "dealer_id": "DLR001",
-            "name": "Test Dealer",
-            "location": {"lat": 51.5, "lon": -0.1},
-        }
-        with patch("agent.app.boto3") as mock_boto:
-            mock_dynamodb = MagicMock()
-            mock_boto.resource.return_value = mock_dynamodb
-            mock_table = MagicMock()
-            mock_dynamodb.Table.return_value = mock_table
-            mock_table.get_item.return_value = {"Item": mock_item}
-
-            result = fn(dealer_id="DLR001")
-            mock_boto.resource.assert_called_with("dynamodb", region_name=ANY)
-            mock_table.get_item.assert_called_once_with(Key={"dealer_id": "DLR001"})
-            assert result["dealer_id"] == "DLR001"
-            assert result["name"] == "Test Dealer"
-
-    def test_not_found(self):
-        fn = _get_tool_fn("get_dealer_profile")
-        with patch("agent.app.boto3") as mock_boto:
-            mock_dynamodb = MagicMock()
-            mock_boto.resource.return_value = mock_dynamodb
-            mock_table = MagicMock()
-            mock_dynamodb.Table.return_value = mock_table
-            mock_table.get_item.return_value = {}
-
-            result = fn(dealer_id="NONEXISTENT")
-            assert "error" in result
 
 
 # ---------------------------------------------------------------------------

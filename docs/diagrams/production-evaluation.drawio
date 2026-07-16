@@ -11,8 +11,8 @@
         </mxCell>
 
         <!-- User: OUTSIDE the AWS Cloud boundary (left) -->
-        <mxCell id="user" value="User" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=12;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="36" y="210" width="64" height="64" as="geometry" />
+        <mxCell id="user" value="User" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="26" y="200" width="84" height="84" as="geometry" />
         </mxCell>
 
         <!-- AWS Cloud group -->
@@ -89,8 +89,8 @@
         </mxCell>
 
         <!-- Ops Team: OUTSIDE the AWS Cloud boundary (right) -->
-        <mxCell id="ops" value="Ops Team" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=12;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1550" y="594" width="64" height="64" as="geometry" />
+        <mxCell id="ops" value="Ops Team" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.users;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="584" width="84" height="84" as="geometry" />
         </mxCell>
 
         <!-- ===== EDGES ===== -->

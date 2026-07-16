@@ -33,12 +33,15 @@ Lambda CPU is proportional to memory allocation:
 | 512         | 0.33  | Lightweight tasks |
 | 1024        | 0.67  | Standard processing |
 | 2048        | 1.33  | Data ingestion (current) |
-| 4096        | 2.67  | Agent runtime with LanceDB |
 | 10240       | 6.00  | Heavy ML workloads |
 
 **Current Configuration**:
-- Data Ingestion: 2048 MB
-- Agent Runtime: 4096 MB
+- Data Ingestion Lambda: 2048 MB
+
+> **Note:** The agent runs on **Amazon Bedrock AgentCore Runtime**, a managed
+> serverless compute service — it has no user-configurable memory or vCPU knob,
+> so the table above applies only to the AWS Lambda functions (data ingestion,
+> dealer API).
 
 **Optimization**:
 1. To determine optimal memory allocation, profile actual memory usage:
@@ -66,10 +69,11 @@ memory_size=1536,
 
 **Strategies to Reduce Cold Starts**:
 
-1. **Provisioned Concurrency** (for critical paths):
+1. **Provisioned Concurrency** (for critical Lambda paths — applies to the
+   ingestion/dealer Lambdas, not the AgentCore runtime):
 ```python
 # In CDK
-self.agent_function.add_alias(
+self.ingestion_function.add_alias(
     "live",
     provisioned_concurrent_executions=2  # Always warm
 )
@@ -334,8 +338,9 @@ self.ingestion_function.add_layers(lambda_insights_layer)
 Enable distributed tracing:
 
 ```python
-# In CDK
-self.agent_function.enable_tracing(lambda_.Tracing.ACTIVE)
+# In CDK — X-Ray tracing on the Lambda functions (the AgentCore runtime emits
+# traces via OpenTelemetry, configured through the Runtime construct instead).
+ingestion_function = lambda_.Function(self, "IngestionFn", tracing=lambda_.Tracing.ACTIVE, ...)
 
 # In function code
 from aws_xray_sdk.core import xray_recorder
@@ -377,11 +382,12 @@ def publish_performance_metrics(duration_ms, memory_mb):
 
 **Default**: 1000 concurrent executions per region
 
-**Per-function limits**:
+**Per-function limits** (applies to the Lambda functions; the AgentCore runtime
+scales as a managed service and has no reserved-concurrency knob):
 ```bash
-# Set reserved concurrency
+# Set reserved concurrency on a Lambda function
 aws lambda put-function-concurrency \
-  --function-name agent-eval-runtime-dev \
+  --function-name agent-eval-data-ingestion-dev \
   --reserved-concurrent-executions 100 \
   --region eu-west-1
 ```
@@ -467,16 +473,19 @@ scenarios:
 artillery run artillery.yml
 ```
 
-### Stress Testing Lambda
+### Stress Testing the Agent Runtime
+
+The agent runs on AgentCore Runtime (not Lambda), so drive load through the
+data-plane invoke API, matching the smoke-test pattern in `docs/SDK_GUIDE.md`:
 
 ```bash
-# Invoke Lambda 100 times concurrently
+# Invoke the AgentCore runtime 100 times concurrently
 for i in {1..100}; do
-  aws lambda invoke \
-    --function-name agent-eval-runtime-dev \
+  aws bedrock-agentcore invoke-agent-runtime \
+    --agent-runtime-arn "$RUNTIME_ARN" \
     --region eu-west-1 \
-    --invocation-type Event \
-    --payload '{"query":"test"}' \
+    --runtime-session-id "loadtest-$(printf '%033d' "$i")" \
+    --payload '{"prompt":"test"}' \
     /dev/null &
 done
 wait

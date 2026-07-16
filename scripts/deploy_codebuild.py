@@ -217,11 +217,14 @@ def _ensure_inline_policy(iam, role_name: str, policy_name: str, doc: dict) -> N
 def _data_source_statements(runtime_env: dict[str, str], account: str, region: str) -> list[dict]:
     """Least-privilege grants for the agent's data sources in the no-CDK path.
 
-    The runtime role otherwise has no S3/DynamoDB access, so the agent's
-    ``hybrid_search``/``get_dealer_profile`` tools would fail at first call.
-    Scope the grants to exactly the ``DATA_BUCKET``/``DEALERS_TABLE`` the caller
-    passes via ``--env``; emit nothing when they are absent so the policy stays
-    valid. Mirrors the grants in ``cdk/lib/agent_runtime_stack.py``.
+    The runtime role otherwise has no S3/Memory/Gateway access, so the agent's
+    ``hybrid_search`` and dealer-profile tools would fail at first call. Scope
+    the grants to exactly the ``DATA_BUCKET``/``MEMORY_ID``/``GATEWAY_ARN`` the
+    caller passes via ``--env``; emit nothing when they are absent so the policy
+    stays valid. Mirrors the grants in ``cdk/lib/agent_runtime_stack.py``.
+
+    Dealer profiles are served through the AgentCore Gateway (not DynamoDB), so
+    there is no dealer-table grant here.
     """
     statements: list[dict] = []
     bucket = runtime_env.get("DATA_BUCKET")
@@ -234,14 +237,36 @@ def _data_source_statements(runtime_env: dict[str, str], account: str, region: s
                 "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"],
             }
         )
-    table = runtime_env.get("DEALERS_TABLE")
-    if table:
+    memory_id = runtime_env.get("MEMORY_ID")
+    if memory_id:
         statements.append(
             {
-                "Sid": "DealersTableRead",
+                "Sid": "AgentCoreMemoryReadWrite",
                 "Effect": "Allow",
-                "Action": ["dynamodb:GetItem", "dynamodb:Query"],
-                "Resource": f"arn:aws:dynamodb:{region}:{account}:table/{table}",
+                "Action": [
+                    "bedrock-agentcore:CreateEvent",
+                    "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:ListEvents",
+                    # DeleteEvent: the Strands session manager deletes+recreates
+                    # short-term events when redacting a message.
+                    "bedrock-agentcore:DeleteEvent",
+                    "bedrock-agentcore:ListActors",
+                    "bedrock-agentcore:ListSessions",
+                    "bedrock-agentcore:RetrieveMemoryRecords",
+                    "bedrock-agentcore:ListMemoryRecords",
+                    "bedrock-agentcore:GetMemoryRecord",
+                ],
+                "Resource": f"arn:aws:bedrock-agentcore:{region}:{account}:memory/{memory_id}",
+            }
+        )
+    gateway_arn = runtime_env.get("GATEWAY_ARN")
+    if gateway_arn:
+        statements.append(
+            {
+                "Sid": "AgentCoreGatewayInvoke",
+                "Effect": "Allow",
+                "Action": ["bedrock-agentcore:InvokeGateway"],
+                "Resource": gateway_arn,
             }
         )
     return statements

@@ -24,50 +24,17 @@ This repository is a **reference implementation** (MIT-0 license) intended as sa
 
 The AWS services used in this implementation operate under the [AWS Shared Responsibility Model](https://aws.amazon.com/compliance/shared-responsibility-model/). These services include Amazon S3, Amazon DynamoDB, AWS Lambda, Amazon API Gateway, Amazon Bedrock, and Amazon Bedrock AgentCore.
 
-## Threat Model
-
-### Trust Boundaries
-
-| Boundary | Description | Controls |
-|----------|-------------|----------|
-| User -> Agent | Dealer queries via AgentCore Runtime | API key auth, rate limiting, input validation |
-| Agent -> Bedrock | LLM reasoning and embedding calls | IAM roles, inference profile scoping |
-| Agent -> DynamoDB | Dealer profile lookups | IAM least privilege (`GetItem`, `Query` only) |
-| Agent -> S3 | Vehicle data reads | IAM scoped to specific bucket, SSL enforced |
-| Amazon EventBridge -> Lambda | Daily data ingestion trigger | IAM execution role, 2 retry attempts |
-| Client -> API Gateway | Dealer API REST calls | API key + usage plan, CORS scoping, rate limiting |
-
-### Attack Surface
-
-| Vector | Mitigation |
-|--------|------------|
-| Pandas query injection (`df.query()`) | Multi-layer defense: NFKC normalization (Unicode compatibility normalization that converts characters to canonical forms to prevent injection via visually similar characters), regex allow list, method call detection, token blocklist (`_UNSAFE_TOKENS` and `_is_safe_query()` in `examples/vehicle-auction-agent/agent/app.py`) |
-| DynamoDB injection | Parameterized `get_item(Key=...)` calls via boto3 SDK |
-| Information disclosure | Generic error responses; no stack traces, internal paths, or user input reflected to clients |
-| Log injection | Lazy `%s` formatting for user-supplied values in logger calls |
-| Cross-dealer data leakage | Session-scoped dealer ID; `DealerDataScopingEvaluator` validates scope at evaluation time |
-| Stale auction data | `DataFreshnessEvaluator` enforces a 24-hour refresh threshold |
-| Unauthorized bidding | `SafetyGuardrailEvaluator` blocks forbidden tool calls and phrases |
-| S3 public access | `BlockPublicAccess.BLOCK_ALL` enforces no public access; SSL enforcement and server-side encryption apply |
-| CORS bypass | Production origins explicitly allowlisted; `*` restricted to dev |
-| Brute-force API access | API Gateway: 100 rps / 200 burst / 10K daily quota |
-
-### Out of Scope
-
-- **Amazon Bedrock model security**: Amazon Bedrock manages model access controls and content filtering.
-- **AgentCore Runtime isolation**: Amazon Bedrock AgentCore manages request-level compute isolation.
-- **Network-level DDoS**: Handled by AWS Shield Standard (included with API Gateway).
-
 ## Security Controls
 
 ### Authentication and Authorization
-- API Gateway endpoints require API keys with usage plans
+- Dealer API Gateway endpoints require AWS IAM (SigV4) authorization; stage-level throttling and an AWS WAF WebACL provide rate limiting
+- The AgentCore Gateway fronts the Dealer API with IAM authorization inbound (the runtime execution role) and outbound (the Gateway service role signs SigV4 to the REST API); no API key or shared secret is used
 - Lambda functions use IAM execution roles with least-privilege grants
-- AgentCore Runtime uses scoped IAM for Bedrock, S3, DynamoDB, and SSM access
-- The implementation uses AWS Systems Manager (SSM) parameters with ADVANCED tier (which provides AWS KMS encryption at rest and higher throughput limits)
+- AgentCore Runtime uses scoped IAM for Amazon Bedrock and Amazon S3, scoped read/write to its AgentCore Memory, and Gateway invoke; it reaches dealer profiles through the AgentCore Gateway rather than Amazon DynamoDB directly
+- When you wire in real secrets, store them in AWS Secrets Manager or AWS Systems Manager Parameter Store (the sample mocks its data source and creates no such parameter). See `.env.example` for the recommended pattern.
 
 ### Encryption
-- **At rest**: S3 (SSE-S3), DynamoDB (AWS-managed), SSM (KMS via ADVANCED tier)
+- **At rest**: Amazon S3 (SSE-S3), Amazon DynamoDB (AWS-managed encryption)
 - **In transit**: S3 SSL enforcement, API Gateway HTTPS, Bedrock API TLS 1.2+
 
 ### Input Validation
@@ -106,8 +73,8 @@ pre-commit run --all-files                                                # git-
 Before deploying to production:
 
 - [ ] Replace `example.com` CORS origin with your actual domain
-- [ ] Set `METRICS_SOURCE=live` in evaluation trigger Lambda
-- [ ] Verify API key rotation process is documented in your runbook
+- [ ] Set `METRICS_SOURCE=live` in your deployment environment (replaces the `.env.example` placeholder; wire it to your real metrics source)
+- [ ] Confirm the Dealer API and AgentCore Gateway use IAM (SigV4) authorization end to end (no API keys to rotate in this design)
 - [ ] Run `uv run pip-audit` and resolve any HIGH/CRITICAL CVEs
 - [ ] Subscribe to the SNS alert topic for evaluation notifications
 - [ ] Review IAM roles and remove any unused permissions

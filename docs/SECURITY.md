@@ -6,7 +6,7 @@ This document covers the security controls, IAM policies, data-protection measur
 
 ## Overview
 
-This document outlines the security measures implemented in the Agent Evaluation Pipeline and provides guidance for maintaining a secure deployment. The pipeline runs on AWS Lambda, Amazon S3, Amazon DynamoDB, and Amazon Bedrock AgentCore. Its threat model focuses on least-privilege IAM and encryption in transit and at rest. The model also addresses secrets isolation and pipeline-integrated vulnerability scanning. The scope covers infrastructure-as-code configuration, runtime IAM policies, data-protection controls, and operational monitoring. Use this guide as a pre-deployment reference and adapt each control to your organization's security requirements.
+This document outlines the security measures implemented in the Agent Evaluation Pipeline and provides guidance for maintaining a secure deployment. The pipeline runs on AWS Lambda, Amazon S3, Amazon DynamoDB, and Amazon Bedrock AgentCore. Its security controls focus on least-privilege IAM and encryption in transit and at rest. These controls also address secrets isolation and pipeline-integrated vulnerability scanning. The scope covers infrastructure-as-code configuration, runtime IAM policies, data-protection controls, and operational monitoring. Use this guide as a pre-deployment reference and adapt each control to your organization's security requirements.
 
 ## Table of Contents
 
@@ -86,7 +86,7 @@ This role grants the data-ingestion AWS Lambda function access to Amazon Bedrock
 
 ### Agent Runtime Role
 
-**Role Name**: `agent-eval-runtime-{env}`
+**Role Name**: `agent-eval-runtime-role-{env}`
 
 **Permissions**:
 ```json
@@ -125,15 +125,24 @@ region it routes to. The foundation-model resources are therefore scoped to the
 requests the profile routes elsewhere in the EU, while `eu-*` still excludes
 every other partition (us/ap/etc.).
 
-### Evaluation Role
+### Online Evaluation Role
 
 **Role Name**: `agent-eval-agentcore-{env}`
 
 **Permissions**:
-- CloudWatch Metrics: Put custom metrics
-- CloudWatch Logs: Write evaluation results
-- S3 Read: Access evaluation data
+- Amazon CloudWatch Metrics: Put custom metrics
+- Amazon CloudWatch Logs: Read evaluation results
+- Amazon S3 Read: Access evaluation data
 - Amazon SNS Publish: Send alerts on threshold breaches
+
+### Build-Time Evaluation Role
+
+**Role Name**: `agent-eval-buildtime-{env}`
+
+**Permissions**:
+- Amazon CloudWatch Logs: Write evaluation results
+- Amazon S3 Read: Access evaluation data
+- Amazon Bedrock: `InvokeModel` for LLM-as-judge evaluators
 
 ### AWS Service Limitations (Resource: "*")
 
@@ -361,9 +370,9 @@ When decommissioning a deployment, remove security-related resources to stop ong
    ```bash
    aws iam delete-role --role-name agent-eval-agentcore-<env>
    ```
-2. Delete the CodeBuild service IAM role:
+2. Delete the CodeBuild service IAM role (static name, no environment suffix; configurable via `--codebuild-role`):
    ```bash
-   aws iam delete-role --role-name agent-eval-codebuild-<env>
+   aws iam delete-role --role-name agent-eval-codebuild-role
    ```
 3. Delete Amazon CloudWatch log groups:
    ```bash

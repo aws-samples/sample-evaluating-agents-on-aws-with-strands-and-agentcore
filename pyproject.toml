@@ -20,7 +20,7 @@ agentcore = [
     # used by the reference agent; mcp-proxy-for-aws provides the SigV4 MCP
     # transport for the AgentCore Gateway dealer-profile tool.
     "bedrock-agentcore[strands-agents]>=1.13.0",
-    "mcp>=1.9.0",
+    "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
 ]
 http = [
@@ -33,7 +33,7 @@ aws = [
 all = [
     "strands-agents>=1.29.0",
     "bedrock-agentcore[strands-agents]>=1.13.0",
-    "mcp>=1.9.0",
+    "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
     "requests>=2.31.0",
 ]

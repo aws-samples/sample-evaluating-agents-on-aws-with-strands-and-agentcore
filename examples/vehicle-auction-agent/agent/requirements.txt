@@ -1,13 +1,13 @@
 # bedrock-agentcore[strands-agents] pulls in the AgentCore Memory session-manager
 # integration for Strands (bedrock_agentcore.memory.integrations.strands).
-bedrock-agentcore[strands-agents]>=1.13.0
-strands-agents>=1.29.0
-boto3>=1.43.46
-numpy>=1.26.0
-pandas>=2.0.0
+bedrock-agentcore[strands-agents]>=1.18.1
+strands-agents>=1.50.1
+boto3>=1.43.56
+numpy>=2.5.1
+pandas>=3.0.5
 # MCP client transport used to reach the AgentCore Gateway (streamable HTTP).
-mcp>=1.9.0
+mcp>=1.28.1
 # SigV4-signing MCP transport (aws_iam_streamablehttp_client) for IAM-authorized
 # access to the AgentCore Gateway MCP endpoint. Ships with the strands-agents
 # extra above; pinned explicitly so the import is guaranteed present.
-mcp-proxy-for-aws>=1.6.2
+mcp-proxy-for-aws>=1.6.4

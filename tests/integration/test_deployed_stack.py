@@ -9,31 +9,10 @@ Run with:  pytest tests/integration/test_deployed_stack.py -m deployed
 Skip with: pytest -m "not deployed"
 """
 
-import os
-
 import boto3
 import pytest
 
 pytestmark = pytest.mark.deployed
-
-
-@pytest.fixture
-def aws_region() -> str:
-    """Get AWS region from environment."""
-    return os.environ.get("AWS_REGION", "eu-west-1")
-
-
-@pytest.fixture
-def environment() -> str:
-    """Get environment from environment variables."""
-    return os.environ.get("ENVIRONMENT", "dev")
-
-
-@pytest.fixture
-def account_id() -> str:
-    """Get AWS account ID."""
-    sts = boto3.client("sts")
-    return sts.get_caller_identity()["Account"]
 
 
 class TestDataPipelineStack:
@@ -154,16 +133,16 @@ class TestMonitoringStack:
         alarms = response["MetricAlarms"]
         alarm_names = [alarm["AlarmName"] for alarm in alarms]
 
-        # Should have at least 5 alarms (as per design)
+        # The stack creates only alarms backed by AWS-published service metrics.
         assert len(alarms) >= 5
 
-        # Check for key evaluation alarms
+        # Check for key operational alarms.
         expected_keywords = [
-            "task-completion",
-            "tool-selection",
-            "helpfulness",
-            "latency",
-            "hallucination",
+            "agent-error-rate",
+            "agent-latency",
+            "dynamodb-throttle",
+            "ingestion-error",
+            "eventbridge-failed",
         ]
         for expected in expected_keywords:
             assert any(expected in alarm for alarm in alarm_names), (

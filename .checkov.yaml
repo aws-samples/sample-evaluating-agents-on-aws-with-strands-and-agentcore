@@ -10,9 +10,26 @@ skip-check:
   # the CORS preflight OPTIONS operations (operationId corsPreflightDealers,
   # corsPreflightDealerDetails). Per the CORS specification, browsers send
   # preflight OPTIONS requests WITHOUT credentials, so these operations must be
-  # unauthenticated by design. All data-returning operations (GET /dealers,
-  # GET /dealers/{dealer_id}) require ApiKeyAuth and, at deploy time, are
-  # additionally protected by API Gateway IAM SigV4 (authorization_type=IAM,
-  # api_key_required=True in cdk/lib/dealer_api_stack.py). dealer-api.json is a
-  # standalone API contract document, not the deployment source of truth.
+  # unauthenticated by design. All data-returning operations require API Gateway
+  # IAM SigV4 authorization in the CDK deployment.
   - CKV_OPENAPI_5
+
+  # CKV_AWS_18 — the access-log bucket cannot send server-access logs to itself
+  # without creating a recursive log stream. It is a dedicated encrypted,
+  # versioned, TLS-only sink; the application data bucket logs to it.
+  - CKV_AWS_18
+
+  # CKV_AWS_117 — both Lambdas are managed, non-public compute with no inbound
+  # network interface. They call AWS APIs only. VPC attachment would add NAT or
+  # endpoint cost and failure modes without reducing their reachable surface.
+  - CKV_AWS_117
+
+  # CKV_AWS_116 — the ingestion Lambda has a function-level DLQ. The Dealer API
+  # Lambda is invoked synchronously by API Gateway, where Lambda DLQs do not
+  # apply; API Gateway propagates failures and CloudWatch alarms monitor them.
+  - CKV_AWS_116
+
+  # CKV_AWS_120 — dealer profiles are authenticated, identity-scoped, mutable
+  # data. Stage caching is deliberately disabled to avoid stale or incorrectly
+  # keyed authorization data and the fixed API Gateway cache-cluster charge.
+  - CKV_AWS_120

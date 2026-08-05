@@ -25,6 +25,7 @@ propagates onto ``EvaluationData`` (task-result ``metadata`` is dropped).
 from __future__ import annotations
 
 import json
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -32,10 +33,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 import boto3
+from botocore.config import Config as BotocoreConfig
 from strands_evals import Case
 from strands_evals.types.evaluation import EnvironmentState
 
 from agentic_evaluation.adapters._session import build_session
+from agentic_evaluation.exceptions import TaskFnError
 from agentic_evaluation.types import TaskFnResult
 
 # Per-token USD pricing for the deployed agent's model. Defaults match Anthropic
@@ -99,9 +102,14 @@ def make_task_fn(
     region: str = "us-east-1",
     session_prefix: str = "eval",
     *,
+    runtime_user_id: str | None = None,
+    evaluation_token: str | None = None,
+    evaluation_secret_id: str | None = None,
     payload_extra: dict[str, Any] | None = None,
     input_cost_per_1k: float = _DEFAULT_INPUT_COST_PER_1K,
     output_cost_per_1k: float = _DEFAULT_OUTPUT_COST_PER_1K,
+    boto3_session: boto3.Session | None = None,
+    boto_client_config: BotocoreConfig | None = None,
 ) -> Callable[[Case], TaskFnResult]:
     """Wrap a deployed Amazon Bedrock AgentCore runtime as a ``task_fn``.
 
@@ -121,31 +129,93 @@ def make_task_fn(
         runtime_arn: ARN of the deployed AgentCore runtime.
         region: AWS region of the runtime.
         session_prefix: Prefix for generated ``runtimeSessionId`` values.
+        runtime_user_id: User/dealer identity resolved by a trusted upstream
+            service. AgentCore sends it through the dedicated ``runtimeUserId``
+            channel rather than the caller-controlled JSON body. Production
+            end-user deployments should prefer the JWT-authorizer path.
+        evaluation_token: Privileged token authorizing trajectory and usage
+            telemetry. Prefer ``evaluation_secret_id`` outside tests.
+        evaluation_secret_id: Secrets Manager secret containing the privileged
+            evaluation token. The adapter retrieves it with the selected region.
         payload_extra: Extra fields merged into every request payload alongside
-            ``prompt`` (e.g. ``{"dealer_id": "DLR24946"}`` to supply the dealer
-            context the reference agent reads). ``prompt`` always wins on key
-            collision so a case input can never be overridden.
+            ``prompt``. Identity fields are rejected; ``prompt`` always wins on
+            key collision so a case input can never be overridden.
         input_cost_per_1k: USD per 1K input tokens (for CostEvaluator).
         output_cost_per_1k: USD per 1K output tokens (for CostEvaluator).
+        boto3_session: Optional explicit AWS session used for runtime and secret
+            clients.
+        boto_client_config: Optional botocore client configuration. The default
+            bounds connection/read time and retries so a stalled invocation
+            fails instead of blocking an evaluation indefinitely.
     """
-    client = boto3.client("bedrock-agentcore", region_name=region)
+    client_factory = boto3_session.client if boto3_session is not None else boto3.client
+    client_config = boto_client_config or BotocoreConfig(
+        connect_timeout=5,
+        read_timeout=120,
+        retries={"max_attempts": 3, "mode": "standard"},
+    )
+    client = client_factory("bedrock-agentcore", region_name=region, config=client_config)
+    if evaluation_token and evaluation_secret_id:
+        raise ValueError("Pass only one of evaluation_token or evaluation_secret_id")
+    if evaluation_secret_id:
+        secret_response = client_factory(
+            "secretsmanager",
+            region_name=region,
+            config=client_config,
+        ).get_secret_value(SecretId=evaluation_secret_id)
+        evaluation_token = secret_response.get("SecretString")
+        if not isinstance(evaluation_token, str) or not evaluation_token:
+            raise ValueError("Evaluation secret has no SecretString")
     base_payload = dict(payload_extra or {})
+    forbidden_identity_fields = {"actor_id", "dealer_id"} & base_payload.keys()
+    if forbidden_identity_fields:
+        fields = ", ".join(sorted(forbidden_identity_fields))
+        raise ValueError(f"Identity fields must use runtime_user_id, not payload_extra: {fields}")
+    conversation_sessions: dict[str, str] = {}
+    conversation_lock = threading.Lock()
 
     def task_fn(case: Case) -> TaskFnResult:
         start_dt = datetime.now(timezone.utc)
         start = time.perf_counter()
-        session_id = f"{session_prefix}-{uuid.uuid4().hex}"
+        metadata = case.metadata or {}
+        conversation_id = metadata.get("conversation_id")
+        run_id = metadata.get("evaluation_run_id", "default")
+        if conversation_id:
+            conversation_key = f"{run_id}:{conversation_id}"
+            with conversation_lock:
+                session_id = conversation_sessions.setdefault(
+                    conversation_key, f"{session_prefix}-{uuid.uuid4().hex}"
+                )
+        else:
+            conversation_key = None
+            session_id = f"{session_prefix}-{uuid.uuid4().hex}"
+
+        request_payload = {**base_payload, "prompt": case.input}
+        if evaluation_token:
+            request_payload["evaluation_token"] = evaluation_token
+        invocation: dict[str, Any] = {
+            "agentRuntimeArn": runtime_arn,
+            "runtimeSessionId": session_id,
+            "payload": json.dumps(request_payload).encode(),
+            "contentType": "application/json",
+        }
+        if runtime_user_id:
+            invocation["runtimeUserId"] = runtime_user_id
 
         response = client.invoke_agent_runtime(
-            agentRuntimeArn=runtime_arn,
-            runtimeSessionId=session_id,
-            payload=json.dumps({**base_payload, "prompt": case.input}).encode(),
-            contentType="application/json",
+            **invocation,
         )
 
         elapsed_ms = (time.perf_counter() - start) * 1000
         end_dt = datetime.now(timezone.utc)
         body = json.loads(response["response"].read())
+        required_trace_fields = {"trajectory", "available_tools", "usage"}
+        missing_trace_fields = required_trace_fields - body.keys()
+        if missing_trace_fields:
+            missing = ", ".join(sorted(missing_trace_fields))
+            raise TaskFnError(
+                f"Runtime did not return authorized evaluation telemetry; missing fields: {missing}"
+            )
 
         output_text = _extract_text(body.get("result"))
         tool_calls = _normalize_trajectory(body.get("trajectory", []))
@@ -181,6 +251,15 @@ def make_task_fn(
             "runtime_arn": runtime_arn,
             "session_id": session_id,
         }
+        last_refresh_time = body.get("last_refresh_time")
+        if isinstance(last_refresh_time, str) and last_refresh_time:
+            metrics_state["last_refresh_time"] = last_refresh_time
+        lancedb_version = body.get("lancedb_version")
+        if isinstance(lancedb_version, str) and lancedb_version:
+            metrics_state["lancedb_version"] = lancedb_version
+        if conversation_key and metadata.get("turn_index") == metadata.get("turn_count"):
+            with conversation_lock:
+                conversation_sessions.pop(conversation_key, None)
 
         return {
             "output": output_text,

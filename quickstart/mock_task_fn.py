@@ -14,6 +14,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from strands_evals.types.evaluation import EnvironmentState
+
 # Each entry: query -> (output_text, list_of_tool_names_called)
 RESPONSES: dict[str, tuple[str, list[str]]] = {
     "find documents about onboarding": (
@@ -43,13 +45,15 @@ def task_fn(case: Any) -> dict[str, Any]:
     """Mock agent satisfying the SDK ``task_fn`` contract."""
     key = (case.input or "").lower().strip()
     output, trajectory = RESPONSES.get(key, ("(no canned response)", []))
+    metrics = {
+        "latency_ms": 12,
+        "total_tokens": 0,
+        "estimated_cost_usd": 0.0,
+        "last_refresh_time": datetime.now(timezone.utc).isoformat(),
+    }
     return {
         "output": output,
         "trajectory": trajectory,
-        "metadata": {
-            "latency_ms": 12,
-            "total_tokens": 0,
-            "estimated_cost_usd": 0.0,
-            "last_refresh_time": datetime.now(timezone.utc).isoformat(),
-        },
+        "environment_state": [EnvironmentState(name="metrics", state=metrics)],
+        "metadata": metrics,
     }

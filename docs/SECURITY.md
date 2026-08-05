@@ -50,15 +50,13 @@ This role grants the data-ingestion AWS Lambda function access to Amazon Bedrock
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::amzn-s3-demo-bucket-agent-eval",
-        "arn:aws:s3:::amzn-s3-demo-bucket-agent-eval/*"
-      ]
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::agent-eval-data-{env}-{account}-{region}/raw/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::agent-eval-data-{env}-{account}-{region}/lancedb/*"
     },
     {
       "Effect": "Allow",
@@ -66,8 +64,7 @@ This role grants the data-ingestion AWS Lambda function access to Amazon Bedrock
         "bedrock:InvokeModel"
       ],
       "Resource": [
-        "arn:aws:bedrock:{region}::foundation-model/amazon.titan-embed-text-v2:0",
-        "arn:aws:bedrock:{region}::foundation-model/amazon.nova-lite-v1:0"
+        "arn:aws:bedrock:{region}::foundation-model/amazon.titan-embed-text-v2:0"
       ]
     },
     {
@@ -82,7 +79,8 @@ This role grants the data-ingestion AWS Lambda function access to Amazon Bedrock
 }
 ```
 
-> **Tip:** Scope `s3:ListBucket` to specific prefixes (such as `raw/*`, `lancedb/*`) with an `s3:prefix` condition key for least privilege.
+The ingestion path addresses known object keys directly, so it does not need
+`s3:ListBucket`, object deletion, or wildcard action names.
 
 ### Agent Runtime Role
 
@@ -104,9 +102,7 @@ This role grants the data-ingestion AWS Lambda function access to Amazon Bedrock
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream",
-        "bedrock:Converse",
-        "bedrock:ConverseStream"
+        "bedrock:InvokeModelWithResponseStream"
       ],
       "Resource": [
         "arn:aws:bedrock:{region}:{account}:inference-profile/eu.anthropic.claude-sonnet-4-6",
@@ -130,10 +126,12 @@ every other partition (us/ap/etc.).
 **Role Name**: `agent-eval-agentcore-{env}`
 
 **Permissions**:
-- Amazon CloudWatch Metrics: Put custom metrics
 - Amazon CloudWatch Logs: Read evaluation results
 - Amazon S3 Read: Access evaluation data
 - Amazon SNS Publish: Send alerts on threshold breaches
+
+Custom online-evaluation metrics and their alarms are adopter-owned and are not
+provisioned by this repository.
 
 ### Build-Time Evaluation Role
 
@@ -170,7 +168,10 @@ References:
 
 **Encryption at Rest**:
 - All S3 buckets use S3-managed encryption (SSE-S3)
-- Optional: Upgrade to KMS encryption for dev/staging/prod
+- Customer-managed, rotating KMS keys protect DynamoDB, Lambda environment
+  variables, CloudWatch logs, SNS alerts, and the Secrets Manager evaluation
+  token
+- The ingestion dead-letter queue uses the AWS-managed SQS KMS key
 
 **Encryption in Transit**:
 - All S3 operations enforce SSL/TLS (deny HTTP requests)
@@ -217,9 +218,23 @@ References:
 
 ## Network Security
 
+### Lambda Invocation Boundary
+
+Lambda Function URLs are prohibited, including URLs configured for IAM
+authorization. The CDK application applies a global synthesis guard that also
+rejects public or account-principal Lambda invocation permissions. AWS
+service-to-service invocation remains allowed only with a specific service
+principal and scoped source ARN. The dealer Lambda is invoked through the
+IAM-authorized API Gateway; the ingestion Lambda is invoked by its named
+EventBridge rule.
+
 ### VPC Configuration
 
-**Current Setup**: Lambda functions run in default VPC (internet-accessible).
+**Current Setup**: Lambda functions are not attached to a customer VPC. They
+have outbound service access but no directly routable inbound endpoint. API
+Gateway is the authenticated, WAF-protected ingress to the dealer Lambda.
+AgentCore Runtime uses its managed public network mode and IAM or Cognito
+authorization; it is not an anonymous endpoint.
 
 **Recommended for Production**:
 1. Deploy Lambda functions in private subnets
@@ -251,8 +266,8 @@ def get_secret(secret_name, region):
     response = client.get_secret_value(SecretId=secret_name)
     return json.loads(response['SecretString'])
 
-# Usage
-dealer_api_key = get_secret('dealer-api-key', 'eu-west-1')
+# Usage for a real third-party data source
+data_source_credentials = get_secret('data-source-credentials', 'eu-west-1')
 ```
 
 ### Secret Rotation
@@ -268,10 +283,10 @@ dealer_api_key = get_secret('dealer-api-key', 'eu-west-1')
 
 ### CloudTrail Logging
 
-**Enabled for**:
-- All API calls to S3, Lambda, Amazon Bedrock
-- IAM role assumptions
-- AWS CloudFormation stack operations
+CloudTrail is an account-level prerequisite, not provisioned by these stacks.
+Before production, verify that organization/account trails record S3 data
+events where required, Lambda and Bedrock control-plane activity, IAM role
+assumptions, and CloudFormation operations.
 
 ### CloudWatch Logs Retention
 
@@ -298,13 +313,13 @@ dealer_api_key = get_secret('dealer-api-key', 'eu-west-1')
 
 ### Pre-Deployment Scans
 
-**GitLab CI/CD Pipeline**:
+The verified local checks are:
 
-1. **Bandit**: Static analysis for Python security issues
-2. **pip-audit**: Check for known vulnerabilities in dependencies
-3. **safety**: Additional vulnerability scanning
-4. **detect-secrets**: Scan for accidentally committed secrets
-5. **cfn-nag**: CloudFormation template security analysis
+1. **Ruff**: Python lint and format checks.
+2. **Bandit**: Python static security analysis.
+3. **pip-audit**: Frozen `uv.lock` and deployable lock vulnerability checks.
+4. **cfn-lint**: Synthesized CloudFormation schema/IAM validation.
+5. **Draw.io XML validation**: Diagram source integrity and connector policy.
 
 ### Regular Vulnerability Scans
 
@@ -357,32 +372,12 @@ this sample, see the reporting process in the top-level `SECURITY.md`.
 
 ## Cleaning Up Security Resources
 
-When decommissioning a deployment, remove security-related resources to stop ongoing charges from CloudWatch log storage and Amazon SNS topics. IAM roles themselves are free, but the associated logging and monitoring resources incur storage costs while they remain.
-
-> **Important:** Deleting an IAM role disrupts any active resource that still depends on it. Before removing a role, confirm that the dependent services (AWS Lambda functions, AWS CodeBuild projects, and AgentCore runtimes) are already deleted. If a deletion fails with a conflict error, list and detach the role's policies first, then remove the dependent resources before retrying:
->
-> ```bash
-> aws iam list-attached-role-policies --role-name agent-eval-agentcore-<env>
-> aws iam list-role-policies --role-name agent-eval-agentcore-<env>
-> ```
-
-1. Delete the AgentCore execution IAM role:
-   ```bash
-   aws iam delete-role --role-name agent-eval-agentcore-<env>
-   ```
-2. Delete the CodeBuild service IAM role (static name, no environment suffix; configurable via `--codebuild-role`):
-   ```bash
-   aws iam delete-role --role-name agent-eval-codebuild-role
-   ```
-3. Delete Amazon CloudWatch log groups:
-   ```bash
-   aws logs delete-log-group --log-group-name /aws/agent-evaluation/<env>
-   ```
-4. Delete Amazon SNS alert topics:
-   ```bash
-   aws sns delete-topic --topic-arn arn:aws:sns:<region>:<account>:agent-eval-alerts-<env>
-   ```
-5. Verify removal with the main README cleanup section for full infrastructure teardown.
+Before decommissioning, create a retention and backup manifest for S3 object
+versions, DynamoDB data, logs, Secrets Manager values, and ECR image digests.
+Reverify the explicit profile, expected account, and `eu-west-1`; review a
+destroy change set and obtain approval. S3 data and access-log buckets are
+retained by design. After stack deletion, independently inventory
+CloudFormation and every billable service.
 
 ---
 

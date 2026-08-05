@@ -1,0 +1,12 @@
+# Security floors for packages the runtime image pulls in transitively.
+#
+# Constraints, not requirements: these raise the minimum version `uv pip compile`
+# may resolve without declaring them as direct dependencies of the agent. Passed
+# via `--constraint` when regenerating requirements.lock (see that file's header).
+# Mirrors [tool.uv] constraint-dependencies in the repository-root pyproject.toml.
+# Remove an entry once every transitive parent requires the fixed version.
+
+# Pulled in by authlib, joserfc, pyjwt[crypto] and secretstorage.
+# 44.0.0 <= version < 50.0.0 is vulnerable to CVE-2026-69247 (Bleichenbacher
+# oracle in PKCS#7 EnvelopedData decryption).
+cryptography>=50.0.0

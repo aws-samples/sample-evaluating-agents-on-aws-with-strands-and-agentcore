@@ -15,9 +15,16 @@ HTTP, Strands, LangChain, CrewAI, custom — driven by a single
 Quick start::
 
     from agentic_evaluation import run_all_layers, TaskFnResult
+    from strands_evals.types.evaluation import EnvironmentState
 
     def task_fn(case) -> TaskFnResult:
-        return {"output": "...", "trajectory": [...], "metadata": {"latency_ms": 12}}
+        metrics = {"latency_ms": 12}
+        return {
+            "output": "...",
+            "trajectory": [...],
+            "environment_state": [EnvironmentState(name="metrics", state=metrics)],
+            "metadata": metrics,
+        }
 
     results = run_all_layers(task_fn=task_fn)
     print(results["all_passed"])

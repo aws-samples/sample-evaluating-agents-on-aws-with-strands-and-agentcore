@@ -6,8 +6,8 @@
 Stack deployment order:
 1. data_pipeline - S3 bucket, EventBridge, ingestion Lambda
 2. dealer_api - DynamoDB, API Gateway, dealer Lambda
-3. agent_runtime - AgentCore Runtime; reads dealer profiles directly from the
-   DynamoDB table and LanceDB from the S3 data bucket
+3. agent_runtime - AgentCore Runtime; reads dealer profiles through AgentCore
+   Gateway and materializes LanceDB from the S3 data bucket
 4. evaluation - CloudWatch logs, SNS, IAM roles
 5. monitoring - Dashboard, alarms
 
@@ -15,23 +15,14 @@ Cleanup and cost:
 This app deploys billable resources across all five stacks (Amazon S3,
 Amazon DynamoDB, AWS Lambda, Amazon API Gateway, Amazon EventBridge,
 Amazon Bedrock AgentCore runtime, and Amazon CloudWatch dashboards/alarms).
-Estimated dev cost is roughly $50-100/month and varies with usage.
+Estimated dev cost is roughly $55-105/month, including four customer-managed
+KMS keys, and varies with model and AgentCore usage.
 
-Important: The following steps delete data in Amazon S3 buckets,
-Amazon DynamoDB tables, and Amazon CloudWatch logs. If you need to preserve
-any data, create a backup before running them.
-
-To remove everything, follow these steps in order:
-1. Identify retained resources: buckets or tables using RemovalPolicy.RETAIN
-   survive ``cdk destroy`` and must be emptied or deleted manually first.
-   List them with ``cdk list`` and check the AWS Console.
-2. Empty retained S3 buckets before destroying (non-empty buckets block stack
-   deletion): ``aws s3 rm s3://<bucket-name>/ --recursive``
-3. Destroy all stacks:
-       cdk destroy --all -c environment=<env>
-4. Verify removal with ``cdk list`` and the AWS Console. Retained DynamoDB
-   tables must be deleted manually to stop charges.
-Always destroy resources when not in use to avoid ongoing charges.
+Cleanup is intentionally guarded. Before stack deletion, use an explicit
+profile, expected account, and eu-west-1; inventory billable and stateful
+resources; create a retention and backup manifest; review the destroy change;
+and obtain approval for the exact stack and retained-data deletion sets.
+Reverify STS immediately before mutation and inventory residuals afterwards.
 """
 
 import os
@@ -42,6 +33,7 @@ from lib.data_pipeline_stack import DataPipelineStack
 from lib.dealer_api_stack import DealerApiStack
 from lib.evaluation_stack import EvaluationStack
 from lib.monitoring_stack import MonitoringStack
+from lib.security import LambdaInvokeBoundary
 
 app = cdk.App()
 
@@ -119,11 +111,16 @@ monitoring = MonitoringStack(
     f"{stack_prefix}-monitoring",
     evaluation_topic=evaluation.alert_topic,
     agent_runtime_arn=(agent_runtime.runtime_arn if agent_runtime is not None else None),
+    agent_memory_arn=(agent_runtime.memory_arn if agent_runtime is not None else None),
     env=env,
     description=f"CloudWatch dashboards and alarms ({env_name})",
 )
 if agent_runtime is not None:
     monitoring.add_dependency(agent_runtime)
+
+# Enforce the repository-wide Lambda ingress boundary across every stack,
+# including resources introduced by future constructs.
+cdk.Aspects.of(app).add(LambdaInvokeBoundary())
 
 # Tags
 _tagged = [data_pipeline, dealer_api, evaluation, monitoring]

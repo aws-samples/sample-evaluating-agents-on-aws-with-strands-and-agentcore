@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MIT-0
 """Unit tests for JudgeBackend factory + NoOp behavior."""
 
+from unittest.mock import patch
+
 import pytest
 
 from agentic_evaluation import NoOpJudgeBackend, build_judge
@@ -50,3 +52,43 @@ def test_build_strands_succeeds_when_extra_installed():
 
     judge = build_judge("strands")
     assert isinstance(judge, StrandsJudgeBackend)
+
+
+@pytest.mark.sdk
+def test_strands_judge_uses_one_bounded_model_per_layer():
+    from agentic_evaluation import StrandsJudgeBackend
+
+    model = object()
+    judge = StrandsJudgeBackend(
+        connect_timeout_seconds=4,
+        read_timeout_seconds=30,
+        max_attempts=2,
+    )
+    with patch("strands.models.BedrockModel", return_value=model) as model_class:
+        evaluators = judge.layer2_evaluators(
+            model="eu.anthropic.claude-sonnet-4-6",
+            rubric="rubric",
+            tool_descriptions={},
+        )
+
+    assert all(evaluator.model is model for evaluator in evaluators)
+    config = model_class.call_args.kwargs["boto_client_config"]
+    assert config.connect_timeout == 4
+    assert config.read_timeout == 30
+    assert config.retries == {"max_attempts": 2, "mode": "standard"}
+
+
+@pytest.mark.sdk
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"connect_timeout_seconds": 0},
+        {"read_timeout_seconds": 0},
+        {"max_attempts": 0},
+    ],
+)
+def test_strands_judge_rejects_unbounded_client_settings(kwargs):
+    from agentic_evaluation import StrandsJudgeBackend
+
+    with pytest.raises(ValueError, match="positive integer"):
+        StrandsJudgeBackend(**kwargs)

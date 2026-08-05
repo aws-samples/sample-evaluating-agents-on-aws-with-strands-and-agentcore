@@ -13,8 +13,8 @@ Avoids local docker entirely (per project policy). Idempotent:
 
 **This script builds the image only.** The AgentCore Runtime is owned by
 CDK (``cdk/lib/agent_runtime_stack.py``), which wires the execution-role
-Amazon S3/Amazon DynamoDB grants and the ``DATA_BUCKET``/``LANCEDB_PATH``/``DEALERS_TABLE``
-environment variables the agent needs. Registering the runtime here as well
+Amazon S3 grants and the ``DATA_BUCKET``/``LANCEDB_PATH`` environment variables
+the agent needs. Registering the runtime here as well
 created two owners for one resource: an out-of-band ``update_agent_runtime``
 silently overwrote CDK's role and nulled its env vars (CloudFormation drift),
 so the deployed agent could not read its data. The normal path is
@@ -38,48 +38,22 @@ Cost Warning:
 Usage::
 
     # Build only (default); feed the printed image URI to `cdk deploy`:
-    python scripts/deploy_codebuild.py --ecr-repo agent-eval-runtime --region eu-west-1
+    python scripts/deploy_codebuild.py --ecr-repo agent-eval-runtime \
+        --profile PROFILE --region eu-west-1 --expected-account 123456789012
 
     # No-CDK quickstart: build AND register a standalone runtime:
     python scripts/deploy_codebuild.py --register-runtime \\
-        --runtime-name agent_eval_runtime_dev --region eu-west-1 \\
-        --env DATA_BUCKET=... --env DEALERS_TABLE=... --env LANCEDB_PATH=lancedb/latest.json
+        --runtime-name agent_eval_runtime_dev --profile PROFILE \\
+        --region eu-west-1 --expected-account 123456789012 \\
+        --env DATA_BUCKET=... --env LANCEDB_PATH=lancedb/manifest.json
 
 Cleanup:
-    Important: The following commands delete AWS resources and their data.
-    If you need to preserve any data, create a backup before running them.
-
-    This script creates billable, persistent resources. CDK does not manage them,
-    so ``cdk destroy`` will not remove them. Delete them manually when finished
-    (defaults shown; adjust names/region to match your run):
-
-        # 1. Delete the Amazon Bedrock AgentCore runtime (only if you used --register-runtime)
-        aws bedrock-agentcore-control delete-agent-runtime \\
-            --agent-runtime-name agent_eval_runtime_dev --region eu-west-1
-
-        # 2. Delete the CodeBuild project
-        aws codebuild delete-project --name agent-eval-runtime-build --region eu-west-1
-
-        # 3. Back up source bucket contents (if needed), then empty and delete it
-        # Default bucket name is agent-eval-codebuild-src-<ACCOUNT>-<REGION>
-        # (or whatever you passed to --source-bucket). Replace ACCOUNT with your
-        # AWS account ID (e.g., 123456789012) and the region to match your run.
-        aws s3 sync s3://agent-eval-codebuild-src-ACCOUNT-eu-west-1 ./backup/codebuild-src/
-        aws s3 rb s3://agent-eval-codebuild-src-ACCOUNT-eu-west-1 --force
-
-        # 4. Delete the Amazon ECR repository
-        # Note: --force deletes all container images without confirmation.
-        aws ecr delete-repository --repository-name agent-eval-runtime \\
-            --region eu-west-1 --force
-
-        # 5. Delete the IAM roles (detach/delete inline policies first)
-        for role in agent-eval-codebuild-role agent-eval-agentcore-role; do
-          for p in $(aws iam list-role-policies --role-name "$role" \\
-              --query 'PolicyNames[]' --output text); do
-            aws iam delete-role-policy --role-name "$role" --policy-name "$p"
-          done
-          aws iam delete-role --role-name "$role"
-        done
+    This script creates billable, persistent resources that CDK does not own.
+    Before deletion, inventory them with an explicit profile, expected account,
+    and region; classify every bucket object/version, ECR digest, role, log, and
+    runtime as retain, back up, migrate, or delete; then obtain approval for the
+    exact deletion set. Reverify STS identity before every mutation and inventory
+    billable residuals independently afterwards.
 """
 
 from __future__ import annotations
@@ -94,8 +68,12 @@ import time
 import zipfile
 from pathlib import Path
 
-import boto3
 from botocore.exceptions import ClientError
+
+try:
+    from scripts.aws_safety import confirm_mutation, reverify_identity, verified_session
+except ModuleNotFoundError:
+    from aws_safety import confirm_mutation, reverify_identity, verified_session
 
 logger = logging.getLogger("deploy")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -108,7 +86,8 @@ def _git_sha() -> str | None:
     reproducible tag the ECR repo (IMMUTABLE) will accept.
     """
     try:
-        out = subprocess.run(
+        # Fixed literal argv (git rev-parse), no shell, and no external input.
+        out = subprocess.run(  # nosec B603
             ["git", "rev-parse", "--short", "HEAD"],
             capture_output=True,
             text=True,
@@ -126,6 +105,8 @@ AGENT_DIR = REPO_ROOT / "examples" / "vehicle-auction-agent" / "agent"
 # 30 minutes is generous for a container image build; adjust if your image is
 # unusually large.
 BUILD_TIMEOUT_SECONDS = 1800
+IMAGE_SCAN_TIMEOUT_SECONDS = 600
+BLOCKING_IMAGE_SEVERITIES = ("CRITICAL", "HIGH")
 
 # Models the agent invokes. Kept in sync with agent/app.py (MODEL_ID and the
 # Amazon Titan embedding model) and with the Bedrock policy in
@@ -274,37 +255,75 @@ def _data_source_statements(runtime_env: dict[str, str], account: str, region: s
 
 def _ensure_ecr_repo(ecr, name: str, region: str, account: str) -> str:
     try:
-        ecr.describe_repositories(repositoryNames=[name])
+        repository = ecr.describe_repositories(repositoryNames=[name])["repositories"][0]
         logger.info("ECR repo exists: %s", name)
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "RepositoryNotFoundException":
             raise
         logger.info("Creating ECR repo: %s", name)
-        ecr.create_repository(
+        repository = ecr.create_repository(
             repositoryName=name,
             imageTagMutability="IMMUTABLE",
             imageScanningConfiguration={"scanOnPush": True},
             encryptionConfiguration={"encryptionType": "AES256"},
+        )["repository"]
+    if repository.get("imageTagMutability") != "IMMUTABLE":
+        ecr.put_image_tag_mutability(repositoryName=name, imageTagMutability="IMMUTABLE")
+        logger.info("Enabled immutable tags for ECR repo: %s", name)
+    if not repository.get("imageScanningConfiguration", {}).get("scanOnPush"):
+        ecr.put_image_scanning_configuration(
+            repositoryName=name,
+            imageScanningConfiguration={"scanOnPush": True},
         )
+        logger.info("Enabled scan-on-push for ECR repo: %s", name)
     return f"{account}.dkr.ecr.{region}.amazonaws.com/{name}"
+
+
+def _ensure_source_bucket_policy(s3, bucket: str) -> None:
+    try:
+        policy = json.loads(s3.get_bucket_policy(Bucket=bucket)["Policy"])
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] != "NoSuchBucketPolicy":
+            raise
+        policy = {"Version": "2012-10-17", "Statement": []}
+
+    statements = policy.get("Statement", [])
+    if isinstance(statements, dict):
+        statements = [statements]
+    statements = [
+        statement for statement in statements if statement.get("Sid") != "DenyInsecureTransport"
+    ]
+    statements.append(
+        {
+            "Sid": "DenyInsecureTransport",
+            "Effect": "Deny",
+            "Principal": "*",
+            # A wildcard is intentional in this deny-only statement so every
+            # present and future S3 operation fails closed without TLS.
+            "Action": "s3:*",
+            "Resource": [f"arn:aws:s3:::{bucket}", f"arn:aws:s3:::{bucket}/*"],
+            "Condition": {"Bool": {"aws:SecureTransport": "false"}},
+        }
+    )
+    policy["Statement"] = statements
+    s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
 
 
 def _ensure_source_bucket(s3, bucket: str, region: str) -> None:
     try:
         s3.head_bucket(Bucket=bucket)
         logger.info("Source bucket exists: %s", bucket)
-        return
     except ClientError as exc:
         if exc.response["Error"]["Code"] not in {"404", "NoSuchBucket"}:
             raise
-    logger.info("Creating source bucket: %s", bucket)
-    if region == "us-east-1":
-        s3.create_bucket(Bucket=bucket)
-    else:
-        s3.create_bucket(
-            Bucket=bucket,
-            CreateBucketConfiguration={"LocationConstraint": region},
-        )
+        logger.info("Creating source bucket: %s", bucket)
+        if region == "us-east-1":
+            s3.create_bucket(Bucket=bucket)
+        else:
+            s3.create_bucket(
+                Bucket=bucket,
+                CreateBucketConfiguration={"LocationConstraint": region},
+            )
     s3.put_public_access_block(
         Bucket=bucket,
         PublicAccessBlockConfiguration={
@@ -320,6 +339,54 @@ def _ensure_source_bucket(s3, bucket: str, region: str) -> None:
             "Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]
         },
     )
+    s3.put_bucket_versioning(
+        Bucket=bucket,
+        VersioningConfiguration={"Status": "Enabled"},
+    )
+    s3.put_bucket_ownership_controls(
+        Bucket=bucket,
+        OwnershipControls={"Rules": [{"ObjectOwnership": "BucketOwnerEnforced"}]},
+    )
+    _ensure_source_bucket_policy(s3, bucket)
+
+
+def _wait_for_image_scan(ecr, repository_name: str, image_tag: str) -> dict[str, int]:
+    deadline = time.monotonic() + IMAGE_SCAN_TIMEOUT_SECONDS
+    while True:
+        if time.monotonic() > deadline:
+            raise TimeoutError(
+                f"ECR scan for {repository_name}:{image_tag} did not complete within "
+                f"{IMAGE_SCAN_TIMEOUT_SECONDS}s"
+            )
+        try:
+            response = ecr.describe_image_scan_findings(
+                repositoryName=repository_name,
+                imageId={"imageTag": image_tag},
+            )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] == "ScanNotFoundException":
+                time.sleep(10)
+                continue
+            raise
+
+        status = response["imageScanStatus"]["status"]
+        if status == "IN_PROGRESS":
+            time.sleep(10)
+            continue
+        if status != "COMPLETE":
+            raise RuntimeError(
+                f"ECR scan for {repository_name}:{image_tag} ended with status {status}"
+            )
+
+        counts = response.get("imageScanFindings", {}).get("findingSeverityCounts", {})
+        blocking = {severity: counts.get(severity, 0) for severity in BLOCKING_IMAGE_SEVERITIES}
+        if any(blocking.values()):
+            raise RuntimeError(
+                f"ECR scan blocked {repository_name}:{image_tag}: "
+                + ", ".join(f"{severity}={count}" for severity, count in blocking.items())
+            )
+        logger.info("ECR scan passed for %s:%s: %s", repository_name, image_tag, counts)
+        return counts
 
 
 def _zip_agent_dir() -> bytes:
@@ -479,7 +546,10 @@ def main() -> int:
             "model instead of Resource '*' (least-privilege)."
         ),
     )
-    p.add_argument("--region", default=None, help="AWS region (defaults to session region)")
+    p.add_argument("--profile", required=True, help="Explicit AWS CLI profile")
+    p.add_argument("--region", required=True, help="Explicit AWS region")
+    p.add_argument("--expected-account", required=True, help="Expected 12-digit AWS account ID")
+    p.add_argument("--yes", action="store_true", help="Approve displayed AWS mutation and cost")
     p.add_argument(
         "--codebuild-role",
         default="agent-eval-codebuild-role",
@@ -498,7 +568,7 @@ def main() -> int:
             "build (no-CDK quickstart path). Off by default: the runtime is "
             "owned by CDK (cdk/lib/agent_runtime_stack.py), and registering it "
             "here too causes CloudFormation drift. When set, pass the agent's "
-            "data wiring via --env (DATA_BUCKET, DEALERS_TABLE, LANCEDB_PATH) "
+            "data wiring via --env (DATA_BUCKET, LANCEDB_PATH) "
             "and a runtime role that can read them."
         ),
     )
@@ -534,13 +604,30 @@ def main() -> int:
         k, v = kv.split("=", 1)
         runtime_env[k] = v
 
-    session = boto3.Session(region_name=args.region) if args.region else boto3.Session()
-    region = session.region_name
-    if not region:
-        logger.error("No AWS region configured. Pass --region or set AWS_REGION.")
-        return 2
-    account = session.client("sts").get_caller_identity()["Account"]
+    session, identity = verified_session(
+        profile=args.profile,
+        region=args.region,
+        expected_account=args.expected_account,
+    )
+    region = args.region
+    account = identity["Account"]
     logger.info("Deploying in account=%s region=%s", account, region)
+    confirm_mutation(
+        action="build-agent-image",
+        account=account,
+        region=region,
+        cost=(
+            "about $0.01 per CodeBuild minute, $0.10/GB-month ECR, and "
+            "$0.023/GB-month S3 source storage"
+        ),
+        approved=args.yes,
+    )
+    reverify_identity(
+        session,
+        profile=args.profile,
+        region=region,
+        expected_account=args.expected_account,
+    )
 
     # Single source of truth for the build-source bucket name. Threaded into the
     # CodeBuild role's S3 grant and the upload below so the name is defined once.
@@ -698,8 +785,6 @@ def main() -> int:
                     "Action": [
                         "bedrock:InvokeModel",
                         "bedrock:InvokeModelWithResponseStream",
-                        "bedrock:Converse",
-                        "bedrock:ConverseStream",
                     ],
                     # The chat model is a cross-region inference profile
                     # (``eu.`` prefix): at invoke time it fans out to the
@@ -742,7 +827,14 @@ def main() -> int:
 
     # 5. Run the build
     _run_build(cb, args.codebuild_project)
-    image_uri = f"{repo_uri}:{args.image_tag}"
+    _wait_for_image_scan(ecr, args.ecr_repo, args.image_tag)
+    image_details = ecr.describe_images(
+        repositoryName=args.ecr_repo,
+        imageIds=[{"imageTag": args.image_tag}],
+    )["imageDetails"]
+    if len(image_details) != 1 or not image_details[0].get("imageDigest"):
+        raise RuntimeError(f"Could not resolve ECR digest for {args.ecr_repo}:{args.image_tag}")
+    image_uri = f"{repo_uri}@{image_details[0]['imageDigest']}"
     logger.info("Built image: %s", image_uri)
 
     if not args.register_runtime:
@@ -753,6 +845,12 @@ def main() -> int:
         return 0
 
     # 6. Register runtime (opt-in, no-CDK quickstart only)
+    reverify_identity(
+        session,
+        profile=args.profile,
+        region=region,
+        expected_account=args.expected_account,
+    )
     bac = session.client("bedrock-agentcore-control")
     runtime_arn = _ensure_runtime(
         bac,

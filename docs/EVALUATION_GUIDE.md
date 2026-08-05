@@ -623,35 +623,26 @@ LLM-based evaluators (HelpfulnessEvaluator, TrajectoryEvaluator, OutputEvaluator
 To avoid ongoing charges from LLM-based evaluators and associated AWS resources:
 
 1. **Stop evaluation runs** that invoke Amazon Bedrock models when not actively developing.
-2. **Delete evaluation results from S3** (if stored):
-
-   > **Important:** The following command deletes evaluation results. If you need to preserve any results, create a backup before running it:
-   > ```bash
-   > aws s3 sync s3://amzn-s3-demo-bucket/eval-results/ ./backup/eval-results/
-   > ```
-
+2. **Inventory evaluation resources** with the explicit deployment profile and
+   `eu-west-1`:
    ```bash
-   aws s3 rm s3://amzn-s3-demo-bucket/eval-results/ --recursive
+   aws s3 ls s3://amzn-s3-demo-bucket/eval-results/ \
+     --recursive --profile <profile> --region eu-west-1
+   aws logs describe-log-groups \
+     --log-group-name-prefix /aws/agent-evaluation \
+     --profile <profile> --region eu-west-1
+   aws lambda list-functions \
+     --query "Functions[?contains(FunctionName, 'agent-eval')].FunctionName" \
+     --profile <profile> --region eu-west-1
    ```
-3. **Remove test registries and evaluation pipeline configurations** created during this guide:
-   ```bash
-   aws bedrock-agentcore delete-evaluation-config --config-id YOUR_CONFIG_ID
-   ```
-4. **Delete Amazon CloudWatch log groups** created by evaluation runs:
-   ```bash
-   aws logs delete-log-group --log-group-name /aws/agent-evaluation/dev
-   ```
-5. **Delete AWS Lambda functions** deployed for custom evaluators (if any were deployed separately):
-   ```bash
-   aws lambda delete-function --function-name agent-eval-custom-evaluator-dev --region eu-west-1
-   ```
-6. **Verify no active Amazon Bedrock invocations**: Check CloudWatch metrics for `bedrock:InvokeModel` calls to confirm no resources are still incurring charges.
-7. **Confirm cleanup succeeded**: Run the following checks. Each should return empty or a not-found result:
-   ```bash
-   aws s3 ls s3://amzn-s3-demo-bucket/eval-results/ --recursive
-   aws logs describe-log-groups --log-group-name-prefix /aws/agent-evaluation
-   aws lambda list-functions --query "Functions[?contains(FunctionName, 'agent-eval')].FunctionName"
-   ```
+3. **Classify and back up state**: include every result object and version, log
+   group, evaluation configuration, Lambda, secret, and immutable image digest
+   in a retention manifest.
+4. **Delete only an approved set**: follow the STS verification, exact deletion
+   approval, and independent residual-inventory procedure in the main
+   [Cleaning Up guide](../README.md#cleaning-up).
+5. **Verify no active Amazon Bedrock invocations**: check CloudWatch metrics for
+   model calls and account for delayed billing visibility.
 
 For full infrastructure teardown (CDK stacks), see the [Cleaning Up section in the main README](../README.md#cleaning-up).
 

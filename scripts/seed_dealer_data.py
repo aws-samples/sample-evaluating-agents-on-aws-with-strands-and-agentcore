@@ -12,6 +12,11 @@ from decimal import Decimal
 
 import boto3
 
+try:
+    from scripts.aws_safety import confirm_mutation, reverify_identity, verified_session
+except ModuleNotFoundError:
+    from aws_safety import confirm_mutation, reverify_identity, verified_session
+
 
 DEALERS = [
     {
@@ -113,8 +118,8 @@ DEALERS = [
 ]
 
 
-def seed(table_name: str, region: str) -> None:
-    dynamodb = boto3.resource("dynamodb", region_name=region)
+def seed(table_name: str, session: boto3.Session, region: str) -> None:
+    dynamodb = session.resource("dynamodb", region_name=region)
     table = dynamodb.Table(table_name)
 
     for dealer in DEALERS:
@@ -127,6 +132,27 @@ def seed(table_name: str, region: str) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed dealer data")
     parser.add_argument("--table", default="agent-eval-dealers-dev")
-    parser.add_argument("--region", default="eu-west-1")
+    parser.add_argument("--profile", required=True)
+    parser.add_argument("--region", required=True)
+    parser.add_argument("--expected-account", required=True)
+    parser.add_argument("--yes", action="store_true")
     args = parser.parse_args()
-    seed(args.table, args.region)
+    session, identity = verified_session(
+        profile=args.profile,
+        region=args.region,
+        expected_account=args.expected_account,
+    )
+    confirm_mutation(
+        action="seed-dealer-data",
+        account=identity["Account"],
+        region=args.region,
+        cost="DynamoDB on-demand write request charges only; no new fixed resource cost",
+        approved=args.yes,
+    )
+    reverify_identity(
+        session,
+        profile=args.profile,
+        region=args.region,
+        expected_account=args.expected_account,
+    )
+    seed(args.table, session, args.region)

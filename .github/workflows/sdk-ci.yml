@@ -18,12 +18,12 @@ jobs:
       matrix:
         python-version: ["3.14"]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: repo
 
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -42,30 +42,150 @@ jobs:
 
       - name: Offline unit tests with coverage
         working-directory: repo
-        # --cov-fail-under=40: floor based on measured ~42% on offline suite; TODO raise as coverage improves
         run: |
-          uv run pytest tests/unit/ tests/sdk/ -m "not deployed" \
+          uv run pytest -m "not deployed" \
             --cov=agentic_evaluation --cov-report=term-missing \
-            --cov-fail-under=40 \
+            --cov-fail-under=70 \
             -v --tb=short
 
       - name: agentic-eval CLI smoke
         working-directory: repo
         run: uv run agentic-eval --help
 
-  build-wheel:
-    needs: lint-and-test
+  security-and-iac:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: repo
-      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+
+      - name: Set up Python 3.14
+        run: uv python install 3.14
+
+      - name: Install project dependencies
+        working-directory: repo
+        run: uv sync --all-extras --dev --frozen
+
+      # pipefail matters here: the default shell is `bash -e`, so without it a
+      # failing `uv export` would be masked by pip-audit's exit code and the
+      # gate would pass having audited nothing.
+      - name: Audit frozen project dependencies
+        working-directory: repo
+        run: |
+          set -o pipefail
+          uv export --frozen --no-dev --all-extras --no-emit-project \
+            --format requirements-txt |
+            uvx --from pip-audit==2.10.1 pip-audit \
+              -r /dev/stdin --no-deps --disable-pip
+
+      # Every uv-managed project except the root. The CDK app and both Lambda
+      # functions deploy to AWS, so their locks are gated here rather than left
+      # to Dependabot alone.
+      - name: Audit CDK and Lambda dependencies
+        working-directory: repo
+        run: |
+          set -o pipefail
+          for project in \
+            examples/vehicle-auction-agent/cdk \
+            examples/vehicle-auction-agent/lambda/functions/data_ingestion \
+            examples/vehicle-auction-agent/lambda/functions/dealer_api
+          do
+            echo "::group::pip-audit $project"
+            uv export --frozen --no-dev --no-emit-project \
+              --format requirements-txt --project "$project" |
+              uvx --from pip-audit==2.10.1 pip-audit \
+                -r /dev/stdin --no-deps --disable-pip
+            echo "::endgroup::"
+          done
+
+      - name: Audit deployable agent dependencies
+        working-directory: repo
+        run: |
+          uvx --from pip-audit==2.10.1 pip-audit \
+            -r examples/vehicle-auction-agent/agent/requirements.lock \
+            --no-deps --disable-pip
+
+      - name: Bandit
+        working-directory: repo
+        run: |
+          uvx --from bandit==1.9.4 bandit -r \
+            src scripts examples/vehicle-auction-agent/agent \
+            examples/vehicle-auction-agent/cdk/lib -ll
+
+      - name: Detect committed secrets # pragma: allowlist secret
+        working-directory: repo
+        run: |
+          uvx --from detect-secrets==1.5.0 detect-secrets scan . \
+            --exclude-files '(^|/)\.pre-commit-config\.yaml$' \
+            --exclude-lines '(?i)detect[- ](?:committed[- ])?secrets' \
+            > "$RUNNER_TEMP/detect-secrets.json"
+          jq -e '.results == {}' "$RUNNER_TEMP/detect-secrets.json"
+
+      - name: Install CDK dependencies and CLI
+        working-directory: repo/examples/vehicle-auction-agent/cdk
+        run: |
+          uv sync --frozen
+          npm install --global aws-cdk@2.1131.0
+
+      - name: Synthesize all CDK stacks
+        working-directory: repo/examples/vehicle-auction-agent/cdk
+        env:
+          AWS_ACCOUNT_ID: "111122223333"
+          AWS_REGION: eu-west-1
+          AGENT_IMAGE_URI: 111122223333.dkr.ecr.eu-west-1.amazonaws.com/agent-eval-runtime@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION: "1"
+        run: |
+          uv run cdk synth --output "$RUNNER_TEMP/cdk.out" -c environment=dev
+
+      - name: Validate synthesized CloudFormation
+        working-directory: repo
+        run: |
+          while IFS= read -r template; do
+            uvx --from cfn-lint==1.53.0 cfn-lint \
+              -t "$template" --ignore-checks W3005
+          done < <(find "$RUNNER_TEMP/cdk.out" -maxdepth 1 \
+            -name '*.template.json' -print)
+
+      - name: Reject wildcard IAM actions
+        working-directory: repo
+        run: |
+          while IFS= read -r template; do
+            if jq -e '
+              .. | objects | .Action? // empty
+              | if type == "array" then .[] else . end
+              | select(type == "string" and contains("*"))
+            ' "$template" >/dev/null; then
+              echo "Wildcard IAM action found in $template"
+              exit 1
+            fi
+          done < <(find "$RUNNER_TEMP/cdk.out" -maxdepth 1 \
+            -name '*.template.json' -print)
+
+      - name: Checkov
+        working-directory: repo
+        run: |
+          uvx --from checkov==3.2.533 checkov \
+            -d "$RUNNER_TEMP/cdk.out" \
+            --framework cloudformation \
+            --config-file .checkov.yaml \
+            --compact
+
+  build-wheel:
+    needs: [lint-and-test, security-and-iac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: repo
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
       - name: Build sdist + wheel
         working-directory: repo
         run: uv build
       - name: Upload artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dist
           path: repo/dist/

@@ -19,8 +19,11 @@ agentcore = [
     # [strands-agents] pulls in the AgentCore Memory session-manager integration
     # used by the reference agent; mcp-proxy-for-aws provides the SigV4 MCP
     # transport for the AgentCore Gateway dealer-profile tool.
-    "bedrock-agentcore[strands-agents]>=1.13.0",
-    "mcp>=1.9.0",
+    # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
+    # (argument injection in Code Interpreter install_packages()).
+    "bedrock-agentcore[strands-agents]>=1.18.1",
+    "lancedb==0.33.0",
+    "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
 ]
 http = [
@@ -32,8 +35,11 @@ aws = [
 ]
 all = [
     "strands-agents>=1.29.0",
-    "bedrock-agentcore[strands-agents]>=1.13.0",
-    "mcp>=1.9.0",
+    # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
+    # (argument injection in Code Interpreter install_packages()).
+    "bedrock-agentcore[strands-agents]>=1.18.1",
+    "lancedb==0.33.0",
+    "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
     "requests>=2.31.0",
 ]
@@ -61,7 +67,25 @@ dev = [
     # valid `except (A, B):` into invalid `except A, B:` (a SyntaxError). We
     # pin the latest verified-safe patch (whole 0.15.x line is affected).
     "ruff==0.14.14",
+    "lancedb==0.33.0",
     "pandas>=2.0.0",
+]
+
+[tool.uv]
+# Security floors for packages we do not depend on directly. Expressed as
+# constraints rather than dependencies: they raise the minimum the resolver may
+# pick without making these packages part of our public dependency surface, and
+# unlike a bare `uv lock --upgrade-package` they survive future re-resolution.
+# Remove an entry once every transitive parent requires the fixed version.
+constraint-dependencies = [
+    # aiohttp arrives via strands-agents-evals -> strands-agents-tools.
+    # < 3.14.3 is vulnerable to CVE-2026-69244 (out-of-bounds heap read in the
+    # C response parser), plus CVE-2026-69243 and CVE-2026-59881 (WebSocket).
+    "aiohttp>=3.14.3",
+    # cryptography arrives via authlib, joserfc, pyjwt[crypto] and secretstorage.
+    # 44.0.0 <= version < 50.0.0 is vulnerable to CVE-2026-69247 (Bleichenbacher
+    # oracle in PKCS#7 EnvelopedData decryption).
+    "cryptography>=50.0.0",
 ]
 
 [tool.ruff]

@@ -15,6 +15,7 @@ Usage::
 from __future__ import annotations
 
 import json
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -70,8 +71,9 @@ def _extract_trajectory(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def make_task_fn(
-    agent: Any,
+    agent: Any | None = None,
     *,
+    agent_factory: Callable[[], Any] | None = None,
     input_cost_per_1k: float = _DEFAULT_INPUT_COST_PER_1K,
     output_cost_per_1k: float = _DEFAULT_OUTPUT_COST_PER_1K,
 ) -> Callable[[Case], TaskFnResult]:
@@ -84,14 +86,62 @@ def make_task_fn(
           Session-level judges (Helpfulness, GoalSuccessRate) run for real.
         - Surfaces latency/token/cost via ``environment_state`` for the domain
           evaluators (the channel ``strands_evals`` propagates).
+
+    Pass ``agent_factory`` for the strongest isolation, especially when an
+    agent has a session manager or other external state. For backward
+    compatibility, a supplied ``agent`` has its in-memory messages cleared for
+    each case and restored after the invocation.
     """
+    if (agent is None) == (agent_factory is None):
+        raise ValueError("Pass exactly one of agent or agent_factory")
+    shared_agent_lock = threading.Lock()
+    conversation_agents: dict[str, Any] = {}
 
     def task_fn(case: Case) -> TaskFnResult:
-        start_dt = datetime.now(timezone.utc)
-        start = time.perf_counter()
-        result = agent(case.input)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        end_dt = datetime.now(timezone.utc)
+        metadata = case.metadata or {}
+        conversation_id = metadata.get("conversation_id")
+        run_id = metadata.get("evaluation_run_id", "default")
+        conversation_key = f"{run_id}:{conversation_id}" if conversation_id else None
+        if agent_factory is not None and conversation_key:
+            with shared_agent_lock:
+                active_agent = conversation_agents.get(conversation_key)
+                if active_agent is None:
+                    active_agent = agent_factory()
+                    conversation_agents[conversation_key] = active_agent
+        else:
+            active_agent = agent_factory() if agent_factory is not None else agent
+        if active_agent is None:  # pragma: no cover - guarded above
+            raise RuntimeError("Agent construction failed")
+
+        # A shared Agent is not thread-safe while its history is temporarily
+        # cleared. Serialize that compatibility path; factory-created agents do
+        # not share state and need no lock.
+        lock = shared_agent_lock if agent_factory is None else threading.Lock()
+        with lock:
+            history = getattr(active_agent, "messages", None)
+            original_messages = list(history or [])
+            preserve_conversation = conversation_key is not None and agent_factory is not None
+            if isinstance(history, list) and not preserve_conversation:
+                history.clear()
+            message_start = len(history or [])
+            try:
+                start_dt = datetime.now(timezone.utc)
+                start = time.perf_counter()
+                result = active_agent(case.input)
+                elapsed_ms = (time.perf_counter() - start) * 1000
+                end_dt = datetime.now(timezone.utc)
+                messages = list(getattr(active_agent, "messages", []) or [])[message_start:]
+            finally:
+                current_history = getattr(active_agent, "messages", None)
+                if isinstance(current_history, list) and not preserve_conversation:
+                    current_history[:] = original_messages
+        if (
+            conversation_key
+            and metadata.get("turn_index") == metadata.get("turn_count")
+            and agent_factory is not None
+        ):
+            with shared_agent_lock:
+                conversation_agents.pop(conversation_key, None)
 
         output = ""
         if hasattr(result, "message"):
@@ -103,9 +153,8 @@ def make_task_fn(
             elif isinstance(msg, str):
                 output = msg
 
-        messages = list(getattr(agent, "messages", []) or [])
         tool_calls = _extract_trajectory(messages)
-        available_tools = [str(name) for name in getattr(agent, "tool_names", []) or []]
+        available_tools = [str(name) for name in getattr(active_agent, "tool_names", []) or []]
 
         usage = dict(getattr(getattr(result, "metrics", None), "accumulated_usage", {}) or {})
         input_tokens = int(usage.get("inputTokens", 0))

@@ -25,6 +25,7 @@ from typing import Callable
 
 import requests
 from strands_evals import Case
+from strands_evals.types.evaluation import EnvironmentState
 
 from agentic_evaluation.exceptions import TaskFnError
 from agentic_evaluation.types import TaskFnResult
@@ -72,6 +73,14 @@ def make_task_fn(
         return {
             "output": data.get(output_key, ""),
             "trajectory": data.get(trajectory_key, []),
+            "environment_state": [
+                EnvironmentState(
+                    name="metrics",
+                    state={
+                        "latency_ms": elapsed_ms,
+                    },
+                )
+            ],
             "metadata": {
                 "latency_ms": elapsed_ms,
                 "status_code": resp.status_code,

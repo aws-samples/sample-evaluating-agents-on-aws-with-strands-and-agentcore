@@ -28,13 +28,23 @@ The AWS services used in this implementation operate under the [AWS Shared Respo
 
 ### Authentication and Authorization
 - Dealer API Gateway endpoints require AWS IAM (SigV4) authorization; stage-level throttling and an AWS WAF WebACL provide rate limiting
+- Lambda Function URLs are prohibited. An app-wide CDK aspect fails synthesis
+  if any stack creates one or grants public/account-principal invocation.
+- Cross-service Lambda invocation permissions require a specific AWS service
+  principal and scoped source ARN. The dealer Lambda accepts only this API
+  Gateway; the private ingestion Lambda accepts its named EventBridge rule.
 - The AgentCore Gateway fronts the Dealer API with IAM authorization inbound (the runtime execution role) and outbound (the Gateway service role signs SigV4 to the REST API); no API key or shared secret is used
+- IAM Runtime deployments are single-tenant by default. Cognito deployments derive dealer identity from a verified JWT claim. The runtime exposes only a zero-argument dealer-profile wrapper and injects the trusted dealer ID server-side; the model cannot list dealers or select a different ID.
 - Lambda functions use IAM execution roles with least-privilege grants
 - AgentCore Runtime uses scoped IAM for Amazon Bedrock and Amazon S3, scoped read/write to its AgentCore Memory, and Gateway invoke; it reaches dealer profiles through the AgentCore Gateway rather than Amazon DynamoDB directly
 - When you wire in real secrets, store them in AWS Secrets Manager or AWS Systems Manager Parameter Store (the sample mocks its data source and creates no such parameter). See `.env.example` for the recommended pattern.
 
 ### Encryption
-- **At rest**: Amazon S3 (SSE-S3), Amazon DynamoDB (AWS-managed encryption)
+- **At rest**: Amazon S3 uses SSE-S3. Customer-managed, rotating KMS keys
+  protect DynamoDB, Lambda environment variables, application-managed CloudWatch
+  logs, SNS alerts, and the Secrets Manager evaluation token. AgentCore's
+  service-created runtime logs use CloudWatch Logs encryption at rest and a
+  seven-day retention policy. The ingestion DLQ uses the AWS-managed SQS KMS key.
 - **In transit**: S3 SSL enforcement, API Gateway HTTPS, Bedrock API TLS 1.2+
 
 ### Input Validation
@@ -57,9 +67,33 @@ The AWS services used in this implementation operate under the [AWS Shared Respo
 Pin dependencies and audit regularly. Use uv (the uv Python package and project manager) to run the following security scanning tools:
 
 ```bash
-uv run pip-audit                                                          # Check for known CVEs
-uv run bandit -r src/agentic_evaluation/ examples/vehicle-auction-agent/ -ll  # Static security analysis
-pre-commit run --all-files                                                # git-secrets + linting
+# Root SDK project (all extras).
+uv export --frozen --no-dev --all-extras --no-emit-project \
+  --format requirements-txt |
+  uvx --from pip-audit pip-audit -r /dev/stdin --no-deps --disable-pip
+# CDK app and both Lambda functions, which also deploy to AWS.
+for project in examples/vehicle-auction-agent/cdk \
+  examples/vehicle-auction-agent/lambda/functions/data_ingestion \
+  examples/vehicle-auction-agent/lambda/functions/dealer_api; do
+  uv export --frozen --no-dev --no-emit-project \
+    --format requirements-txt --project "$project" |
+    uvx --from pip-audit pip-audit -r /dev/stdin --no-deps --disable-pip
+done
+# Hash-pinned agent runtime image.
+uvx --from pip-audit pip-audit --no-deps --disable-pip \
+  -r examples/vehicle-auction-agent/agent/requirements.lock
+uvx --from bandit bandit -r src scripts examples/vehicle-auction-agent/agent \
+  examples/vehicle-auction-agent/cdk/lib -ll
+uv run ruff check .
+```
+
+Regenerate the agent runtime lock after changing `requirements.txt` or `constraints.txt`:
+
+```bash
+cd examples/vehicle-auction-agent/agent
+uv pip compile requirements.txt --constraint constraints.txt \
+  --python-platform aarch64-manylinux_2_28 --python-version 3.14 \
+  --generate-hashes --only-binary :all: --output-file requirements.lock
 ```
 
 ### Known Advisories
@@ -67,28 +101,33 @@ pre-commit run --all-files                                                # git-
 | Package | CVE | Status | Impact |
 |---------|-----|--------|--------|
 | PyJWT | CVE-2026-32597 | Resolved: project pins 2.13.0 (fix landed in 2.12.0) | None: patched version in use; transitive dependency not used for JWT validation |
+| aiohttp | CVE-2026-69244, CVE-2026-69243, CVE-2026-59881 | Resolved: constrained to >=3.14.3 | None: patched version in use. Reached only transitively via `strands-agents-evals` -> `strands-agents-tools`; no first-party code imports aiohttp, and it is absent from the deployed agent image |
+| bedrock-agentcore | CVE-2026-16796 | Resolved: floor raised to >=1.18.1 | None: patched version in use. The affected Code Interpreter `install_packages()` path is not used by this project |
+| cryptography | CVE-2026-69247 | Resolved: constrained to >=50.0.0 | None: patched version in use. Reached transitively via authlib, joserfc, `pyjwt[crypto]` and secretstorage; no PKCS#7 `EnvelopedData` decryption anywhere in the project |
+
+Transitive floors live in `[tool.uv] constraint-dependencies` (root `pyproject.toml`) and
+`examples/vehicle-auction-agent/agent/constraints.txt`, so they survive re-resolution.
 
 ## Pre-Deployment Checklist
 
 Before deploying to production:
 
 - [ ] Replace `example.com` CORS origin with your actual domain
-- [ ] Set `METRICS_SOURCE=live` in your deployment environment (replaces the `.env.example` placeholder; wire it to your real metrics source)
 - [ ] Confirm the Dealer API and AgentCore Gateway use IAM (SigV4) authorization end to end (no API keys to rotate in this design)
-- [ ] Run `uv run pip-audit` and resolve any HIGH/CRITICAL CVEs
+- [ ] Select an explicit AWS profile, `eu-west-1`, and expected 12-digit account; verify them with STS
+- [ ] Run the frozen-lock dependency audit above and resolve any known advisories
+- [ ] Review `cdk diff`, the immutable ECR digest, and the approximately $55-105/month dev estimate before approving deployment
 - [ ] Subscribe to the SNS alert topic for evaluation notifications
 - [ ] Review IAM roles and remove any unused permissions
 - [ ] Set `ENVIRONMENT=prod` (enables stricter removal policies and CORS)
 
 ## Cleaning Up
 
-When you no longer need the deployed resources, remove them to avoid ongoing charges and reduce your attack surface. The main [README Cleaning Up](../README.md#cleaning-up) section has detailed teardown commands. Those commands cover CDK stacks, Amazon S3 buckets, AWS Lambda functions, Amazon DynamoDB tables, and Amazon CloudWatch log groups.
-
-Security-specific resources to remove manually if they were created outside the CDK stacks:
-
-- **AWS Identity and Access Management (IAM) roles**: `aws iam list-roles --query 'Roles[?contains(RoleName,\`agent-eval\`)]'`
-- **AWS Key Management Service (AWS KMS) keys**: Disable and schedule deletion via the AWS KMS console.
-- **AWS CloudTrail trails**: `aws cloudtrail delete-trail --name <trail-name>`
+Before teardown, create a retention and backup manifest covering every bucket
+version, table, log group, secret, and ECR image digest. Verify the explicit
+profile/account/region again and obtain separate approval for stack deletion
+and retained-data deletion. CDK retains the S3 data and access-log buckets; a
+deleted stack is not evidence that billable data was removed.
 
 ## Conclusion
 

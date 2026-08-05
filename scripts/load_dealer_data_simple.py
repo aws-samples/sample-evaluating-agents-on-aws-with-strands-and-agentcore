@@ -8,7 +8,10 @@ import os
 import sys
 from decimal import Decimal
 
-import boto3
+try:
+    from scripts.aws_safety import confirm_mutation, reverify_identity, verified_session
+except ModuleNotFoundError:
+    from aws_safety import confirm_mutation, reverify_identity, verified_session
 
 
 def decimal_converter(obj):
@@ -40,9 +43,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--region",
-        default=os.environ.get("AWS_REGION", "eu-west-1"),
-        help="AWS region (default: eu-west-1 or AWS_REGION env var)",
+        required=True,
+        help="Explicit AWS region",
     )
+    parser.add_argument("--profile", required=True, help="Explicit AWS CLI profile")
+    parser.add_argument("--expected-account", required=True)
+    parser.add_argument("--yes", action="store_true")
     parser.add_argument(
         "--table",
         default=os.environ.get("DEALERS_TABLE", "agent-eval-dealers-dev"),
@@ -65,7 +71,25 @@ def main() -> None:
     print(f"Found {len(dealers)} dealers")
 
     try:
-        dynamodb = boto3.resource("dynamodb", region_name=args.region)
+        session, identity = verified_session(
+            profile=args.profile,
+            region=args.region,
+            expected_account=args.expected_account,
+        )
+        confirm_mutation(
+            action="load-dealer-data",
+            account=identity["Account"],
+            region=args.region,
+            cost="DynamoDB on-demand write request charges only; no new fixed resource cost",
+            approved=args.yes,
+        )
+        reverify_identity(
+            session,
+            profile=args.profile,
+            region=args.region,
+            expected_account=args.expected_account,
+        )
+        dynamodb = session.resource("dynamodb", region_name=args.region)
         table = dynamodb.Table(args.table)
 
         print(f"Loading into DynamoDB table '{args.table}' in {args.region}...")

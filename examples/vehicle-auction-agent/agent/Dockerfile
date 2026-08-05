@@ -3,9 +3,10 @@
 # SPDX-License-Identifier: MIT-0
 
 # AgentCore Runtime requires ARM64 / linux containers.
-# Pinned to an exact patch tag: the public ECR mirror does not carry the
-# rolling 3.14-slim tag (only specific patch releases like 3.14.4-slim).
-FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.14.4-slim
+# Pinned to the reviewed Debian 12 multi-platform manifest published with the
+# current Python patch release. Combined with the explicit ARM64 platform, this
+# resolves one immutable base image.
+FROM --platform=linux/arm64 public.ecr.aws/docker/library/python:3.14.6-slim-bookworm@sha256:86f975aca15cf04a40b399eebede9aea7c82eae084d1f1a0a6ef6bcaae871a30
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -13,13 +14,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock .
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY . .
 
-# Run as non-root for least-privilege container security.
-RUN adduser --disabled-password --no-create-home appuser
+# Run as non-root for least-privilege container security. The Debian slim base
+# includes an essential Perl interpreter for package-management scripts, but
+# this Python-only runtime does not use it and Debian has no patched package for
+# the current critical advisories. Create the user first, then remove that
+# otherwise unreachable interpreter from the final runtime attack surface.
+RUN adduser --disabled-password --no-create-home appuser \
+    && dpkg --purge --force-depends --force-remove-essential perl-base \
+    && ! command -v perl
 USER appuser
 
 # AgentCore HTTP protocol contract: listen on 0.0.0.0:8080, expose

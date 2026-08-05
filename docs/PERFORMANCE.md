@@ -49,6 +49,7 @@ Lambda CPU is proportional to memory allocation:
 aws logs filter-log-events \
   --log-group-name /aws/lambda/agent-eval-data-ingestion-dev \
   --filter-pattern "Max Memory Used" \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -282,13 +283,21 @@ s3.LifecycleRule(
 **Optimized**: Use S3 for long-term log storage
 ```bash
 # Export logs to S3 after 7 days
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 aws logs create-export-task \
   --log-group-name /aws/lambda/agent-eval-data-ingestion-dev \
   --from 1707264000000 \
   --to 1707868800000 \
   --destination amzn-s3-demo-bucket-logs-archive \
-  --destination-prefix lambda-logs/
+  --destination-prefix lambda-logs/ \
+  --profile <profile> \
+  --region eu-west-1
 ```
+
+Verify the STS account against the expected account and approve the storage and
+request cost before creating the export task.
 
 #### 4. Amazon Bedrock Model Selection
 
@@ -297,7 +306,6 @@ aws logs create-export-task \
 | Model | Input Cost (per 1K tokens) | Output Cost (per 1K tokens) |
 |-------|----------------------------|------------------------------|
 | Amazon Titan Text Embeddings V2 | $0.0001 | N/A |
-| Amazon Nova Lite v1 | $0.00006 | $0.00024 |
 | Claude Sonnet 4.6 from Anthropic | $0.003 | $0.015 |
 
 **Strategy**: Use cheaper models for simple tasks
@@ -382,15 +390,11 @@ def publish_performance_metrics(duration_ms, memory_mb):
 
 **Default**: 1000 concurrent executions per region
 
-**Per-function limits** (applies to the Lambda functions; the AgentCore runtime
-scales as a managed service and has no reserved-concurrency knob):
-```bash
-# Set reserved concurrency on a Lambda function
-aws lambda put-function-concurrency \
-  --function-name agent-eval-data-ingestion-dev \
-  --reserved-concurrent-executions 100 \
-  --region eu-west-1
-```
+**Per-function limits** apply to Lambda functions; the AgentCore runtime scales
+as a managed service and has no reserved-concurrency knob. Configure reserved
+concurrency in CDK, review `cdk diff`, estimate throttling and cost impact, and
+deploy through the guarded deployment path rather than mutating the function
+out of band.
 
 ### Auto-scaling Strategy
 
@@ -480,9 +484,13 @@ data-plane invoke API, matching the smoke-test pattern in `docs/SDK_GUIDE.md`:
 
 ```bash
 # Invoke the AgentCore runtime 100 times concurrently
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 for i in {1..100}; do
   aws bedrock-agentcore invoke-agent-runtime \
     --agent-runtime-arn "$RUNTIME_ARN" \
+    --profile <profile> \
     --region eu-west-1 \
     --runtime-session-id "loadtest-$(printf '%033d' "$i")" \
     --payload '{"prompt":"test"}' \
@@ -491,30 +499,33 @@ done
 wait
 ```
 
+Load tests incur AgentCore and model-usage cost. Verify the STS account, quotas,
+test-data classification, and an approved cost ceiling before starting.
+
 ---
 
 ## Cleaning Up Performance Resources
 
-> **Warning:** Deleting CloudWatch dashboards and alarms removes monitoring configuration permanently. Export them before deletion if you need to preserve dashboard layouts or alarm thresholds: `aws cloudwatch get-dashboard --dashboard-name <name> > dashboard-backup.json`
+If performance-testing resources are no longer needed, remove CDK-managed
+configuration through a reviewed CDK diff. For anything created out of band,
+add it to the retention manifest and obtain approval for the exact deletion
+set. Stop publishing custom metrics to `AgentEvaluation/Performance`; custom
+metrics expire after 15 months of inactivity.
 
-If performance-testing resources are no longer needed:
-
-1. Remove Lambda Insights layers from functions (CDK redeploy without the layer).
-2. Disable Provisioned Concurrency: `aws lambda delete-provisioned-concurrency-config --function-name FUNCTION_NAME --qualifier ALIAS`
-3. Delete custom CloudWatch dashboards: `aws cloudwatch delete-dashboards --dashboard-names DASHBOARD_NAME`
-4. Delete CloudWatch alarms created for benchmarking: `aws cloudwatch delete-alarms --alarm-names ALARM_NAME`
-5. Stop publishing custom CloudWatch metrics to the `AgentEvaluation/Performance` namespace. Custom metrics cannot be manually deleted; they expire automatically after 15 months of inactivity. To avoid ongoing metric storage costs, confirm you have stopped all calls to `put_metric_data` for that namespace.
-
-Confirm deletion by listing each resource and checking it returns empty or not-found:
+Confirm residual state with read-only inventory:
 ```bash
-# Verify Provisioned Concurrency removed
-aws lambda get-provisioned-concurrency-config --function-name FUNCTION_NAME --qualifier ALIAS
-# Verify dashboards removed
-aws cloudwatch list-dashboards --dashboard-name-prefix DASHBOARD_NAME
-# Verify alarms removed
-aws cloudwatch describe-alarms --alarm-names ALARM_NAME
-# Verify custom metrics are no longer actively published
-aws cloudwatch list-metrics --namespace AgentEvaluation/Performance
+aws lambda get-provisioned-concurrency-config \
+  --function-name FUNCTION_NAME --qualifier ALIAS \
+  --profile <profile> --region eu-west-1
+aws cloudwatch list-dashboards \
+  --dashboard-name-prefix DASHBOARD_NAME \
+  --profile <profile> --region eu-west-1
+aws cloudwatch describe-alarms \
+  --alarm-names ALARM_NAME \
+  --profile <profile> --region eu-west-1
+aws cloudwatch list-metrics \
+  --namespace AgentEvaluation/Performance \
+  --profile <profile> --region eu-west-1
 ```
 
 ---

@@ -46,11 +46,10 @@ RUNTIME_ARN = os.environ.get("AGENT_RUNTIME_ARN", _PLACEHOLDER_RUNTIME_ARN)
 REGION = os.environ.get("AWS_REGION", "eu-west-1")
 
 # Dealer context for the location-aware cases ("near my dealership"). The
-# reference agent reads dealer_id from the request payload (a demo-grade
-# posture — see agent/app.py); a real multi-dealer deployment would derive
-# this from the authenticated principal instead. DLR24946 is seeded by
-# scripts/seed_dealer_data.py.
+# trusted evaluation caller passes it through AgentCore's runtimeUserId channel,
+# never through the JSON body. DLR24946 is seeded by scripts/seed_dealer_data.py.
 DEALER_ID = os.environ.get("EVAL_DEALER_ID", "DLR24946")
+EVALUATION_SECRET_ID = os.environ.get("EVALUATION_TRACE_SECRET_ID")
 
 pytestmark = pytest.mark.skipif(
     RUNTIME_ARN == _PLACEHOLDER_RUNTIME_ARN,
@@ -75,7 +74,8 @@ def _real_task_fn():
         runtime_arn=RUNTIME_ARN,
         region=REGION,
         session_prefix="pytest-e2e",
-        payload_extra={"dealer_id": DEALER_ID},
+        runtime_user_id=DEALER_ID,
+        evaluation_secret_id=EVALUATION_SECRET_ID,
     )
 
 
@@ -88,6 +88,17 @@ def _invoke_once(prompt: str) -> dict[str, Any]:
     """
     task_fn = _real_task_fn()
     return task_fn(Case[str, str](name="adhoc", input=prompt))
+
+
+def _print_case_scores(report) -> None:
+    """Print enough case-level evidence to diagnose a live quality failure."""
+    for index, (score, passed, reason) in enumerate(
+        zip(report.scores, report.test_passes, report.reasons)
+    ):
+        case = report.cases[index]
+        case_name = case.get("name", f"case_{index}") if isinstance(case, dict) else f"case_{index}"
+        status = "PASS" if passed else "FAIL"
+        print(f"    {case_name}: {score:.2f} [{status}] {(reason or '')[:500]}")
 
 
 # ---------------------------------------------------------------------------
@@ -148,16 +159,7 @@ class TestRealLayer1:
         for report in reports:
             print(f"  Evaluator: {type(report).__name__}")
             print(f"  Overall score: {report.overall_score:.2f}")
-            for i, (score, passed, reason) in enumerate(
-                zip(report.scores, report.test_passes, report.reasons)
-            ):
-                case_name = (
-                    report.cases[i].get("name", f"case_{i}")
-                    if isinstance(report.cases[i], dict)
-                    else f"case_{i}"
-                )
-                status = "PASS" if passed else "FAIL"
-                print(f"    {case_name}: {score:.2f} [{status}] {(reason or '')[:80]}")
+            _print_case_scores(report)
 
         tool_report = reports[0]
         print(f"\n  Tool selection score: {tool_report.overall_score:.2f}")
@@ -183,6 +185,7 @@ class TestRealLayer2:
         print("\n=== Layer 2: Reasoning Quality (Real Agent) ===")
         for report in reports:
             print(f"  Overall score: {report.overall_score:.2f}")
+            _print_case_scores(report)
 
         helpfulness_report = reports[0]
         print(f"\n  Helpfulness score: {helpfulness_report.overall_score:.2f}")
@@ -206,6 +209,7 @@ class TestRealLayer3:
         print("\n=== Layer 3: Output Quality (Real Agent) ===")
         for report in reports:
             print(f"  Overall score: {report.overall_score:.2f}")
+            _print_case_scores(report)
 
         output_report = reports[0]
         print(f"\n  Output quality score: {output_report.overall_score:.2f}")
@@ -253,19 +257,27 @@ class TestRealFullPipeline:
             print(f"\n  {layer_name}: {status}")
             for report in layer["reports"]:
                 print(f"    score: {report.overall_score:.2f}")
+                if not report.test_passes or not all(report.test_passes):
+                    _print_case_scores(report)
 
         print(f"\n  ALL LAYERS PASSED: {results['all_passed']}")
         print("=" * 60)
 
-        # Structural assertions — verify the pipeline produced well-formed results.
-        # We do NOT assert all_passed is True: a live nondeterministic LLM may
-        # legitimately fall below a threshold.  We assert the gate *executed* and
-        # returned typed data so that structural breakage causes a test failure.
+        # Structural assertions verify the pipeline contract, while all_passed
+        # makes this test a real release gate instead of a false-green smoke test.
         assert "all_passed" in results, "run_all_layers result missing 'all_passed' key"
         for layer_name in ["layer_1", "layer_2", "layer_3", "domain"]:
             assert isinstance(results[layer_name]["passed"], bool), (
                 f"results['{layer_name}']['passed'] is not a bool"
             )
+        failed_layers = [
+            layer_name
+            for layer_name in ["layer_1", "layer_2", "layer_3", "domain"]
+            if not results[layer_name]["passed"]
+        ]
+        assert results["all_passed"] is True, "Live quality gate failed for layers: " + ", ".join(
+            failed_layers
+        )
 
 
 def _metrics_state(task_result: dict[str, Any]) -> dict[str, Any]:

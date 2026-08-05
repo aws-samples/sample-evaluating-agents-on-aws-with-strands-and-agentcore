@@ -29,4 +29,6 @@ def test_quickstart_runs_and_passes(monkeypatch):
     assert result.returncode == 0, (
         f"Quickstart failed.\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
+    for layer in ("layer_1", "layer_2", "layer_3", "domain"):
+        assert f"{layer:<10} PASS" in result.stdout
     assert "Overall: PASS" in result.stdout

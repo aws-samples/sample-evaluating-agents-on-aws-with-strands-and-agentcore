@@ -7,11 +7,10 @@ Provides monitoring infrastructure for agent evaluation:
 - SNS topics for alerts
 - IAM roles for evaluation access
 
-Cleanup:
-    These resources are billable. Remove them with:
-        cdk destroy EvaluationStack -c environment=<env>
-    In non-dev environments some resources use RemovalPolicy.RETAIN and
-    survive ``cdk destroy`` (delete them manually to stop charges).
+Cleanup requires the repository retention manifest, explicit profile/account/
+region verification, a reviewed destroy change, and approval for the exact
+stack and retained-data deletion sets. Evaluation logs and the KMS key are
+retained and continue to incur charges after stack deletion.
 """
 
 from typing import Any
@@ -38,6 +37,12 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from .security import (
+    explicit_kms_key_policy,
+    finalize_explicit_kms_actions,
+    grant_cloudwatch_logs_encryption,
+)
+
 
 class EvaluationStack(Stack):
     """Stack for evaluation monitoring and alerting."""
@@ -54,38 +59,41 @@ class EvaluationStack(Stack):
         # Get environment from context
         env_name = self.node.try_get_context("environment") or "dev"
 
+        evaluation_key_policy = explicit_kms_key_policy()
+        evaluation_key = kms.Key(
+            self,
+            "EvaluationKey",
+            description=f"Encrypts evaluation alerts and logs ({env_name})",
+            enable_key_rotation=True,
+            policy=evaluation_key_policy,
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+
         # SNS Topic for evaluation alerts
         self.alert_topic = sns.Topic(
             self,
             "EvaluationAlertTopic",
             topic_name=f"agent-eval-alerts-{env_name}",
             display_name=f"Agent Evaluation Alerts ({env_name})",
-            # CDK API requires this specific parameter name; this is an immutable
-            # AWS CDK construct property and cannot use inclusive terminology.
-            # See: https://docs.aws.amazon.com/cdk/api/v2/python/aws_cdk.aws_sns/Topic.html
-            master_key=kms.Alias.from_alias_name(self, "SnsManagedKey", "alias/aws/sns"),
+            # CDK API requires this specific parameter name.
+            master_key=evaluation_key,
         )
 
-        # In dev we create the topic without subscriptions and emit the
-        # subscribe command as a stack output so an operator can opt in by
-        # email manually. Non-dev environments manage subscriptions out of band.
-        if env_name == "dev":
-            cdk.CfnOutput(
-                self,
-                "AlertTopicSubscriptionCommand",
-                value=f"aws sns subscribe --topic-arn {self.alert_topic.topic_arn} --protocol email --notification-endpoint YOUR_EMAIL@example.com",
-                description="Command to subscribe to alerts (replace YOUR_EMAIL)",
-            )
-
         # CloudWatch Log Group for evaluation results
+        evaluation_log_group_name = f"/aws/agent-evaluation/{env_name}"
         self.evaluation_log_group = logs.LogGroup(
             self,
             "EvaluationLogGroup",
-            log_group_name=f"/aws/agent-evaluation/{env_name}",
+            log_group_name=evaluation_log_group_name,
             retention=(
                 logs.RetentionDays.ONE_WEEK if env_name == "dev" else logs.RetentionDays.ONE_MONTH
             ),
-            removal_policy=(RemovalPolicy.DESTROY if env_name == "dev" else RemovalPolicy.RETAIN),
+            encryption_key=evaluation_key,
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+        grant_cloudwatch_logs_encryption(
+            evaluation_key,
+            [evaluation_log_group_name],
         )
 
         # IAM Role for Amazon Bedrock AgentCore Evaluations to access logs and metrics
@@ -112,31 +120,30 @@ class EvaluationStack(Stack):
         # Grant read access to data bucket for evaluation, scoped to the data
         # prefixes the evaluation actually reads (processed LanceDB artifact and
         # raw inputs) rather than the whole bucket — least privilege.
-        data_bucket.grant_read(self.evaluation_role, "lancedb/*")
-        data_bucket.grant_read(self.evaluation_role, "raw/*")
-
-        # Grant permissions to write CloudWatch metrics
-        # SECURITY NOTE: Resource "*" is required by AWS for CloudWatch PutMetricData.
-        # This is a non-resource-level action that does not support resource-level ARNs.
-        # Scope is enforced by the namespace condition below.
-        # See: https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoncloudwatch.html
         self.evaluation_role.add_to_policy(
             iam.PolicyStatement(
-                effect=iam.Effect.ALLOW,
-                actions=[
-                    "cloudwatch:PutMetricData",
-                ],
+                actions=["s3:GetObject"],
                 resources=[
-                    "*"
-                ],  # AWS service limitation: CloudWatch PutMetricData is a non-resource-level action and does not support resource-level ARNs; scope is enforced by the namespace condition below.
-                conditions={
-                    "StringEquals": {"cloudwatch:namespace": f"AgentEvaluation/{env_name}"}
-                },
+                    data_bucket.arn_for_objects("lancedb/*"),
+                    data_bucket.arn_for_objects("raw/*"),
+                ],
             )
         )
 
-        # Grant permissions to publish to SNS
-        self.alert_topic.grant_publish(self.evaluation_role)
+        # An encrypted SNS topic requires both publish and data-key access.
+        # Keep these explicit because the L2 grant emits GenerateDataKey*.
+        self.evaluation_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["sns:Publish"],
+                resources=[self.alert_topic.topic_arn],
+            )
+        )
+        self.evaluation_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["kms:Decrypt", "kms:GenerateDataKey"],
+                resources=[evaluation_key.key_arn],
+            )
+        )
 
         # IAM Role for build-time evaluation (strands-agents-evals)
         self.build_eval_role = iam.Role(
@@ -188,11 +195,20 @@ class EvaluationStack(Stack):
 
         # Grant read access to data bucket, scoped to the data prefixes the
         # build-time evaluation reads (processed LanceDB artifact and raw inputs).
-        data_bucket.grant_read(self.build_eval_role, "lancedb/*")
-        data_bucket.grant_read(self.build_eval_role, "raw/*")
+        self.build_eval_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:GetObject"],
+                resources=[
+                    data_bucket.arn_for_objects("lancedb/*"),
+                    data_bucket.arn_for_objects("raw/*"),
+                ],
+            )
+        )
 
         # Grant write access to evaluation logs
         self.evaluation_log_group.grant_write(self.build_eval_role)
+
+        finalize_explicit_kms_actions(evaluation_key, evaluation_key_policy)
 
         # Outputs
         cdk.CfnOutput(

@@ -11,30 +11,14 @@ Run with:  pytest tests/integration/test_e2e_smoke.py -m deployed
 Skip with: pytest -m "not deployed"
 """
 
+import hashlib
 import json
-import os
 from typing import Any
 
 import boto3
 import pytest
 
 pytestmark = pytest.mark.deployed
-
-
-@pytest.fixture
-def aws_region() -> str:
-    return os.environ.get("AWS_REGION", "eu-west-1")
-
-
-@pytest.fixture
-def environment() -> str:
-    return os.environ.get("ENVIRONMENT", "dev")
-
-
-@pytest.fixture
-def account_id() -> str:
-    sts = boto3.client("sts")
-    return sts.get_caller_identity()["Account"]
 
 
 @pytest.fixture
@@ -73,14 +57,19 @@ class TestDataIngestionE2E:
         head = s3.head_object(Bucket=data_bucket, Key=output_key)
         assert head["ContentLength"] > 0
 
-    def test_lancedb_latest_has_vehicles(self, aws_region: str, data_bucket: str) -> None:
-        """Verify lancedb/latest.json contains vehicles with embeddings."""
+    def test_lancedb_manifest_has_vehicles(self, aws_region: str, data_bucket: str) -> None:
+        """Verify the promoted manifest resolves to a valid embedded snapshot."""
         s3 = boto3.client("s3", region_name=aws_region)
-        response = s3.get_object(Bucket=data_bucket, Key="lancedb/latest.json")
-        data = json.loads(response["Body"].read())
+        manifest_response = s3.get_object(Bucket=data_bucket, Key="lancedb/manifest.json")
+        manifest = json.loads(manifest_response["Body"].read())
+        snapshot_response = s3.get_object(Bucket=data_bucket, Key=manifest["data_key"])
+        snapshot_body = snapshot_response["Body"].read()
+        assert hashlib.sha256(snapshot_body).hexdigest() == manifest["version"]
+        data = json.loads(snapshot_body)
 
         vehicles = data.get("vehicles", [])
-        assert len(vehicles) > 0, "No vehicles in lancedb/latest.json"
+        assert len(vehicles) == manifest["vehicle_count"]
+        assert vehicles, "Promoted LanceDB snapshot has no vehicles"
 
         # Check first vehicle has required fields
         first = vehicles[0]

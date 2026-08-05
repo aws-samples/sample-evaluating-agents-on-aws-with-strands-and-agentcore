@@ -1,111 +1,154 @@
-<mxfile host="Claude" type="device">
+<mxfile host="app.diagrams.net" type="device">
   <diagram id="agent-runtime" name="Agent Runtime">
-    <mxGraphModel dx="1600" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1260" pageHeight="960" math="0" shadow="0">
+    <mxGraphModel dx="1600" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <mxCell id="title" value="Vehicle Auction Agent — AgentCore Runtime" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="330" y="16" width="700" height="30" as="geometry" />
+        <mxCell id="title" value="Vehicle Auction Agent Runtime Architecture" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="430" y="16" width="650" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Authenticated AgentCore Runtime, model access, tools, memory, and observability" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#687078;" vertex="1" parent="1">
+          <mxGeometry x="430" y="48" width="650" height="20" as="geometry" />
         </mxCell>
 
-        <!-- Dealer User: outside AWS Cloud, aligned to middle band (y-center 430) -->
-        <mxCell id="user" value="Dealer User" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=13;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="28" y="382" width="96" height="96" as="geometry" />
+        <mxCell id="user" value="Dealer client" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="25" y="360" width="92" height="92" as="geometry" />
+        </mxCell>
+        <mxCell id="awscloud" value="AWS Cloud (eu-west-1)" style="sketch=0;html=1;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;fontColor=#232F3E;fontSize=13;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;" vertex="1" parent="1">
+          <mxGeometry x="155" y="82" width="1305" height="780" as="geometry" />
         </mxCell>
 
-        <!-- AWS Cloud group -->
-        <mxCell id="awscloud" value="AWS Cloud (eu-west-1)" style="sketch=0;html=1;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;fontColor=#232F3E;fontSize=13;dashed=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;" vertex="1" parent="1">
-          <mxGeometry x="150" y="80" width="1060" height="860" as="geometry" />
-        </mxCell>
-
-        <!-- TIER 1 (TOP): Amazon Bedrock -->
         <mxCell id="bedrock" value="Amazon Bedrock" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EAF7F5;strokeColor=#01A88D;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#00796B;spacingTop=8;" vertex="1" parent="1">
-          <mxGeometry x="280" y="115" width="470" height="165" as="geometry" />
+          <mxGeometry x="280" y="120" width="780" height="190" as="geometry" />
         </mxCell>
-        <mxCell id="claude" value="Claude Sonnet 4.6&#10;(reasoning)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="151" width="78" height="78" as="geometry" />
+        <mxCell id="claude" value="Claude Sonnet 4.6&#10;reasoning and orchestration" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="335" y="170" width="70" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="titan" value="Titan Text&#10;Embeddings v2" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="626" y="151" width="78" height="78" as="geometry" />
+        <mxCell id="guardrail" value="Amazon Bedrock Guardrail&#10;&#10;Prompt-attack and misconduct filters&#10;Denied bid-placement topic&#10;Email and phone anonymization" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D13212;strokeWidth=1.5;fontSize=10;fontColor=#232F3E;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="485" y="160" width="250" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="titan" value="Titan Text Embeddings v2&#10;query vectors" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="875" y="170" width="70" height="70" as="geometry" />
         </mxCell>
 
-        <!-- TIER 2 (MIDDLE): Amazon Bedrock AgentCore / Runtime -->
         <mxCell id="agentcore" value="Amazon Bedrock AgentCore" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F0FA;strokeColor=#8C4FFF;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#5A2D9C;spacingTop=8;" vertex="1" parent="1">
-          <mxGeometry x="280" y="335" width="780" height="205" as="geometry" />
+          <mxGeometry x="280" y="350" width="1080" height="285" as="geometry" />
         </mxCell>
-        <mxCell id="runtime" value="AgentCore Runtime — BedrockAgentCoreApp (POST /invocations)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FCFAFF;strokeColor=#B085F5;dashed=1;verticalAlign=bottom;fontStyle=2;fontSize=11;fontColor=#7B4FC0;spacingBottom=6;" vertex="1" parent="1">
-          <mxGeometry x="305" y="368" width="730" height="150" as="geometry" />
+        <mxCell id="runtime" value="AgentCore Runtime endpoint (HTTP POST /invocations)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FCFAFF;strokeColor=#B085F5;dashed=1;verticalAlign=bottom;fontStyle=2;fontSize=11;fontColor=#7B4FC0;spacingBottom=6;" vertex="1" parent="1">
+          <mxGeometry x="305" y="390" width="1030" height="215" as="geometry" />
         </mxCell>
-        <mxCell id="strands" value="Strands Agent" style="shape=image;imageAspect=0;aspect=fixed;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=12;fontStyle=1;html=1;image=data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20xmlns%3Axlink%3D%22http%3A%2F%2Fwww.w3.org%2F1999%2Fxlink%22%20id%3D%22Icons%22%20version%3D%221.1%22%20viewBox%3D%220%200%20100%20100%22%3E%26%23xa%3B%20%20%3C!--%20Generator%3A%20Adobe%20Illustrator%2029.5.1%2C%20SVG%20Export%20Plug-In%20.%20SVG%20Version%3A%202.1.0%20Build%20141)%20%20--%3E%26%23xa%3B%20%20%3Cdefs%3E%26%23xa%3B%20%20%20%20%3Cstyle%3E%26%23xa%3B%20%20%20%20%20%20.st0%20%7B%26%23xa%3B%20%20%20%20%20%20%20%20stroke%3A%20%23538df7%3B%26%23xa%3B%20%20%20%20%20%20%7D%26%23xa%3B%26%23xa%3B%20%20%20%20%20%20.st0%2C%20.st1%2C%20.st2%20%7B%26%23xa%3B%20%20%20%20%20%20%20%20fill%3A%20none%3B%26%23xa%3B%20%20%20%20%20%20%7D%26%23xa%3B%26%23xa%3B%20%20%20%20%20%20.st0%2C%20.st2%20%7B%26%23xa%3B%20%20%20%20%20%20%20%20stroke-linejoin%3A%20round%3B%26%23xa%3B%20%20%20%20%20%20%20%20stroke-width%3A%202px%3B%26%23xa%3B%20%20%20%20%20%20%7D%26%23xa%3B%26%23xa%3B%20%20%20%20%20%20.st2%20%7B%26%23xa%3B%20%20%20%20%20%20%20%20stroke%3A%20%23000%3B%26%23xa%3B%20%20%20%20%20%20%7D%26%23xa%3B%26%23xa%3B%20%20%20%20%20%20.st3%20%7B%26%23xa%3B%20%20%20%20%20%20%20%20clip-path%3A%20url(%23clippath)%3B%26%23xa%3B%20%20%20%20%20%20%7D%26%23xa%3B%20%20%20%20%3C%2Fstyle%3E%26%23xa%3B%20%20%20%20%3CclipPath%20id%3D%22clippath%22%3E%26%23xa%3B%20%20%20%20%20%20%3Crect%20class%3D%22st1%22%20x%3D%2250.34%22%20y%3D%2229.71%22%20width%3D%2248.98%22%20height%3D%2265.27%22%2F%3E%26%23xa%3B%20%20%20%20%3C%2FclipPath%3E%26%23xa%3B%20%20%3C%2Fdefs%3E%26%23xa%3B%20%20%3Cpolyline%20class%3D%22st0%22%20points%3D%2290.02%2038.32%2083.36%2038.32%2083.36%2044.98%22%2F%3E%26%23xa%3B%20%20%3Cpath%20class%3D%22st0%22%20d%3D%22M62.25%2C18.71c-.05-.43-.08-.88-.08-1.33%2C0-3.82%2C2.59-8.21%2C6.3-9.78%2C4.76-2.01%2C9.1-.49%2C11.96%2C2.38%2C1.32%2C1.33%2C2.29%2C3%2C2.94%2C4.81h0c2.42-3.28%2C7.84-2.25%2C8.24%2C3.69v.09c2.45.42%2C6.79%2C2.16%2C6.79%2C7.62%2C0%2C7.05-7%2C7.62-7%2C7.62l-27.2-.03c-4.05%2C0-7.51-3.12-7.7-7.17%2C0-.16-.01-.32-.01-.48%2C0-4.66%2C3.05-6.72%2C5.76-7.42h0Z%22%2F%3E%26%23xa%3B%20%20%3Cg%20class%3D%22st3%22%3E%26%23xa%3B%20%20%20%20%3Cg%3E%26%23xa%3B%20%20%20%20%20%20%3Ccircle%20class%3D%22st0%22%20cx%3D%2264.76%22%20cy%3D%2263.49%22%20r%3D%2223.62%22%2F%3E%26%23xa%3B%20%20%20%20%20%20%3Cpolyline%20class%3D%22st0%22%20points%3D%2275.1%2073.82%2064.76%2063.49%2064.76%2053.15%22%2F%3E%26%23xa%3B%20%20%20%20%20%20%3Cline%20class%3D%22st0%22%20x1%3D%2264.76%22%20y1%3D%2244.29%22%20x2%3D%2264.76%22%20y2%3D%2247.24%22%2F%3E%26%23xa%3B%20%20%20%20%20%20%3Cline%20class%3D%22st0%22%20x1%3D%2283.96%22%20y1%3D%2263.49%22%20x2%3D%2281%22%20y2%3D%2263.49%22%2F%3E%26%23xa%3B%20%20%20%20%20%20%3Cline%20class%3D%22st0%22%20x1%3D%2264.76%22%20y1%3D%2282.68%22%20x2%3D%2264.76%22%20y2%3D%2279.73%22%2F%3E%26%23xa%3B%20%20%20%20%20%20%3Cline%20class%3D%22st0%22%20x1%3D%2245.56%22%20y1%3D%2263.49%22%20x2%3D%2248.52%22%20y2%3D%2263.49%22%2F%3E%26%23xa%3B%20%20%20%20%3C%2Fg%3E%26%23xa%3B%20%20%3C%2Fg%3E%26%23xa%3B%20%20%3Cpath%20class%3D%22st0%22%20d%3D%22M64.76%2C94.68c17.23%2C0%2C31.2-13.97%2C31.2-31.2%2C0-10.14-4.83-19.14-12.32-24.84%22%2F%3E%26%23xa%3B%20%20%3Cpolygon%20class%3D%22st2%22%20points%3D%2250.34%209.76%2050.34%2091.73%2034.65%2097.03%2013.61%2084.65%2013.61%2068.09%201.42%2060.91%201.42%2040.57%2013.46%2033.44%2013.46%2016.84%2034.7%204.63%2050.34%209.76%22%2F%3E%26%23xa%3B%20%20%3Cline%20class%3D%22st2%22%20x1%3D%2225.87%22%20y1%3D%2226.84%22%20x2%3D%2225.87%22%20y2%3D%229.76%22%2F%3E%26%23xa%3B%20%20%3Cline%20class%3D%22st2%22%20x1%3D%2224.18%22%20y1%3D%2276.49%22%20x2%3D%2250.7%22%20y2%3D%2260.87%22%2F%3E%26%23xa%3B%20%20%3Cline%20class%3D%22st2%22%20x1%3D%2239.72%22%20y1%3D%2283.08%22%20x2%3D%2226.12%22%20y2%3D%2291.65%22%2F%3E%26%23xa%3B%20%20%3Cline%20class%3D%22st2%22%20x1%3D%2224.54%22%20y1%3D%2260.87%22%20x2%3D%2213.2%22%20y2%3D%2268.02%22%2F%3E%26%23xa%3B%20%20%3Cpolyline%20class%3D%22st2%22%20points%3D%2236.15%2021.71%2036.15%2033.44%2025.87%2040.68%2013.46%2033.44%22%2F%3E%26%23xa%3B%20%20%3Cpolyline%20class%3D%22st2%22%20points%3D%2217.13%2054.14%2025.87%2048.89%2025.87%2041.13%22%2F%3E%26%23xa%3B%20%20%3Cline%20class%3D%22st2%22%20x1%3D%2234.62%22%20y1%3D%2254.14%22%20x2%3D%2225.87%22%20y2%3D%2248.89%22%2F%3E%26%23xa%3B%3C%2Fsvg%3E" vertex="1" parent="1">
-          <mxGeometry x="330" y="391" width="78" height="78" as="geometry" />
+        <mxCell id="strands" value="Strands Agent" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="442" width="76" height="76" as="geometry" />
         </mxCell>
-        <mxCell id="tools" value="7 local @tool functions&#10;&#10;get_schema · search_vehicles&#10;run_sql · hybrid_search&#10;get_embedding · filter_by_distance · get_bids&#10;(dealer profile served via AgentCore Gateway)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;fontSize=11;fontColor=#232F3E;verticalAlign=middle;align=center;" vertex="1" parent="1">
-          <mxGeometry x="520" y="380" width="290" height="100" as="geometry" />
+        <mxCell id="localtools" value="7 local tools&#10;&#10;search_vehicles | run_sql | hybrid_search&#10;filter_by_distance | get_schema&#10;get_embedding | get_bids" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;strokeWidth=1.5;fontSize=10;fontColor=#232F3E;align=center;" vertex="1" parent="1">
+          <mxGeometry x="500" y="430" width="330" height="122" as="geometry" />
         </mxCell>
-        <mxCell id="lancedb" value="In-memory LanceDB&#10;(from Amazon S3 at cold start)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.database;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="921" y="391" width="78" height="78" as="geometry" />
-        </mxCell>
-
-        <!-- TIER 3 (BOTTOM): services -->
-        <mxCell id="cloudwatch" value="Amazon CloudWatch&#10;(GenAI Observability)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch_2;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="330" y="640" width="78" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="gateway" value="AgentCore Gateway (MCP)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="627" y="640" width="78" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="s3" value="Amazon S3&#10;(LanceDB vectors)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="921" y="640" width="78" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="memory" value="AgentCore Memory&#10;(dealer preferences + facts)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="478" y="640" width="78" height="78" as="geometry" />
-        </mxCell>
-        <mxCell id="dealerapi" value="Dealer API&#10;(DynamoDB-backed)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="627" y="775" width="78" height="78" as="geometry" />
+        <mxCell id="dataframe" value="Local LanceDB table&#10;&#10;Native cosine search&#10;+ scalar prefilters&#10;Bounded pandas geospatial fallback" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#FFFFFF;strokeColor=#8C4FFF;strokeWidth=1.5;fontSize=9;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="1135" y="425" width="170" height="128" as="geometry" />
         </mxCell>
 
-        <!-- ===== EDGES: all straight (horizontal middle chain + vertical inter-tier) ===== -->
-        <!-- 1. query: user -> strands (horizontal) -->
-        <mxCell id="e_query" value="1. query" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;fontColor=#ED7100;fontSize=11;fontStyle=1;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="strands">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="cloudwatch" value="Amazon CloudWatch&#10;OpenTelemetry traces and logs" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="250" y="720" width="68" height="68" as="geometry" />
         </mxCell>
-        <!-- 2. ConverseStream: strands top <-> claude bottom (col A vertical, x=369) -->
-        <mxCell id="e_converse" value="2. ConverseStream" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#01A88D;strokeWidth=2;fontColor=#00796B;fontSize=11;startArrow=block;endArrow=block;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="strands" target="claude">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="memory" value="AgentCore Memory&#10;preferences, facts, session events" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="425" y="720" width="68" height="68" as="geometry" />
         </mxCell>
-        <!-- 3. embeds text: tools top -> titan bottom (col B vertical, x=665) -->
-        <mxCell id="e_embed" value="3. embeds text" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#00838F;strokeWidth=2;dashed=1;fontColor=#00838F;fontSize=11;endArrow=block;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="tools" target="titan">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 4. calls tools: strands right <-> tools left (horizontal) -->
-        <mxCell id="e_tools" value="4. calls tools" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;dashed=1;fontColor=#ED7100;fontSize=11;startArrow=block;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="strands" target="tools">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 5. queries: tools right -> lancedb left (horizontal) -->
-        <mxCell id="e_queries" value="5. queries" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=2;dashed=1;fontColor=#5A2D9C;fontSize=11;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tools" target="lancedb">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 6. reads vectors: lancedb bottom -> s3 top (col C vertical, x=960) -->
-        <mxCell id="e_vectors" value="6. reads vectors" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontColor=#2E7D32;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="lancedb" target="s3">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 7. dealer profile: tools bottom -> gateway top (MCP tool call) -->
-        <mxCell id="e_profiles" value="7. dealer profile (MCP)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=2;dashed=1;fontColor=#5A2D9C;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="tools" target="gateway">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 7b. gateway -> dealer api (fronts REST API) -->
-        <mxCell id="e_dealerapi" value="fronts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontColor=#2E7D32;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="gateway" target="dealerapi">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 8. observability: strands bottom -> cloudwatch top (col A vertical, x=369) -->
-        <mxCell id="e_obs" value="8. observability (OTel)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E7157B;strokeWidth=2;dashed=1;fontColor=#E7157B;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="strands" target="cloudwatch">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <!-- 9. memory: strands bottom -> memory top (stores/retrieves dealer memory) -->
-        <mxCell id="e_memory" value="9. stores/retrieves memory" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=2;dashed=1;fontColor=#5A2D9C;fontSize=11;startArrow=block;endArrow=block;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="strands" target="memory">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="gateway" value="AgentCore Gateway&#10;scoped get_dealer_profile" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="610" y="720" width="68" height="68" as="geometry" />
         </mxCell>
 
+        <mxCell id="dealerapi" value="Dealer profile service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F7F7;strokeColor=#687078;strokeWidth=1.5;verticalAlign=top;fontStyle=1;fontSize=11;fontColor=#232F3E;spacingTop=7;" vertex="1" parent="1">
+          <mxGeometry x="790" y="690" width="300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="apigw" value="Amazon API Gateway&#10;IAM + WAF" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="815" y="730" width="55" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="dealerlambda" value="AWS Lambda" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="910" y="730" width="55" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="dynamo" value="Amazon DynamoDB" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="730" width="55" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3" value="Amazon S3 data bucket&#10;versioned snapshots + manifest + bids" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="695" width="82" height="82" as="geometry" />
+        </mxCell>
+
+        <mxCell id="inbound" value="1. invoke (IAM SigV4 or Cognito JWT)" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2.5;fontColor=#B35A00;fontSize=10;fontStyle=1;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.42;" edge="1" parent="1" source="user" target="runtime">
+          <mxGeometry x="0.15" y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="406" />
+              <mxPoint x="200" y="480" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="reason" value="guarded reasoning" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#01A88D;strokeWidth=2;fontColor=#00796B;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="strands" target="guardrail">
+          <mxGeometry y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="378" y="330" />
+              <mxPoint x="610" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="applyguard" value="ApplyGuardrail" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#D13212;strokeWidth=1.5;fontColor=#A12A13;fontSize=9;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0;exitY=0.5;entryX=1;entryY=0.66;" edge="1" parent="1" source="guardrail" target="claude">
+          <mxGeometry y="-10" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="toolcall" value="select and call" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;fontColor=#B35A00;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.41;" edge="1" parent="1" source="strands" target="localtools">
+          <mxGeometry y="-10" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="querydata" value="LanceDB query" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=2;fontColor=#5A2D9C;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.52;" edge="1" parent="1" source="localtools" target="dataframe">
+          <mxGeometry y="-10" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="embed" value="embed query" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#01A88D;strokeWidth=1.5;fontColor=#00796B;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.8;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="localtools" target="titan">
+          <mxGeometry y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="764" y="330" />
+              <mxPoint x="910" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="otel" value="traces and logs" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#D13282;strokeWidth=1.5;fontColor=#B20E65;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0;exitY=0.8;entryX=0.5;entryY=0;" edge="1" parent="1" source="runtime" target="cloudwatch">
+          <mxGeometry x="-0.15" y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="562" />
+              <mxPoint x="220" y="680" />
+              <mxPoint x="284" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="memedge" value="memory" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=1.5;fontColor=#5A2D9C;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="strands" target="memory">
+          <mxGeometry x="0.15" y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="378" y="680" />
+              <mxPoint x="459" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mcp" value="inject trusted dealer ID" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#8C4FFF;strokeWidth=1.5;fontColor=#5A2D9C;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="localtools" target="gateway">
+          <mxGeometry x="-0.1" y="-10" relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="665" y="680" />
+              <mxPoint x="644" y="680" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gwapi" value="SigV4" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#687078;strokeWidth=1.5;fontColor=#4D5965;fontSize=9;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.44;" edge="1" parent="1" source="gateway" target="apigw">
+          <mxGeometry y="-10" relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="apilambda" value="" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#687078;strokeWidth=1.5;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="apigw" target="dealerlambda">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lambdadynamo" value="" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#687078;strokeWidth=1.5;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="dealerlambda" target="dynamo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3load" value="poll manifest, verify SHA-256, refresh" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#2E7D32;strokeWidth=2;fontColor=#2E7D32;fontSize=9;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="s3" target="dataframe">
+          <mxGeometry x="0.2" y="-10" relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note" value="The model cannot list dealers or choose dealer_id. The runtime injects trusted identity and has scoped access to Bedrock, S3, Memory, and Gateway." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#D5A000;dashed=1;fontSize=10;fontColor=#5F4B00;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1125" y="165" width="280" height="72" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

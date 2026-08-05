@@ -36,11 +36,11 @@ class TaskFnResult(TypedDict, total=False):
             optional):
 
             * ``latency_ms`` (float) — wall-clock latency in **milliseconds**.
-              Read by ``LatencyEvaluator``; absent => treated as 0.
+              Read by ``LatencyEvaluator``; absence fails an enabled evaluator.
             * ``total_tokens`` (int) — total tokens for the turn. Read by
               ``CostEvaluator``.
             * ``estimated_cost_usd`` (float) — estimated USD cost for the
-              turn. Read by ``CostEvaluator``.
+              turn. Read by ``CostEvaluator``; token or cost absence fails.
             * ``last_refresh_time`` (ISO-8601 str) — data recency. Read by
               ``DataFreshnessEvaluator``.
         metadata: Fallback for the same keys as ``environment_state["metrics"]``

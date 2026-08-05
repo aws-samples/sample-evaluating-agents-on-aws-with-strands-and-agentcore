@@ -260,8 +260,8 @@ domain_evaluators:
   data_freshness: {{enabled: false}}
   schema_scoping: {{enabled: false}}
   safety_guardrails: {{enabled: true}}
-  latency: {{enabled: true}}
-  cost: {{enabled: true, max_cost_per_query: 0.50, max_tokens_per_query: 10000}}
+  latency: {{enabled: false}}  # Enable after task_fn reports measured latency.
+  cost: {{enabled: false}}     # Enable after task_fn reports token usage and cost.
 
 test_cases:
   - id: "hp_001"
@@ -283,13 +283,22 @@ test_cases:
 
 from typing import Any
 
+from strands_evals.types.evaluation import EnvironmentState
+
 
 def run(case: Any) -> dict[str, Any]:
     # TODO: call your agent with case.input and return the result
+    metrics = {
+        # Populate measured operational values before enabling their evaluators.
+        # "latency_ms": 0,
+        # "total_tokens": 0,
+        # "estimated_cost_usd": 0.0,
+    }
     return {
         "output": "TODO: replace with real agent output",
         "trajectory": [],
-        "metadata": {"latency_ms": 0},
+        "environment_state": [EnvironmentState(name="metrics", state=metrics)],
+        "metadata": metrics,
     }
 '''
         )

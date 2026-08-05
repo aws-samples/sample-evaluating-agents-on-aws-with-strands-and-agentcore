@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The agentic-evaluation SDK provides a framework-agnostic evaluation pipeline for AI agents. This guide shows how to integrate the SDK with agents built on different frameworks: Strands, Amazon Bedrock AgentCore, LangChain, CrewAI, OpenAI, or custom HTTP backends. Any agent you can wrap in a `task_fn(case) -> {"output", "trajectory", "metadata"}` callable can typically be evaluated. Whether you are evaluating tool selection, reasoning quality, or output correctness, the SDK offers a consistent interface across frameworks.
+The agentic-evaluation SDK provides a framework-agnostic evaluation pipeline for AI agents. This guide shows how to integrate the SDK with agents built on different frameworks: Strands, Amazon Bedrock AgentCore, LangChain, CrewAI, OpenAI, or custom HTTP backends. Any agent you can wrap in a `task_fn(case)` callable that returns output, trajectory, and operational `EnvironmentState` can typically be evaluated. Whether you are evaluating tool selection, reasoning quality, or output correctness, the SDK offers a consistent interface across frameworks.
 
 ## Terminology
 
@@ -29,12 +29,19 @@ Every adapter ultimately produces a `task_fn` with this shape:
 
 ```python
 from agentic_evaluation import TaskFnResult
+from strands_evals.types.evaluation import EnvironmentState
 
 def task_fn(case) -> TaskFnResult:
+    metrics = {
+        "latency_ms": 420,
+        "total_tokens": 120,
+        "estimated_cost_usd": 0.001,
+    }
     return {
-        "output": "<final agent response>",          # str
-        "trajectory": ["tool_a", "tool_b"],           # list[str] of tool names
-        "metadata": {"latency_ms": 420},              # milliseconds (int)
+        "output": "<final agent response>",
+        "trajectory": ["tool_a", "tool_b"],
+        "environment_state": [EnvironmentState(name="metrics", state=metrics)],
+        "metadata": metrics,  # Optional fallback for direct/static fixtures.
     }
 ```
 
@@ -42,11 +49,13 @@ def task_fn(case) -> TaskFnResult:
 `agentic_evaluation.test_cases.TestCase` config entries by `build_cases_from_registry()`.
 Read the query with `case.input`. The SDK gives the
 runner the test case; your adapter is responsible for invoking the agent and
-extracting the final output, the tool trajectory, and any metadata you want
-domain evaluators to see. The metadata keys the built-in evaluators read are
+extracting the final output, tool trajectory, and measured operational state.
+Live domain evaluators read the `metrics` environment state because
+`strands_evals` does not propagate task-result metadata. The built-in keys are
 `latency_ms` (int, milliseconds, read by `LatencyEvaluator`), `total_tokens` (int) and
 `estimated_cost_usd` (float, read by `CostEvaluator`), and `last_refresh_time`
-(ISO-8601 str, read by `DataFreshnessEvaluator`); add any others your plugins need.
+(ISO-8601 str, read by `DataFreshnessEvaluator`). Enabled evaluators fail closed
+when their required measurements are absent.
 
 ## Prerequisites
 
@@ -123,6 +132,10 @@ task_fn = make_task_fn(
 )
 ```
 
+The adapter defaults to a 5-second connection timeout, a 120-second read
+timeout, and three standard retry attempts. Pass a `botocore.config.Config`
+through `boto_client_config` when a workload needs different bounds.
+
 ## Plain HTTP / OpenAI / LangChain / CrewAI / custom
 
 Frameworks that expose "send a prompt, get a response and the list of
@@ -131,6 +144,7 @@ tools called" can typically be integrated with this pattern. Use the HTTP adapte
 ```python
 import time
 from openai import OpenAI
+from strands_evals.types.evaluation import EnvironmentState
 
 client = OpenAI()
 
@@ -141,12 +155,17 @@ def task_fn(case):
         input=case.input,
         tools=[...],
     )
+    metrics = {"latency_ms": int((time.time() - t0) * 1000)}
     return {
         "output": resp.output_text,
         "trajectory": [step.tool_name for step in resp.tool_uses],
-        "metadata": {"latency_ms": int((time.time() - t0) * 1000)},
+        "environment_state": [EnvironmentState(name="metrics", state=metrics)],
+        "metadata": metrics,
     }
 ```
+
+Populate `total_tokens` and `estimated_cost_usd` from the provider's measured
+usage before enabling the cost evaluator.
 
 You can adapt the same `task_fn` pattern for LangChain by calling `AgentExecutor.invoke`
 and extracting the trajectory from the response. For CrewAI, call `Crew.kickoff` and
@@ -171,8 +190,23 @@ plugin_evaluators:
 
 ## Custom judge backend
 
-The default LLM judge is `StrandsJudgeBackend`. Use `NoOpJudgeBackend` to skip
-Layer 2/3 entirely, or implement your own `JudgeBackend` Protocol:
+The default LLM judge is `StrandsJudgeBackend`. Its Bedrock client uses the same
+bounded timeout/retry defaults as the AgentCore adapter. Construct the backend
+directly to override them:
+
+```python
+from agentic_evaluation import StrandsJudgeBackend, run_all_layers
+
+judge = StrandsJudgeBackend(
+    connect_timeout_seconds=5,
+    read_timeout_seconds=120,
+    max_attempts=3,
+)
+results = run_all_layers(task_fn, judge_backend=judge)
+```
+
+Use `NoOpJudgeBackend` to skip Layer 2/3 entirely, or implement your own
+`JudgeBackend` Protocol:
 
 ```python
 from agentic_evaluation import JudgeBackend, build_judge
@@ -216,39 +250,23 @@ After completing your evaluation work, remove artifacts to keep your environment
    rm -f eval_config.yaml results.json
    ```
 
-4. **Delete the Amazon Bedrock AgentCore runtime** (if you used the AgentCore adapter):
+4. **Inventory AWS resources** using the explicit profile, expected account, and
+   region used for deployment:
    ```bash
-   aws bedrock-agentcore-control delete-agent-runtime \
-       --agent-runtime-name <your-runtime-name> \
-       --region <your-region>
-   ```
-
-5. **Delete CloudWatch log groups** created by evaluation runs:
-   ```bash
-   aws logs delete-log-group \
-       --log-group-name /aws/bedrock-agentcore/<your-runtime-name> \
-       --region <your-region>
-   ```
-
-6. **Remove uploaded S3 objects** (if you stored evaluation data in Amazon S3):
-
-   > **Important:** This command deletes all evaluation data. If you need to preserve any data, create a backup before running it.
-
-   ```bash
-   # Back up first (optional):
-   aws s3 sync s3://<your-bucket>/evaluation-data/ ./backup/evaluation-data/
-   # Then delete:
-   aws s3 rm s3://<your-bucket>/evaluation-data/ --recursive
-   ```
-
-7. **Verify cleanup** to confirm no billable resources remain:
-   ```bash
-   aws bedrock-agentcore-control list-agent-runtimes --region <your-region>
+   aws bedrock-agentcore-control list-agent-runtimes \
+       --profile <profile> \
+       --region eu-west-1
    aws logs describe-log-groups \
        --log-group-name-prefix /aws/bedrock-agentcore \
-       --region <your-region>
+       --profile <profile> \
+       --region eu-west-1
    ```
-   Both commands should return empty lists if cleanup succeeded.
+
+5. **For infrastructure teardown**, follow the retention, backup, approval, STS
+   verification, and post-delete residual-inventory process in the main
+   [Cleaning Up guide](../README.md#cleaning-up). Never treat a deleted runtime
+   or stack as evidence that S3 data, object versions, logs, secrets, or ECR
+   images were removed.
 
 ## Conclusion
 

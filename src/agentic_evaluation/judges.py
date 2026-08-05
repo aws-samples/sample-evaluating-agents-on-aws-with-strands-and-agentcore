@@ -14,6 +14,8 @@ from __future__ import annotations
 from importlib.metadata import EntryPoint, entry_points
 from typing import Any, Protocol, runtime_checkable
 
+from botocore.config import Config as BotocoreConfig
+
 from agentic_evaluation.exceptions import (
     JudgeUnavailableError,
     PluginLoadError,
@@ -55,7 +57,13 @@ class StrandsJudgeBackend:
 
     name = "strands"
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        connect_timeout_seconds: int = 5,
+        read_timeout_seconds: int = 120,
+        max_attempts: int = 3,
+    ) -> None:
         try:
             from strands_evals.evaluators import (  # noqa: F401
                 GoalSuccessRateEvaluator,
@@ -68,27 +76,50 @@ class StrandsJudgeBackend:
                 "StrandsJudgeBackend requires the 'strands' extra. "
                 "Install with: pip install 'agentic-evaluation[strands]'"
             ) from exc
+        for name, value in (
+            ("connect_timeout_seconds", connect_timeout_seconds),
+            ("read_timeout_seconds", read_timeout_seconds),
+            ("max_attempts", max_attempts),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
+        self._boto_client_config = BotocoreConfig(
+            connect_timeout=connect_timeout_seconds,
+            read_timeout=read_timeout_seconds,
+            retries={"max_attempts": max_attempts, "mode": "standard"},
+        )
+
+    def _configured_model(self, model_id: str) -> Any:
+        """Build one bounded Bedrock model client for an evaluator group."""
+        from strands.models import BedrockModel
+
+        return BedrockModel(
+            model_id=model_id,
+            boto_client_config=self._boto_client_config,
+        )
 
     def layer2_evaluators(
         self, *, model: str, rubric: str, tool_descriptions: dict[str, str]
     ) -> list[Any]:
         from strands_evals.evaluators import HelpfulnessEvaluator, TrajectoryEvaluator
 
+        configured_model = self._configured_model(model)
         return [
-            HelpfulnessEvaluator(model=model),
+            HelpfulnessEvaluator(model=configured_model),
             TrajectoryEvaluator(
                 rubric=rubric,
                 trajectory_description=tool_descriptions,
-                model=model,
+                model=configured_model,
             ),
         ]
 
     def layer3_evaluators(self, *, model: str, rubric: str) -> list[Any]:
         from strands_evals.evaluators import GoalSuccessRateEvaluator, OutputEvaluator
 
+        configured_model = self._configured_model(model)
         return [
-            OutputEvaluator(rubric=rubric, model=model),
-            GoalSuccessRateEvaluator(model=model),
+            OutputEvaluator(rubric=rubric, model=configured_model),
+            GoalSuccessRateEvaluator(model=configured_model),
         ]
 
 

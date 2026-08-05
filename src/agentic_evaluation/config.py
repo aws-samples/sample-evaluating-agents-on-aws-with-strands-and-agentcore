@@ -96,6 +96,7 @@ def _parse_test_case(raw: dict[str, Any]) -> TestCase:
         evaluation_layers=layers,
         tags=raw.get("tags", []),
         reference_solution=raw.get("reference_solution"),
+        expected_tool_parameters=raw.get("expected_tool_parameters"),
         expected_assertion=raw.get("expected_assertion"),
     )
 

@@ -8,11 +8,9 @@ Creates operational monitoring for agent evaluation:
 - Alarms with SNS notifications for critical thresholds
 
 Cost considerations:
-This stack creates billable Amazon CloudWatch resources: custom metrics
-(about $0.30 per metric per month), dashboards (first 3 free, then about
-$3 per dashboard per month), and alarms (first 10 free, then about $0.10
-per alarm per month). Estimated default cost is roughly $5-15/month depending
-on metric cardinality.
+This stack creates billable Amazon CloudWatch dashboards and alarms. It does
+not create unpublished custom evaluation metrics. Estimated default cost is
+roughly $1-5/month, depending on the account's free-tier usage.
 
 Cleanup:
 Important: Destroying this stack deletes alarm history and dashboard
@@ -47,6 +45,7 @@ class MonitoringStack(Stack):
         construct_id: str,
         evaluation_topic: sns.ITopic,
         agent_runtime_arn: str | None = None,
+        agent_memory_arn: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -65,55 +64,85 @@ class MonitoringStack(Stack):
         # AGENT RUNTIME METRICS (AgentCore Runtime)
         # =====================================================================
 
-        # Amazon Bedrock AgentCore Runtime metrics (namespace "bedrock-agentcore"); see https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability.html
+        # Amazon Bedrock AgentCore Runtime service metrics; see
+        # https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/observability.html
+        #
+        # Namespace is "AWS/Bedrock-AgentCore". The lowercase "bedrock-agentcore"
+        # namespace in the observability docs is for OTEL/EMF metrics emitted by
+        # instrumented agent code, not for these service metrics, and carries no
+        # data for them. Runtime service metrics are keyed on all three of
+        # Resource + Operation + Name; dropping Name yields no datapoints.
         if agent_runtime_arn:
-            _ac_dims: dict[str, str] = {"ResourceArn": agent_runtime_arn}
+            _ac_dims: dict[str, str] = {
+                "Resource": agent_runtime_arn,
+                "Operation": "InvokeAgentRuntime",
+                "Name": f"agent_eval_runtime_{env_name}::DEFAULT",
+            }
 
             agent_invocations_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
+                namespace="AWS/Bedrock-AgentCore",
                 metric_name="Invocations",
                 dimensions_map=_ac_dims,
                 statistic="Sum",
                 period=cdk.Duration.minutes(5),
             )
 
-            agent_system_errors_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
-                metric_name="SystemErrors",
-                dimensions_map=_ac_dims,
-                statistic="Sum",
-                period=cdk.Duration.minutes(5),
-            )
-
-            agent_user_errors_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
-                metric_name="UserErrors",
+            agent_errors_metric = cloudwatch.Metric(
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="Errors",
                 dimensions_map=_ac_dims,
                 statistic="Sum",
                 period=cdk.Duration.minutes(5),
             )
 
             agent_latency_p50_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
-                metric_name="Latency",
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="Duration",
                 dimensions_map=_ac_dims,
                 statistic="p50",
                 period=cdk.Duration.minutes(5),
             )
 
             agent_latency_p95_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
-                metric_name="Latency",
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="Duration",
                 dimensions_map=_ac_dims,
                 statistic="p95",
                 period=cdk.Duration.minutes(5),
             )
 
             agent_latency_p99_metric = cloudwatch.Metric(
-                namespace="bedrock-agentcore",
-                metric_name="Latency",
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="Duration",
                 dimensions_map=_ac_dims,
                 statistic="p99",
+                period=cdk.Duration.minutes(5),
+            )
+
+        if agent_memory_arn:
+            _memory_dims = {
+                "Resource": agent_memory_arn,
+                "Operation": "Extraction",
+            }
+            # Extraction volume comes from CreationCount/MemoryRecordsExtracted, not
+            # Invocations: AgentCore only emits Invocations for Extraction alongside
+            # per-strategy StrategyId/StrategyType dimensions, so an Invocations
+            # metric keyed on Resource+Operation alone reports no data at all.
+            memory_extractions_metric = cloudwatch.Metric(
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="CreationCount",
+                dimensions_map={
+                    "Resource": agent_memory_arn,
+                    "ItemType": "MemoryRecordsExtracted",
+                },
+                statistic="Sum",
+                period=cdk.Duration.minutes(5),
+            )
+            memory_extraction_errors_metric = cloudwatch.Metric(
+                namespace="AWS/Bedrock-AgentCore",
+                metric_name="Errors",
+                dimensions_map=_memory_dims,
+                statistic="Sum",
                 period=cdk.Duration.minutes(5),
             )
 
@@ -192,14 +221,33 @@ class MonitoringStack(Stack):
             period=cdk.Duration.minutes(5),
         )
 
-        # DynamoDB User Errors (Throttling)
-        dynamodb_user_errors_metric = cloudwatch.Metric(
+        # DynamoDB throttling metrics. UserErrors includes validation and other
+        # caller faults, so it must not be used as a throttle proxy.
+        dynamodb_read_throttles_metric = cloudwatch.Metric(
             namespace="AWS/DynamoDB",
-            metric_name="UserErrors",
+            metric_name="ReadThrottleEvents",
             dimensions_map={
                 "TableName": f"agent-eval-dealers-{env_name}",
             },
             statistic="Sum",
+            period=cdk.Duration.minutes(5),
+        )
+        dynamodb_write_throttles_metric = cloudwatch.Metric(
+            namespace="AWS/DynamoDB",
+            metric_name="WriteThrottleEvents",
+            dimensions_map={
+                "TableName": f"agent-eval-dealers-{env_name}",
+            },
+            statistic="Sum",
+            period=cdk.Duration.minutes(5),
+        )
+        dynamodb_throttles_metric = cloudwatch.MathExpression(
+            expression="read + write",
+            using_metrics={
+                "read": dynamodb_read_throttles_metric,
+                "write": dynamodb_write_throttles_metric,
+            },
+            label="Throttle Events",
             period=cdk.Duration.minutes(5),
         )
 
@@ -259,28 +307,19 @@ class MonitoringStack(Stack):
         if agent_runtime_arn:
             dashboard.add_widgets(
                 cloudwatch.GraphWidget(
-                    title="Agent Runtime - Invocations vs System Errors",
+                    title="Agent Runtime - Invocations vs Errors",
                     left=[agent_invocations_metric],
-                    right=[agent_system_errors_metric],
-                    width=12,
+                    right=[agent_errors_metric],
+                    width=24,
                     left_y_axis=cloudwatch.YAxisProps(
                         min=0,
                         label="Invocations",
                     ),
                     right_y_axis=cloudwatch.YAxisProps(
                         min=0,
-                        label="System Errors",
+                        label="Errors",
                     ),
                     legend_position=cloudwatch.LegendPosition.BOTTOM,
-                ),
-                cloudwatch.GraphWidget(
-                    title="Agent Runtime - User Errors",
-                    left=[agent_user_errors_metric],
-                    width=12,
-                    left_y_axis=cloudwatch.YAxisProps(
-                        min=0,
-                        label="User Errors",
-                    ),
                 ),
             )
 
@@ -301,6 +340,24 @@ class MonitoringStack(Stack):
                     legend_position=cloudwatch.LegendPosition.BOTTOM,
                 ),
             )
+            if agent_memory_arn:
+                dashboard.add_widgets(
+                    cloudwatch.GraphWidget(
+                        title="AgentCore Memory - Extractions vs Errors",
+                        left=[memory_extractions_metric],
+                        right=[memory_extraction_errors_metric],
+                        width=24,
+                        left_y_axis=cloudwatch.YAxisProps(
+                            min=0,
+                            label="Extractions",
+                        ),
+                        right_y_axis=cloudwatch.YAxisProps(
+                            min=0,
+                            label="Errors",
+                        ),
+                        legend_position=cloudwatch.LegendPosition.BOTTOM,
+                    ),
+                )
         else:
             dashboard.add_widgets(
                 cloudwatch.TextWidget(
@@ -362,7 +419,7 @@ class MonitoringStack(Stack):
             cloudwatch.GraphWidget(
                 title="DynamoDB - Read Capacity & Throttles",
                 left=[dynamodb_read_capacity_metric],
-                right=[dynamodb_user_errors_metric],
+                right=[dynamodb_throttles_metric],
                 width=12,
                 left_y_axis=cloudwatch.YAxisProps(
                     min=0,
@@ -415,35 +472,48 @@ class MonitoringStack(Stack):
         # =====================================================================
 
         if agent_runtime_arn:
-            # Alarm: Agent runtime system errors > 5 per 5 minutes
+            # Alarm: Agent runtime errors > 5 per 5 minutes
             agent_error_rate_alarm = cloudwatch.Alarm(
                 self,
                 "AgentErrorRateAlarm",
                 alarm_name=f"agent-eval-agent-error-rate-{env_name}",
-                metric=agent_system_errors_metric,
+                metric=agent_errors_metric,
                 threshold=5,
                 evaluation_periods=2,
                 comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
                 treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-                alarm_description=(
-                    "Agent runtime SystemErrors exceeded threshold of 5 errors per 5 minutes"
-                ),
+                alarm_description="Agent runtime errors exceeded threshold of 5 per 5 minutes",
             )
             agent_error_rate_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
 
-            # Alarm: Agent runtime latency P99 > 5 seconds
+            # Keep the operational alarm aligned with alert_latency_p99_ms in
+            # eval_config.yaml.
             agent_latency_p99_alarm = cloudwatch.Alarm(
                 self,
                 "AgentLatencyP99Alarm",
                 alarm_name=f"agent-eval-agent-latency-p99-{env_name}",
                 metric=agent_latency_p99_metric,
-                threshold=5000,  # 5 seconds in milliseconds
+                threshold=30000,
                 evaluation_periods=2,
                 comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
                 treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-                alarm_description="Agent runtime P99 latency exceeded 5 seconds",
+                alarm_description="Agent runtime P99 latency exceeded 30 seconds",
             )
             agent_latency_p99_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
+
+        if agent_memory_arn:
+            memory_extraction_error_alarm = cloudwatch.Alarm(
+                self,
+                "MemoryExtractionErrorAlarm",
+                alarm_name=f"agent-eval-memory-extraction-error-{env_name}",
+                metric=memory_extraction_errors_metric,
+                threshold=0,
+                evaluation_periods=1,
+                comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+                treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+                alarm_description="AgentCore Memory extraction encountered errors",
+            )
+            memory_extraction_error_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
 
         # =====================================================================
         # ALARMS - DEALER API METRICS
@@ -477,7 +547,7 @@ class MonitoringStack(Stack):
             self,
             "DynamoDBThrottleAlarm",
             alarm_name=f"agent-eval-dynamodb-throttle-{env_name}",
-            metric=dynamodb_user_errors_metric,
+            metric=dynamodb_throttles_metric,
             threshold=1,
             evaluation_periods=1,
             comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
@@ -517,81 +587,6 @@ class MonitoringStack(Stack):
             alarm_description="EventBridge rule failed to invoke data ingestion",
         )
         eventbridge_failed_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
-
-        # =====================================================================
-        # ALARMS - EVALUATION QUALITY METRICS
-        # =====================================================================
-        # The evaluation pipeline publishes per-run quality scores to the
-        # "AgentEvaluation/{env}" namespace (the evaluation role grants
-        # PutMetricData scoped to exactly this namespace). Alert thresholds
-        # mirror the ``alert_*`` values in evaluation/thresholds.py. Metrics
-        # may be sparse between runs, so missing data is NOT_BREACHING and the
-        # alarms evaluate against the latest reported datapoint.
-        eval_namespace = f"AgentEvaluation/{env_name}"
-
-        def _eval_metric(metric_name: str) -> cloudwatch.Metric:
-            return cloudwatch.Metric(
-                namespace=eval_namespace,
-                metric_name=metric_name,
-                statistic="Average",
-                period=cdk.Duration.hours(1),
-            )
-
-        # Task completion rate fell below the acceptable floor.
-        task_completion_alarm = cloudwatch.Alarm(
-            self,
-            "TaskCompletionAlarm",
-            alarm_name=f"agent-eval-task-completion-{env_name}",
-            metric=_eval_metric("TaskCompletionRate"),
-            threshold=0.80,
-            evaluation_periods=1,
-            comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
-            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-            alarm_description="Agent task-completion rate dropped below 0.80",
-        )
-        task_completion_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
-
-        # Tool-selection accuracy fell below the acceptable floor.
-        tool_selection_alarm = cloudwatch.Alarm(
-            self,
-            "ToolSelectionAlarm",
-            alarm_name=f"agent-eval-tool-selection-{env_name}",
-            metric=_eval_metric("ToolSelectionAccuracy"),
-            threshold=0.90,
-            evaluation_periods=1,
-            comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
-            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-            alarm_description="Agent tool-selection accuracy dropped below 0.90",
-        )
-        tool_selection_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
-
-        # Helpfulness score fell below the acceptable floor.
-        helpfulness_alarm = cloudwatch.Alarm(
-            self,
-            "HelpfulnessAlarm",
-            alarm_name=f"agent-eval-helpfulness-{env_name}",
-            metric=_eval_metric("HelpfulnessScore"),
-            threshold=0.58,
-            evaluation_periods=1,
-            comparison_operator=cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
-            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-            alarm_description="Agent helpfulness score dropped below 0.58",
-        )
-        helpfulness_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
-
-        # Hallucination rate rose above the acceptable ceiling.
-        hallucination_alarm = cloudwatch.Alarm(
-            self,
-            "HallucinationAlarm",
-            alarm_name=f"agent-eval-hallucination-{env_name}",
-            metric=_eval_metric("HallucinationRate"),
-            threshold=0.05,
-            evaluation_periods=1,
-            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
-            alarm_description="Agent hallucination rate exceeded 0.05",
-        )
-        hallucination_alarm.add_alarm_action(cw_actions.SnsAction(evaluation_topic))
 
         # Outputs
         cdk.CfnOutput(

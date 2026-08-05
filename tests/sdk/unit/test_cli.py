@@ -49,3 +49,17 @@ test_cases:
 """)
     rc = main(["validate", "--config", str(cfg)])
     assert rc == 0
+
+
+@pytest.mark.sdk
+def test_init_scaffold_disables_unmeasured_metrics_and_uses_environment_state(tmp_path):
+    from agentic_evaluation.cli import main
+
+    rc = main(["init", "--name", "demo", "--directory", str(tmp_path)])
+
+    assert rc == 0
+    config = (tmp_path / "eval_config.yaml").read_text()
+    task_fn = (tmp_path / "task_fn.py").read_text()
+    assert "latency: {enabled: false}" in config
+    assert "cost: {enabled: false}" in config
+    assert 'EnvironmentState(name="metrics", state=metrics)' in task_fn

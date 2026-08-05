@@ -3,12 +3,14 @@
 """Data ingestion AWS Lambda handler with mocked BigQuery.
 
 Instead of calling BigQuery API, this reads sample vehicle data from Amazon S3,
-processes it through the same pipeline (contextualization + embeddings),
-and writes LanceDB-formatted data back to Amazon S3.
+processes it through the same pipeline (contextualization + embeddings), and
+writes the source records that AgentCore Runtime materializes into LanceDB.
 """
 
+import hashlib
 import json
 import logging
+import math
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +31,9 @@ DATA_BUCKET = os.environ["DATA_BUCKET"]
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")
 MOCK_BIGQUERY = os.environ.get("MOCK_BIGQUERY", "true") == "true"
 SAMPLE_DATA_KEY = os.environ.get("SAMPLE_DATA_KEY", "raw/sample_vehicles.json")
+MIN_EMBEDDING_SUCCESS_RATIO = float(os.environ.get("MIN_EMBEDDING_SUCCESS_RATIO", "0.95"))
+EXPECTED_EMBEDDING_DIMENSION = int(os.environ.get("EXPECTED_EMBEDDING_DIMENSION", "1024"))
+LANCEDB_MANIFEST_KEY = os.environ.get("LANCEDB_MANIFEST_KEY", "lancedb/manifest.json")
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -55,24 +60,46 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         logger.info("Fetched %s vehicles", len(vehicles))
 
-        # Step 2: Contextualize vehicle descriptions with Amazon Nova Lite v1
-        logger.info("Contextualizing vehicle descriptions with Amazon Nova Lite v1")
+        # Step 2: Normalize records and build deterministic search descriptions.
+        logger.info("Normalizing vehicle records and building search descriptions")
         vehicles_with_context = contextualize_vehicles(vehicles)
 
         # Step 3: Generate embeddings with Amazon Titan Text Embeddings V2
         logger.info("Generating embeddings with Amazon Titan Text Embeddings V2")
         vehicles_with_embeddings = generate_embeddings(vehicles_with_context)
+        embedded_count = len(vehicles_with_embeddings)
+        embedding_failures = len(vehicles_with_context) - embedded_count
+        success_ratio = embedded_count / len(vehicles_with_context) if vehicles_with_context else 0
+        if success_ratio < MIN_EMBEDDING_SUCCESS_RATIO:
+            raise ValueError(
+                "Embedding success ratio "
+                f"{success_ratio:.1%} is below required {MIN_EMBEDDING_SUCCESS_RATIO:.1%}"
+            )
+        validate_lancedb_snapshot(
+            vehicles_with_embeddings,
+            expected_dimension=EXPECTED_EMBEDDING_DIMENSION,
+        )
 
-        # Step 4: Write LanceDB-formatted data to S3
-        logger.info("Writing LanceDB data to S3")
-        output_key = write_lancedb_to_s3(vehicles_with_embeddings)
+        # Step 4: Persist a validated candidate and atomically promote its
+        # manifest. Warm runtimes continue using the previous manifest if any
+        # candidate validation or write fails.
+        logger.info("Publishing validated LanceDB source snapshot to S3")
+        publication = write_lancedb_source_to_s3(vehicles_with_embeddings)
+        output_key = publication["data_key"]
 
         # Step 5: Write metadata
         metadata = {
-            "timestamp": datetime.now(tz=UTC).isoformat(),
+            "timestamp": publication["generated_at"],
             "environment": ENVIRONMENT,
-            "vehicle_count": len(vehicles),
+            "fetched_count": len(vehicles),
+            "normalized_count": len(vehicles_with_context),
+            "embedded_count": embedded_count,
+            "embedding_failure_count": embedding_failures,
+            "embedding_success_ratio": success_ratio,
+            "vehicle_count": embedded_count,
             "output_key": output_key,
+            "manifest_key": LANCEDB_MANIFEST_KEY,
+            "version": publication["version"],
             "source": "mocked_bigquery" if MOCK_BIGQUERY else "bigquery",
         }
         write_metadata_to_s3(metadata)
@@ -84,7 +111,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             "body": json.dumps(
                 {
                     "message": "Data ingestion completed",
-                    "vehicles_processed": len(vehicles),
+                    "vehicles_processed": embedded_count,
                     "output_key": output_key,
                     "metadata": metadata,
                 }
@@ -213,9 +240,10 @@ def normalize_vehicle(vehicle: dict[str, Any], config: dict) -> dict[str, Any]:
     Raises:
         ValueError: If required fields are missing
     """
+    raw_vehicle_id = resolve_field(vehicle, "id", config)
     normalized = {
         # Standard fields resolved from config
-        "id": str(resolve_field(vehicle, "id", config)),
+        "id": str(raw_vehicle_id).strip() if raw_vehicle_id is not None else None,
         "make": resolve_field(vehicle, "make", config),
         "model": resolve_field(vehicle, "model", config),
         "year": resolve_field(vehicle, "year", config),
@@ -250,7 +278,13 @@ def normalize_vehicle(vehicle: dict[str, Any], config: dict) -> dict[str, Any]:
 
     # Validate required fields
     required_fields = config.get("required_fields", ["id", "make", "model"])
-    missing = [f for f in required_fields if not normalized.get(f)]
+    missing = [
+        field
+        for field in required_fields
+        if normalized.get(field) is None
+        or normalized.get(field) == ""
+        or (isinstance(normalized.get(field), str) and not normalized.get(field).strip())
+    ]
     if missing:
         raise ValueError(f"Missing required fields: {missing}")
 
@@ -333,7 +367,7 @@ def create_default_vehicle_data() -> list[dict[str, Any]]:
 
 
 def contextualize_vehicles(vehicles: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Contextualize vehicle data with Amazon Nova Lite v1.
+    """Normalize vehicle data and build deterministic search descriptions.
 
     Uses flexible field mapping configuration to normalize vehicle data
     from any source schema (auction marketplace, other providers, etc.).
@@ -373,8 +407,6 @@ def contextualize_vehicles(vehicles: list[dict[str, Any]]) -> list[dict[str, Any
                 f"with {transmission} transmission."
             )
 
-            # For demo, we'll use the simple description
-            # In production, you'd call Amazon Nova Lite v1 to enrich this
             normalized["contextualized_description"] = description
 
             normalized_vehicles.append(normalized)
@@ -440,35 +472,101 @@ def generate_embeddings(vehicles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return successful
 
 
-def write_lancedb_to_s3(vehicles: list[dict[str, Any]]) -> str:
-    """Write LanceDB-formatted data to S3.
+def validate_lancedb_snapshot(
+    vehicles: list[dict[str, Any]],
+    *,
+    expected_dimension: int = EXPECTED_EMBEDDING_DIMENSION,
+) -> int:
+    """Validate the complete snapshot before any production pointer changes."""
+    if not vehicles:
+        raise ValueError("Refusing to publish an empty LanceDB snapshot")
+
+    ids: set[str] = set()
+    observed_dimension: int | None = None
+    for vehicle in vehicles:
+        raw_vehicle_id = vehicle.get("id")
+        vehicle_id = str(raw_vehicle_id).strip() if raw_vehicle_id is not None else ""
+        if not vehicle_id or vehicle_id in ids:
+            raise ValueError(f"Vehicle IDs must be non-empty and unique: {vehicle_id!r}")
+        ids.add(vehicle_id)
+
+        embedding = vehicle.get("embedding")
+        if not isinstance(embedding, list) or not embedding:
+            raise ValueError(f"Vehicle {vehicle_id} has no embedding")
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+            for value in embedding
+        ):
+            raise ValueError(f"Vehicle {vehicle_id} has non-finite embedding values")
+        if observed_dimension is None:
+            observed_dimension = len(embedding)
+        if len(embedding) != observed_dimension:
+            raise ValueError(f"Vehicle {vehicle_id} has inconsistent embedding dimensions")
+
+    if expected_dimension > 0 and observed_dimension != expected_dimension:
+        raise ValueError(
+            f"Embedding dimension {observed_dimension} does not match expected {expected_dimension}"
+        )
+    return observed_dimension or 0
+
+
+def write_lancedb_source_to_s3(
+    vehicles: list[dict[str, Any]],
+    *,
+    expected_dimension: int = EXPECTED_EMBEDDING_DIMENSION,
+) -> dict[str, Any]:
+    """Write the rows and vectors consumed by the Runtime's LanceDB table.
 
     Args:
         vehicles: List of vehicles with embeddings
 
     Returns:
-        S3 key where data was written
+        Publication metadata including the immutable data key and version
     """
-    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
-    output_key = f"lancedb/vehicles_{timestamp}.json"
+    vector_dimension = validate_lancedb_snapshot(
+        vehicles,
+        expected_dimension=expected_dimension,
+    )
+    generated_at = datetime.now(tz=UTC).isoformat()
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S_%f")
+    snapshot = {
+        "schema_version": 1,
+        "generated_at": generated_at,
+        "vehicle_count": len(vehicles),
+        "vector_dimension": vector_dimension,
+        "vehicles": vehicles,
+    }
+    body = json.dumps(snapshot, separators=(",", ":"), sort_keys=True).encode()
+    version = hashlib.sha256(body).hexdigest()
+    output_key = f"lancedb/snapshots/vehicles_{timestamp}_{version[:12]}.json"
 
-    # Write to S3
-    s3_client.put_object(
+    candidate_response = s3_client.put_object(
         Bucket=DATA_BUCKET,
         Key=output_key,
-        Body=json.dumps({"vehicles": vehicles}, indent=2),
+        Body=body,
         ContentType="application/json",
+        Metadata={"sha256": version},
     )
 
-    # Also write to "latest" key for easy access
+    manifest = {
+        "schema_version": 1,
+        "version": version,
+        "data_key": output_key,
+        "data_etag": str(candidate_response.get("ETag", "")).strip('"'),
+        "generated_at": generated_at,
+        "vehicle_count": len(vehicles),
+        "vector_dimension": vector_dimension,
+    }
+    # S3 PutObject is atomic for a single key. This final write is the only
+    # production pointer change, so failed candidates never replace live data.
     s3_client.put_object(
         Bucket=DATA_BUCKET,
-        Key="lancedb/latest.json",
-        Body=json.dumps({"vehicles": vehicles}, indent=2),
+        Key=LANCEDB_MANIFEST_KEY,
+        Body=json.dumps(manifest, separators=(",", ":"), sort_keys=True).encode(),
         ContentType="application/json",
+        CacheControl="no-cache",
     )
-
-    return output_key
+    return manifest
 
 
 def write_metadata_to_s3(metadata: dict[str, Any]) -> None:

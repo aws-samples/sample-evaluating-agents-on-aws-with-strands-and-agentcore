@@ -1,134 +1,103 @@
-<mxfile host="Claude" type="device">
+<mxfile host="app.diagrams.net" type="device">
   <diagram id="production-eval" name="Production Evaluation">
-    <mxGraphModel dx="1600" dy="1100" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1660" pageHeight="940" math="0" shadow="0">
+    <mxGraphModel dx="1700" dy="1000" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1560" pageHeight="880" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- Title -->
-        <mxCell id="title" value="Online (Production) Evaluation" style="text;html=1;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="540" y="16" width="560" height="30" as="geometry" />
+        <mxCell id="title" value="Optional Online Evaluation of Production Agent Sessions" style="text;html=1;align=center;verticalAlign=middle;fontSize=22;fontStyle=1;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="465" y="16" width="650" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Configured after CDK deployment using the documented CLI example" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#687078;" vertex="1" parent="1">
+          <mxGeometry x="440" y="49" width="700" height="20" as="geometry" />
         </mxCell>
 
-        <!-- User: OUTSIDE the AWS Cloud boundary (left) -->
-        <mxCell id="user" value="User" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=13;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="26" y="200" width="84" height="84" as="geometry" />
+        <mxCell id="user" value="Authenticated client" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="22" y="205" width="88" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="awscloud" value="AWS Cloud (eu-west-1)" style="sketch=0;html=1;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;fontColor=#232F3E;fontSize=13;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;" vertex="1" parent="1">
+          <mxGeometry x="145" y="84" width="1210" height="745" as="geometry" />
         </mxCell>
 
-        <!-- AWS Cloud group -->
-        <mxCell id="awscloud" value="AWS Cloud (eu-west-1)" style="sketch=0;html=1;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;fontColor=#232F3E;fontSize=13;dashed=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;" vertex="1" parent="1">
-          <mxGeometry x="150" y="70" width="1360" height="830" as="geometry" />
+        <mxCell id="runtimebox" value="Amazon Bedrock AgentCore Runtime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F0FA;strokeColor=#8C4FFF;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#5A2D9C;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="220" y="135" width="420" height="215" as="geometry" />
+        </mxCell>
+        <mxCell id="runtime" value="Strands agent" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="275" y="200" width="72" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="runtimeobs" value="Every turn emits OpenTelemetry spans&#10;Session, trace, tool-call, and model metadata" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#B085F5;dashed=1;fontSize=10;fontColor=#5A2D9C;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="188" width="205" height="82" as="geometry" />
         </mxCell>
 
-        <!-- Amazon Bedrock AgentCore boundary -->
-        <mxCell id="agentcore" value="Amazon Bedrock AgentCore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F0FA;strokeColor=#8C4FFF;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#5A2D9C;spacingTop=8;" vertex="1" parent="1">
-          <mxGeometry x="200" y="120" width="1000" height="770" as="geometry" />
+        <mxCell id="traces" value="Amazon CloudWatch Logs&#10;agent OpenTelemetry traces" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="185" width="78" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="session" value="Completed sessions are grouped after the configured inactivity timeout." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F7F7;strokeColor=#687078;dashed=1;fontSize=10;fontColor=#4D5965;" vertex="1" parent="1">
+          <mxGeometry x="930" y="185" width="250" height="78" as="geometry" />
         </mxCell>
 
-        <!-- AgentCore Runtime inner box -->
-        <mxCell id="runtime" value="AgentCore Runtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCFAFF;strokeColor=#B085F5;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;fontColor=#7B4FC0;spacingTop=6;" vertex="1" parent="1">
-          <mxGeometry x="240" y="170" width="920" height="150" as="geometry" />
+        <mxCell id="evals" value="Amazon Bedrock AgentCore Evaluations" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#527FFF;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#2A4B9B;spacingTop=9;" vertex="1" parent="1">
+          <mxGeometry x="255" y="420" width="750" height="345" as="geometry" />
         </mxCell>
-        <mxCell id="strands" value="Strands Agent&#10;(OpenTelemetry traces&#10;on every turn)" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock_agentcore;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="560" y="200" width="72" height="72" as="geometry" />
+        <mxCell id="config" value="Operator-created configuration&#10;(not provisioned by CDK)&#10;&#10;README CLI example: sample 3% of sessions&#10;Session timeout: 30 minutes" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;strokeWidth=1.5;fontSize=10;fontColor=#232F3E;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="295" y="475" width="260" height="132" as="geometry" />
         </mxCell>
-
-        <!-- AgentCore Evaluations box -->
-        <mxCell id="evals" value="AgentCore Evaluations — samples 1–5% of live traffic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3ECFB;strokeColor=#527FFF;strokeWidth=2;verticalAlign=top;fontStyle=1;fontSize=13;fontColor=#2A4B9B;spacingTop=6;" vertex="1" parent="1">
-          <mxGeometry x="240" y="380" width="920" height="470" as="geometry" />
+        <mxCell id="builtin" value="Built-ins selected by the README CLI example" style="text;html=1;align=left;fontSize=11;fontStyle=1;fontColor=#2A4B9B;" vertex="1" parent="1">
+          <mxGeometry x="590" y="472" width="280" height="20" as="geometry" />
         </mxCell>
-
-        <!-- Built-in evaluators -->
-        <mxCell id="builtinlbl" value="Built-in Evaluators" style="text;html=1;align=left;fontSize=12;fontStyle=1;fontColor=#2A4B9B;" vertex="1" parent="1">
-          <mxGeometry x="270" y="412" width="200" height="20" as="geometry" />
+        <mxCell id="b1" value="Builtin.ToolSelection" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=10;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="590" y="505" width="170" height="54" as="geometry" />
         </mxCell>
-        <mxCell id="b1" value="Builtin.ToolSelection&#10;(TOOL_CALL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=11;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="270" y="442" width="250" height="55" as="geometry" />
+        <mxCell id="b2" value="Builtin.Helpfulness" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=10;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="785" y="505" width="170" height="54" as="geometry" />
         </mxCell>
-        <mxCell id="b2" value="Builtin.Helpfulness&#10;(TRACE)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=11;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="555" y="442" width="250" height="55" as="geometry" />
+        <mxCell id="b3" value="Builtin.GoalSuccessRate" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=10;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="590" y="580" width="170" height="54" as="geometry" />
         </mxCell>
-        <mxCell id="b3" value="Builtin.GoalSuccessRate&#10;(SESSION)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#527FFF;fontSize=11;fontColor=#232F3E;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="840" y="442" width="250" height="55" as="geometry" />
+        <mxCell id="custom" value="Optional custom AgentCore evaluator&#10;(create separately; not provisioned by this sample)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#D5A000;dashed=1;fontSize=9;fontColor=#5F4B00;" vertex="1" parent="1">
+          <mxGeometry x="785" y="580" width="170" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="role" value="CDK-created evaluation IAM role&#10;passed to the manual configuration" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F7F7;strokeColor=#687078;fontSize=10;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="285" y="670" width="280" height="58" as="geometry" />
         </mxCell>
 
-        <!-- Custom evaluators -->
-        <mxCell id="customlbl" value="Custom Evaluators" style="text;html=1;align=left;fontSize=12;fontStyle=1;fontColor=#B35A00;" vertex="1" parent="1">
-          <mxGeometry x="270" y="518" width="200" height="20" as="geometry" />
+        <mxCell id="results" value="CloudWatch evaluation results" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F7F7F7;strokeColor=#D13282;strokeWidth=1.5;verticalAlign=top;fontStyle=1;fontSize=11;fontColor=#B20E65;spacingTop=7;" vertex="1" parent="1">
+          <mxGeometry x="1075" y="420" width="235" height="185" as="geometry" />
         </mxCell>
-        <mxCell id="c1" value="DataFreshness&#10;Evaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;fontSize=11;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="270" y="548" width="150" height="55" as="geometry" />
+        <mxCell id="resultslog" value="Dedicated results log group&#10;JSON per evaluated session" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D13282;fontSize=9;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="475" width="195" height="52" as="geometry" />
         </mxCell>
-        <mxCell id="c2" value="SchemaScoping&#10;Evaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;fontSize=11;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="435" y="548" width="150" height="55" as="geometry" />
-        </mxCell>
-        <mxCell id="c3" value="SafetyGuardrail&#10;Evaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEBEE;strokeColor=#C62828;fontSize=11;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="600" y="548" width="150" height="55" as="geometry" />
-        </mxCell>
-        <mxCell id="c4" value="Latency&#10;Evaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;fontSize=11;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="765" y="548" width="150" height="55" as="geometry" />
-        </mxCell>
-        <mxCell id="c5" value="Cost&#10;Evaluator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#ED7100;fontSize=11;fontColor=#232F3E;" vertex="1" parent="1">
-          <mxGeometry x="930" y="548" width="150" height="55" as="geometry" />
+        <mxCell id="metrics" value="Embedded Metric Format&#10;Bedrock-AgentCore/Evaluations" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D13282;fontSize=9;fontColor=#232F3E;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="540" width="195" height="52" as="geometry" />
         </mxCell>
 
-        <!-- Aggregated scores -->
-        <mxCell id="agg" value="Aggregated Scores&#10;task completion · tool accuracy · helpfulness · latency · cost" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEFC;strokeColor=#527FFF;strokeWidth=2;fontSize=12;fontColor=#2A4B9B;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="420" y="680" width="480" height="70" as="geometry" />
-        </mxCell>
-        <mxCell id="modes" value="On-demand: debug specific interactions&#10;Online: automatic sampling of live traffic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9E6;strokeColor=#E0B000;dashed=1;fontSize=10;fontColor=#7A6000;align=left;spacingLeft=6;" vertex="1" parent="1">
-          <mxGeometry x="270" y="775" width="330" height="55" as="geometry" />
+        <mxCell id="alarm" value="Adopter-owned quality alerting&#10;(not provisioned by this sample)&#10;&#10;Publish or map evaluation scores&#10;Create CloudWatch alarms and SNS actions" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#D5A000;strokeWidth=1.5;dashed=1;fontColor=#5F4B00;fontSize=10;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="670" width="280" height="105" as="geometry" />
         </mxCell>
 
-        <!-- Right column: CloudWatch + SNS (inside AWS cloud) -->
-        <mxCell id="cloudwatch" value="Amazon CloudWatch&#10;dashboards + alarms" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch_2;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1330" y="420" width="72" height="72" as="geometry" />
+        <mxCell id="e1" value="1. invoke (IAM or JWT)" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#ED7100;strokeWidth=2;fontColor=#B35A00;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.68;" edge="1" parent="1" source="user" target="runtime">
+          <mxGeometry y="-10" relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="sns" value="Amazon SNS&#10;notifies" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sns;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=11;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1330" y="590" width="72" height="72" as="geometry" />
+        <mxCell id="e2" value="2. export spans" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#527FFF;strokeWidth=2;fontColor=#2A4B9B;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.41;entryX=0;entryY=0.5;" edge="1" parent="1" source="runtimebox" target="traces">
+          <mxGeometry y="-10" relative="1" as="geometry" />
         </mxCell>
-
-        <!-- Ops Team: OUTSIDE the AWS Cloud boundary (right) -->
-        <mxCell id="ops" value="Ops Team" style="sketch=0;html=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.users;verticalLabelPosition=bottom;verticalAlign=top;align=center;fontColor=#232F3E;fontSize=13;fontStyle=1;" vertex="1" parent="1">
-          <mxGeometry x="1540" y="584" width="84" height="84" as="geometry" />
-        </mxCell>
-
-        <!-- ===== EDGES ===== -->
-        <!-- 1. query: user -> strands (horizontal) -->
-        <mxCell id="equery" value="1. query" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#ED7100;strokeWidth=2;fontColor=#ED7100;fontSize=11;fontStyle=1;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="user" target="strands">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- emits traces: strands bottom -> evals top -->
-        <mxCell id="etrace" value="emits traces" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#3D5AFE;strokeWidth=2;dashed=1;fontColor=#3D5AFE;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.4;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="strands" target="evals">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- aggregate: safety (middle custom) bottom -> agg top -->
-        <mxCell id="ea1" value="aggregate" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#527FFF;strokeWidth=2;fontColor=#2A4B9B;fontSize=10;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="c3" target="agg">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-
-        <!-- 2. publishes metrics: agg right -> cloudwatch left -->
-        <mxCell id="epub" value="2. publishes metrics" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#E7157B;strokeWidth=2;fontColor=#E7157B;fontSize=11;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="agg" target="cloudwatch">
-          <mxGeometry relative="1" as="geometry">
+        <mxCell id="e3" value="3. read sampled completed sessions" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#527FFF;strokeWidth=2;fontColor=#2A4B9B;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0;exitY=0.65;entryX=0.65;entryY=0;" edge="1" parent="1" source="traces" target="evals">
+          <mxGeometry x="0.1" y="-10" relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1300" y="715" />
-              <mxPoint x="1300" y="456" />
+              <mxPoint x="740" y="236" />
+              <mxPoint x="740" y="390" />
             </Array>
           </mxGeometry>
         </mxCell>
-
-        <!-- 3. threshold alerts: cloudwatch bottom -> sns top -->
-        <mxCell id="ealarm" value="3. threshold alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C62828;strokeWidth=2;fontColor=#C62828;fontSize=11;endArrow=block;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="cloudwatch" target="sns">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="roleedge" value="assume role" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#687078;strokeWidth=1.5;fontColor=#4D5965;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="role" target="config">
+          <mxGeometry x="0.2" y="-10" relative="1" as="geometry" />
         </mxCell>
-
-        <!-- 4. notifies: sns right -> ops left -->
-        <mxCell id="enotify" value="4. notifies" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#C62828;strokeWidth=2;fontColor=#C62828;fontSize=11;endArrow=block;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sns" target="ops">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e4" value="4. write scores" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#D13282;strokeWidth=2;fontColor=#B20E65;fontSize=10;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=1;exitY=0.27;entryX=0;entryY=0.5;" edge="1" parent="1" source="evals" target="results">
+          <mxGeometry y="-10" relative="1" as="geometry" />
         </mxCell>
-
+        <mxCell id="e5" value="optional adopter integration" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;rounded=0;html=1;strokeColor=#D5A000;strokeWidth=1.5;fontColor=#5F4B00;fontSize=9;dashed=1;dashPattern=6 4;labelBackgroundColor=#FFFFFF;endArrow=block;endFill=1;endSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="results" target="alarm">
+          <mxGeometry x="0.15" y="-10" relative="1" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>

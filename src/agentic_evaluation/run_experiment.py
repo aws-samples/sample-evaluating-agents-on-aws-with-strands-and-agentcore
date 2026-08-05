@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from collections.abc import Callable
+from copy import deepcopy
 from typing import Any
 
 from strands_evals import Case, Experiment
@@ -28,6 +30,7 @@ from agentic_evaluation.evaluators import (
     LatencyEvaluator,
     SafetyGuardrailEvaluator,
     SchemaScopingEvaluator,
+    ToolParameterGrader,
     ToolSelectionGrader,
     TrajectoryOrderGrader,
 )
@@ -45,6 +48,11 @@ _LAYER_ALIASES = {
     "layer_2": "process_evaluation",
     "layer_3": "outcome_evaluation",
     "domain": "operational_metrics",
+}
+_CASE_LAYER_VALUES = {
+    "layer_1": "layer_1_tool_usage",
+    "layer_2": "layer_2_reasoning",
+    "layer_3": "layer_3_output_quality",
 }
 
 # Global config — loaded lazily on first use
@@ -102,22 +110,62 @@ def build_cases_from_registry(
 
     test_cases = registry.get_by_category(category) if category else registry.test_cases
 
-    return [
-        Case[str, str](
-            name=tc.id,
-            input=tc.query,
-            expected_output=tc.expected_behavior,
-            expected_trajectory=tc.expected_tools,
-            expected_assertion=tc.expected_assertion,
-            metadata={
-                "category": tc.category.value,
-                "tags": tc.tags,
-                "evaluation_layers": [layer.value for layer in tc.evaluation_layers],
-                "reference_solution": tc.reference_solution,
-            },
-        )
-        for tc in test_cases
-    ]
+    cases: list[Case[str, str]] = []
+    for tc in test_cases:
+        layer_values = [layer.value for layer in tc.evaluation_layers]
+        base_metadata = {
+            "category": tc.category.value,
+            "tags": tc.tags,
+            "evaluation_layers": layer_values,
+            "source_case_id": tc.id,
+            "conversation_id": tc.id if tc.reference_solution else None,
+            "turn_index": 1,
+            "expected_tool_parameters": tc.expected_tool_parameters,
+        }
+        turns: list[tuple[str, str, list[str], str | None, dict[str, Any] | None]] = [
+            (
+                tc.id,
+                tc.query,
+                tc.expected_tools,
+                tc.expected_behavior,
+                tc.expected_tool_parameters,
+            )
+        ]
+        reference = tc.reference_solution or {}
+        turn_index = 2
+        while f"turn_{turn_index}_query" in reference:
+            turns.append(
+                (
+                    f"{tc.id}__turn_{turn_index}",
+                    str(reference[f"turn_{turn_index}_query"]),
+                    list(reference.get(f"turn_{turn_index}_expected_tools", [])),
+                    reference.get(f"turn_{turn_index}_behavior"),
+                    reference.get(f"turn_{turn_index}_expected_parameters"),
+                )
+            )
+            turn_index += 1
+
+        turn_count = len(turns)
+        for index, (name, query, tools, behavior, parameters) in enumerate(turns, start=1):
+            metadata = {
+                **base_metadata,
+                "turn_index": index,
+                "turn_count": turn_count,
+                "expected_tool_parameters": parameters,
+            }
+            cases.append(
+                Case[str, str](
+                    name=name,
+                    input=query,
+                    expected_output=behavior or tc.expected_behavior,
+                    expected_trajectory=tools,
+                    expected_assertion=(
+                        tc.expected_assertion if index == 1 else behavior or tc.expected_assertion
+                    ),
+                    metadata=metadata,
+                )
+            )
+    return cases
 
 
 def build_layer1_experiment(
@@ -136,6 +184,7 @@ def build_layer1_experiment(
         cases=cases,
         evaluators=[
             ToolSelectionGrader(threshold=thresholds.tool_selection_accuracy),
+            ToolParameterGrader(threshold=thresholds.tool_parameter_accuracy),
             TrajectoryOrderGrader(threshold=thresholds.reasoning_coherence),
         ],
     )
@@ -276,7 +325,9 @@ def build_domain_experiment(
     return Experiment[str, str](cases=cases, evaluators=evaluators)
 
 
-def _layer_passed(reports: list[Any], threshold: float, *, strict_case_pass: bool) -> bool:
+def _layer_passed(
+    reports: list[Any], threshold: float | list[float], *, strict_case_pass: bool
+) -> bool:
     """Decide whether an evaluation layer passes.
 
     Two gating styles, selected by ``strict_case_pass``:
@@ -302,12 +353,22 @@ def _layer_passed(reports: list[Any], threshold: float, *, strict_case_pass: boo
     """
     if not reports:
         return False
-    for r in reports:
+    report_thresholds = (
+        [float(threshold)] * len(reports) if isinstance(threshold, (int, float)) else threshold
+    )
+    if len(report_thresholds) < len(reports):
+        report_thresholds = [
+            *report_thresholds,
+            *([report_thresholds[-1]] * (len(reports) - len(report_thresholds))),
+        ]
+    else:
+        report_thresholds = report_thresholds[: len(reports)]
+    for r, report_threshold in zip(reports, report_thresholds):
         if not r.scores:
             return False
         if strict_case_pass and not all(r.test_passes):
             return False
-        if r.overall_score < threshold:
+        if r.overall_score < report_threshold:
             return False
     return True
 
@@ -323,14 +384,33 @@ def _run_layer(
     experiment_builder: Any,
     cases: list[Case[str, str]],
     task_fn: Any,
-    threshold: float,
+    threshold: float | list[float],
 ) -> dict[str, Any]:
     """Run a single evaluation layer and return results."""
     logger.info(f"Running {name} evaluation")
     experiment = experiment_builder(cases)
     reports = experiment.run_evaluations(task_fn)
     passed = _layer_passed(reports, threshold, strict_case_pass=name in _DETERMINISTIC_LAYERS)
+    logger.info(
+        "Completed %s evaluation: passed=%s scores=%s",
+        name,
+        passed,
+        [round(report.overall_score, 3) for report in reports],
+    )
     return {"reports": reports, "passed": passed}
+
+
+def _cases_for_layer(cases: list[Case[str, str]], layer_name: str) -> list[Case[str, str]]:
+    """Return cases explicitly routed to a layer; domain metrics apply to all."""
+    if layer_name == "domain":
+        return cases
+    configured_value = _CASE_LAYER_VALUES[layer_name]
+    selected = []
+    for case in cases:
+        configured = (case.metadata or {}).get("evaluation_layers", [])
+        if not configured or configured_value in configured:
+            selected.append(case)
+    return selected
 
 
 def run_all_layers(
@@ -399,9 +479,25 @@ def run_all_layers(
 
     thresholds = get_config().thresholds
     all_layers = [
-        ("layer_1", build_layer1_experiment, thresholds.tool_selection_accuracy),
-        ("layer_2", _build_l2, thresholds.reasoning_coherence),
-        ("layer_3", _build_l3, thresholds.output_quality_score),
+        (
+            "layer_1",
+            build_layer1_experiment,
+            [
+                thresholds.tool_selection_accuracy,
+                thresholds.tool_parameter_accuracy,
+                thresholds.reasoning_coherence,
+            ],
+        ),
+        (
+            "layer_2",
+            _build_l2,
+            [thresholds.helpfulness_score, thresholds.reasoning_coherence],
+        ),
+        (
+            "layer_3",
+            _build_l3,
+            [thresholds.output_quality_score, thresholds.goal_success_rate],
+        ),
         ("domain", _build_domain, thresholds.domain_aggregate_score),
     ]
     layer_configs = [lc for lc in all_layers if lc[0] in layers] if layers else all_layers
@@ -415,10 +511,66 @@ def run_all_layers(
 
     for trial_idx in range(num_trials):
         label = f"trial {trial_idx + 1}/{num_trials}" if num_trials > 1 else ""
+        trial_cases = deepcopy(cases)
+        run_id = uuid.uuid4().hex
+        for case in trial_cases:
+            case.metadata = {**(case.metadata or {}), "evaluation_run_id": run_id}
+
+        layer_cases = {name: _cases_for_layer(trial_cases, name) for name, _, _ in layer_configs}
+        execution_names = {
+            case.name for selected_cases in layer_cases.values() for case in selected_cases
+        }
+        run_artifacts: dict[str, TaskFnResult] = {}
+        conversation_traces: dict[str, list[Any]] = {}
+
+        def cached_task_fn(case: Case[str, str]) -> TaskFnResult:
+            key = str(case.name)
+            if key not in run_artifacts:
+                artifact = deepcopy(task_fn(case))
+                conversation_id = (case.metadata or {}).get("conversation_id")
+                trajectory = artifact.get("trajectory")
+                if conversation_id and hasattr(trajectory, "traces"):
+                    traces = conversation_traces.setdefault(str(conversation_id), [])
+                    traces.extend(deepcopy(trajectory.traces))
+                    trajectory.traces = deepcopy(traces)
+                run_artifacts[key] = artifact
+            return deepcopy(run_artifacts[key])
+
+        # Prime once in case order. This both guarantees one execution per trial
+        # and preserves conversational turn order before any layer evaluates.
+        case_count = sum(case.name in execution_names for case in trial_cases)
+        case_index = 0
+        for case in trial_cases:
+            if case.name in execution_names:
+                case_index += 1
+                logger.info(
+                    "Executing evaluation case %d/%d: %s",
+                    case_index,
+                    case_count,
+                    case.name,
+                )
+                cached_task_fn(case)
+                logger.info(
+                    "Completed evaluation case %d/%d: %s",
+                    case_index,
+                    case_count,
+                    case.name,
+                )
+
         for name, builder, threshold in layer_configs:
             if label:
                 logger.info("[%s] ", label)
-            layer_result = _run_layer(name, builder, cases, task_fn, threshold)
+            selected_cases = layer_cases[name]
+            if not selected_cases:
+                layer_result = {"reports": [], "passed": False}
+            else:
+                layer_result = _run_layer(
+                    name,
+                    builder,
+                    selected_cases,
+                    cached_task_fn,
+                    threshold,
+                )
             trial_passes[name].append(layer_result["passed"])
             if trial_idx == 0:
                 first_reports[name] = layer_result["reports"]

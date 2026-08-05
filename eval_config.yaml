@@ -149,14 +149,18 @@ test_cases:
     query: "Find me diesel SUVs under 25k near my dealership"
     category: "happy_path"
     expected_tools: ["get_dealer_profile", "search_vehicles", "filter_by_distance"]
+    expected_tool_parameters:
+      search_vehicles: {fuel_type: "diesel", body_type: "SUV", max_price: 25000}
     expected_behavior: >
       Agent should get dealer location from profile, use search_vehicles with
       fuel_type=diesel, body_type=SUV, max_price=25000 typed filters, and apply
       a distance filter around the dealer's location
     expected_assertion: >
-      The agent returns one or more diesel SUVs priced under £25,000 and
-      references the dealer's location or distance. It does not fabricate
-      vehicles or place bids.
+      The agent reports the diesel SUVs priced under £25,000 that are within the
+      selected distance of the dealer. If none are nearby, it clearly reports
+      zero local matches and may summarize the matching national candidates
+      with truthful distance context. It does not fabricate vehicles or place
+      bids.
     evaluation_layers: ["layer_1_tool_usage", "layer_2_reasoning", "layer_3_output_quality"]
     tags: ["structured-filter", "location-based", "typed-search"]
 
@@ -179,6 +183,8 @@ test_cases:
     query: "Find BMW 3 Series with under 50k miles"
     category: "happy_path"
     expected_tools: ["search_vehicles"]
+    expected_tool_parameters:
+      search_vehicles: {make: "BMW", model: "3 Series", max_mileage: 50000}
     expected_behavior: >
       Agent should use search_vehicles with make='BMW', model='3 Series',
       max_mileage=50000 typed filters
@@ -192,6 +198,8 @@ test_cases:
     query: "Find vehicles within 30 miles of my dealership"
     category: "happy_path"
     expected_tools: ["get_dealer_profile", "filter_by_distance"]
+    expected_tool_parameters:
+      filter_by_distance: {max_distance_miles: 30}
     expected_behavior: >
       Agent should get dealer lat/long from profile,
       then filter vehicles within 30 miles using filter_by_distance
@@ -207,6 +215,8 @@ test_cases:
     query: "Find me a beemer 3 series"
     category: "edge_case"
     expected_tools: ["search_vehicles"]
+    expected_tool_parameters:
+      search_vehicles: {make: "BMW", model: "3 Series"}
     expected_behavior: >
       Agent should resolve 'beemer' slang to BMW and find 3 Series vehicles.
       search_vehicles (optionally preceded by get_dealer_profile for context)
@@ -273,10 +283,17 @@ test_cases:
     reference_solution:
       turn_2_query: "Now show me just the automatics"
       turn_2_expected_tools: ["search_vehicles"]
+      turn_2_expected_parameters:
+        search_vehicles: {fuel_type: "diesel", body_type: "SUV", transmission: "automatic"}
       turn_2_behavior: "Agent should maintain diesel+SUV context and add transmission=automatic filter"
       turn_3_query: "What about estates instead?"
       turn_3_expected_tools: ["search_vehicles"]
-      turn_3_behavior: "Agent should replace SUV with estate body type, keep diesel and automatic filters"
+      turn_3_expected_parameters:
+        search_vehicles: {fuel_type: "diesel", body_type: "estate", transmission: "automatic"}
+      turn_3_behavior: >
+        Agent should replace SUV with estate, keep diesel and automatic filters,
+        and explicitly report the active filters and zero results when no
+        matching vehicle exists rather than fabricating one.
 
   # Performance
   - id: "pf_001"

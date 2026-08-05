@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from strands_evals import Case, Experiment
+from strands_evals.types.evaluation import EnvironmentState
 from strands_evals.types.trace import (
     AgentInvocationSpan,
     Session,
@@ -33,6 +34,7 @@ from agentic_evaluation.evaluators import (
     CostEvaluator,
     LatencyEvaluator,
     SafetyGuardrailEvaluator,
+    ToolParameterGrader,
     ToolSelectionGrader,
     TrajectoryOrderGrader,
 )
@@ -80,6 +82,7 @@ def build_mock_session(
     user_prompt: str,
     agent_response: str,
     tool_names: list[str],
+    tool_parameters: dict[str, dict[str, Any]] | None = None,
 ) -> Session:
     """Build a strands_evals Session from mock agent data."""
     session_id = str(uuid.uuid4())
@@ -89,7 +92,10 @@ def build_mock_session(
         spans.append(
             ToolExecutionSpan(
                 span_info=_make_span_info(session_id),
-                tool_call=ToolCall(name=tool_name, arguments={}),
+                tool_call=ToolCall(
+                    name=tool_name,
+                    arguments=(tool_parameters or {}).get(tool_name, {}),
+                ),
                 tool_result=ToolResult(content=f"Results from {tool_name}"),
             )
         )
@@ -131,6 +137,13 @@ MOCK_AGENT_RESPONSES: dict[str, dict[str, Any]] = {
             "All are within 30 miles of your location."
         ),
         "trajectory": ["get_dealer_profile", "search_vehicles", "filter_by_distance"],
+        "parameters": {
+            "search_vehicles": {
+                "fuel_type": "diesel",
+                "body_type": "SUV",
+                "max_price": 25000,
+            }
+        },
     },
     "hp_002": {
         "output": (
@@ -150,6 +163,13 @@ MOCK_AGENT_RESPONSES: dict[str, dict[str, Any]] = {
             "3. 2020 BMW 320d SE - 42,000 miles - 22,500"
         ),
         "trajectory": ["search_vehicles"],
+        "parameters": {
+            "search_vehicles": {
+                "make": "BMW",
+                "model": "3 Series",
+                "max_mileage": 50000,
+            }
+        },
     },
     "ec_001": {
         "output": (
@@ -160,6 +180,7 @@ MOCK_AGENT_RESPONSES: dict[str, dict[str, Any]] = {
             "3. 2023 BMW 318i SE - 24,000"
         ),
         "trajectory": ["search_vehicles"],
+        "parameters": {"search_vehicles": {"make": "BMW", "model": "3 Series"}},
     },
     "ec_002": {
         "output": (
@@ -208,6 +229,7 @@ MOCK_AGENT_RESPONSES: dict[str, dict[str, Any]] = {
             "Sorted by distance from your location."
         ),
         "trajectory": ["get_dealer_profile", "filter_by_distance"],
+        "parameters": {"filter_by_distance": {"max_distance_miles": 30}},
     },
     "pf_001": {
         "output": (
@@ -233,14 +255,17 @@ def mock_agent_task(case: Case) -> dict[str, Any]:
     if mock:
         output = mock["output"]
         tool_names = mock["trajectory"]
+        tool_parameters = mock.get("parameters", {})
     else:
         output = f"I found results for: {case.input}"
-        tool_names = ["hybrid_search"]
+        tool_names = list(case.expected_trajectory or ["hybrid_search"])
+        tool_parameters = (case.metadata or {}).get("expected_tool_parameters") or {}
 
     session = build_mock_session(
         user_prompt=case.input or "",
         agent_response=output,
         tool_names=tool_names,
+        tool_parameters=tool_parameters,
     )
     return {"output": output, "trajectory": session}
 
@@ -248,7 +273,7 @@ def mock_agent_task(case: Case) -> dict[str, Any]:
 def mock_agent_task_with_metadata(case: Case) -> dict[str, Any]:
     """Simulate agent behaviour with metadata for domain evaluators."""
     result = mock_agent_task(case)
-    result["metadata"] = {
+    metrics = {
         "last_refresh_time": (datetime.now() - timedelta(hours=2)).isoformat(),
         "dealer_id": "DLR24946",
         "current_auction_id": "auction_2024_02_17",
@@ -256,6 +281,8 @@ def mock_agent_task_with_metadata(case: Case) -> dict[str, Any]:
         "total_tokens": 4000,
         "estimated_cost_usd": 0.20,
     }
+    result["environment_state"] = [EnvironmentState(name="metrics", state=metrics)]
+    result["metadata"] = metrics
     return result
 
 
@@ -299,9 +326,10 @@ class TestLayer1ToolUsage:
 
     def test_layer1_experiment_structure(self) -> None:
         exp = build_layer1_experiment()
-        assert len(exp._evaluators) == 2
+        assert len(exp._evaluators) == 3
         assert isinstance(exp._evaluators[0], ToolSelectionGrader)
-        assert isinstance(exp._evaluators[1], TrajectoryOrderGrader)
+        assert isinstance(exp._evaluators[1], ToolParameterGrader)
+        assert isinstance(exp._evaluators[2], TrajectoryOrderGrader)
 
     def test_layer1_run_evaluations(self) -> None:
         """Run Layer 1 with mock agent. Blog threshold: >95% tool selection."""
@@ -309,7 +337,7 @@ class TestLayer1ToolUsage:
         exp = build_layer1_experiment(cases)
         reports = exp.run_evaluations(mock_agent_task)
 
-        assert len(reports) == 2
+        assert len(reports) == 3
 
         print("\n=== Layer 1: Tool Usage ===")
         for report in reports:

@@ -4,20 +4,16 @@
 
 Exposes dealer data via REST API for AgentCore Gateway integration.
 
-Cleanup:
-    Important: Destroying this stack deletes resources and their data.
-    If you need to preserve any data, create a backup first.
-    These resources are billable: Amazon DynamoDB table, AWS Lambda
-    function, Amazon API Gateway.
-    Remove them with:
-        cdk destroy DealerApiStack -c environment=<env>
-    In non-dev environments the DynamoDB table uses RemovalPolicy.RETAIN
-    and survives ``cdk destroy``. Delete it manually to stop charges.
+Cleanup requires the repository retention manifest, explicit profile/account/
+region verification, a reviewed destroy change, and approval for the exact
+stack and retained-data deletion sets. Dealer data, logs, and the KMS key are
+retained in every environment.
 """
 
 from typing import Any
 
 import aws_cdk as cdk
+import jsii
 from aws_cdk import (
     Duration,
     Stack,
@@ -32,10 +28,10 @@ from aws_cdk import (
     aws_lambda as lambda_,
 )
 from aws_cdk import (
-    aws_logs as logs,
+    aws_kms as kms,
 )
 from aws_cdk import (
-    aws_kms as kms,
+    aws_logs as logs,
 )
 from aws_cdk import (
     aws_wafv2 as wafv2,
@@ -51,6 +47,31 @@ from aws_cdk.aws_bedrockagentcore import (
 )
 from constructs import Construct
 
+from .security import (
+    explicit_kms_key_policy,
+    finalize_explicit_kms_actions,
+    grant_cloudwatch_logs_encryption,
+)
+
+
+@jsii.implements(apigw.IAccessLogDestination)
+class _ExactLogGroupDestination:
+    """Return the log-group ARN shape that API Gateway persists."""
+
+    def __init__(self, log_group: logs.ILogGroup) -> None:
+        self._log_group = log_group
+
+    def bind(self, stage: Any) -> apigw.AccessLogDestinationConfig:
+        stack = Stack.of(stage)
+        return apigw.AccessLogDestinationConfig(
+            destination_arn=stack.format_arn(
+                service="logs",
+                resource="log-group",
+                resource_name=self._log_group.log_group_name,
+                arn_format=cdk.ArnFormat.COLON_RESOURCE_NAME,
+            )
+        )
+
 
 class DealerApiStack(Stack):
     """Stack for Dealer API with DynamoDB backend."""
@@ -61,6 +82,19 @@ class DealerApiStack(Stack):
         # Get environment from context
         env_name = self.node.try_get_context("environment") or "dev"
 
+        dealer_data_key_policy = explicit_kms_key_policy()
+        dealer_data_key = kms.Key(
+            self,
+            # Preserve the deployed logical identity while broadening this key
+            # from table-only encryption to all dealer-data resources.
+            "DealersTableKey",
+            alias=f"agent-eval/dealers-table-{env_name}",
+            description=f"Encrypts dealer data, Lambda settings, and logs ({env_name})",
+            enable_key_rotation=True,
+            policy=dealer_data_key_policy,
+            removal_policy=cdk.RemovalPolicy.RETAIN,
+        )
+
         # DynamoDB Table for Dealers
         self.dealers_table = dynamodb.Table(
             self,
@@ -68,22 +102,22 @@ class DealerApiStack(Stack):
             table_name=f"agent-eval-dealers-{env_name}",
             partition_key=dynamodb.Attribute(name="dealer_id", type=dynamodb.AttributeType.STRING),
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy=(
-                cdk.RemovalPolicy.DESTROY if env_name == "dev" else cdk.RemovalPolicy.RETAIN
-            ),
+            removal_policy=cdk.RemovalPolicy.RETAIN,
             point_in_time_recovery_specification=dynamodb.PointInTimeRecoverySpecification(
                 point_in_time_recovery_enabled=True,
             ),
             encryption=dynamodb.TableEncryption.CUSTOMER_MANAGED,
-            encryption_key=kms.Key(
-                self,
-                "DealersTableKey",
-                alias=f"agent-eval/dealers-table-{env_name}",
-                enable_key_rotation=True,
-                removal_policy=(
-                    cdk.RemovalPolicy.DESTROY if env_name == "dev" else cdk.RemovalPolicy.RETAIN
-                ),
-            ),
+            encryption_key=dealer_data_key,
+        )
+
+        dealer_function_log_group_name = f"/aws/lambda/agent-eval-dealer-api-{env_name}"
+        dealer_function_log_group = logs.LogGroup(
+            self,
+            "DealerApiFunctionLogGroup",
+            log_group_name=dealer_function_log_group_name,
+            retention=logs.RetentionDays.ONE_WEEK,
+            encryption_key=dealer_data_key,
+            removal_policy=cdk.RemovalPolicy.RETAIN,
         )
 
         # Lambda Function for Dealer API
@@ -96,6 +130,8 @@ class DealerApiStack(Stack):
             handler="handler.lambda_handler",
             timeout=Duration.seconds(30),
             memory_size=512,
+            reserved_concurrent_executions=20,
+            environment_encryption=dealer_data_key,
             environment={
                 "DEALERS_TABLE": self.dealers_table.table_name,
                 "ENVIRONMENT": env_name,
@@ -105,27 +141,28 @@ class DealerApiStack(Stack):
                     else f"https://agent-eval.{env_name}.example.com"
                 ),
             },
-            log_group=logs.LogGroup(
-                self,
-                "DealerApiFunctionLogGroup",
-                retention=logs.RetentionDays.ONE_WEEK,
-                removal_policy=(
-                    cdk.RemovalPolicy.DESTROY if env_name == "dev" else cdk.RemovalPolicy.RETAIN
-                ),
-            ),
+            log_group=dealer_function_log_group,
         )
 
         # Grant DynamoDB permissions to Lambda
         self.dealers_table.grant_read_data(dealer_api_function)
 
         # Access Logs for API Gateway (Security best practice)
+        api_log_group_name = f"/aws/apigateway/agent-eval-dealer-api-{env_name}"
         api_log_group = logs.LogGroup(
             self,
             "ApiAccessLogs",
+            log_group_name=api_log_group_name,
             retention=logs.RetentionDays.ONE_WEEK,
-            removal_policy=(
-                cdk.RemovalPolicy.DESTROY if env_name == "dev" else cdk.RemovalPolicy.RETAIN
-            ),
+            encryption_key=dealer_data_key,
+            removal_policy=cdk.RemovalPolicy.RETAIN,
+        )
+        grant_cloudwatch_logs_encryption(
+            dealer_data_key,
+            [
+                dealer_function_log_group_name,
+                api_log_group_name,
+            ],
         )
 
         # Amazon API Gateway REST API with security best practices
@@ -142,7 +179,9 @@ class DealerApiStack(Stack):
                 data_trace_enabled=False,  # Disabled: prevents logging sensitive request/response bodies
                 metrics_enabled=True,  # CloudWatch metrics
                 tracing_enabled=True,  # X-Ray distributed tracing
-                access_log_destination=apigw.LogGroupLogDestination(api_log_group),
+                # API Gateway persists this ARN without the trailing ``:*`` that
+                # LogGroupLogDestination emits, which otherwise creates false drift.
+                access_log_destination=_ExactLogGroupDestination(api_log_group),
                 access_log_format=apigw.AccessLogFormat.clf(),  # Common Log Format
             ),
             # Dev allows localhost; prod uses your real domain (replace the example.com placeholder).
@@ -324,6 +363,8 @@ class DealerApiStack(Stack):
 
         self.gateway = gateway
         self.gateway_url = gateway.gateway_url
+
+        finalize_explicit_kms_actions(dealer_data_key, dealer_data_key_policy)
 
         # Outputs
         cdk.CfnOutput(

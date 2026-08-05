@@ -16,6 +16,8 @@ from typing import Any
 class TestCategory(Enum):
     """Test case categories."""
 
+    __test__ = False
+
     HAPPY_PATH = "happy_path"
     EDGE_CASE = "edge_case"
     SAFETY = "safety"
@@ -57,6 +59,7 @@ class TestCase:
     evaluation_layers: list[EvaluationLayer]
     tags: list[str]
     reference_solution: dict[str, Any] | None = None
+    expected_tool_parameters: dict[str, dict[str, Any]] | None = None
     # Human-authored success criteria for GoalSuccessRateEvaluator. When set,
     # the judge scores against these explicit assertions (assertion mode)
     # instead of inferring goals from the conversation (basic mode), which on
@@ -74,6 +77,7 @@ class TestCase:
             "evaluation_layers": [layer.value for layer in self.evaluation_layers],
             "tags": self.tags,
             "reference_solution": self.reference_solution,
+            "expected_tool_parameters": self.expected_tool_parameters,
             "expected_assertion": self.expected_assertion,
         }
 

@@ -1,6 +1,9 @@
 repos:
   - repo: https://github.com/awslabs/git-secrets
-    rev: "99d01d58ebcc06e10e8738f078c1e2d6bce88353"
+    # Pinned to awslabs/git-secrets master (the project publishes no tags). The
+    # previous pin (99d01d58…) is not a reachable object upstream, which made
+    # `pre-commit` fail to initialize the whole hook set.
+    rev: "7d6b970cbd3c216353cb22b383b70c150140662e"
     hooks:
       - id: git-secrets
         name: git-secrets
@@ -8,8 +11,10 @@ repos:
         language: system
         types: [text]
 
+  # Pinned to match the ruff version in pyproject.toml (dev group) and CI, so
+  # the local hook and CI format/lint identically. 0.15.x is intentionally
+  # avoided (its formatter rewrites valid `except (A, B):` into a SyntaxError).
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Keep in lockstep with the ruff pin in pyproject.toml [dependency-groups].
     rev: v0.14.14
     hooks:
       - id: ruff

@@ -9,7 +9,7 @@ deterministic, code-based evaluation logic (no LLM calls).
 Also re-exports library LLM-based evaluators pre-configured for our thresholds.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from strands_evals.evaluators.evaluator import Evaluator
@@ -36,6 +36,29 @@ def _extract_tool_names(trajectory: Any) -> list[str]:
             span.tool_call.name
             for trace in trajectory.traces
             for span in trace.spans
+            if isinstance(span, ToolExecutionSpan)
+        ]
+    return []
+
+
+def _extract_tool_calls(trajectory: Any) -> list[tuple[str, dict[str, Any]]]:
+    """Extract ordered tool names and arguments from supported trajectories."""
+    if isinstance(trajectory, list):
+        calls = []
+        for item in trajectory:
+            if isinstance(item, dict):
+                name = str(item.get("name", ""))
+                arguments = item.get("arguments", {})
+                calls.append((name, arguments if isinstance(arguments, dict) else {}))
+        return calls
+    if isinstance(trajectory, Session):
+        if not trajectory.traces:
+            return []
+        # Multi-turn sessions accumulate traces; parameter expectations belong
+        # to the current turn, which is always the final trace.
+        return [
+            (span.tool_call.name, span.tool_call.arguments or {})
+            for span in trajectory.traces[-1].spans
             if isinstance(span, ToolExecutionSpan)
         ]
     return []
@@ -80,11 +103,26 @@ class DataFreshnessEvaluator(Evaluator[InputT, OutputT]):
         # Normalize to aware UTC: ingestion writes tz-aware ISO; naive now() would raise TypeError.
         now = datetime.now(timezone.utc)
         if last_refresh_iso:
-            last_refresh = datetime.fromisoformat(last_refresh_iso)
+            try:
+                last_refresh = datetime.fromisoformat(str(last_refresh_iso))
+            except ValueError:
+                return [
+                    EvaluationOutput(
+                        score=0.0,
+                        test_pass=False,
+                        reason="Data freshness measurement is invalid",
+                    )
+                ]
             if last_refresh.tzinfo is None:
                 last_refresh = last_refresh.replace(tzinfo=timezone.utc)
         else:
-            last_refresh = now - timedelta(hours=2)
+            return [
+                EvaluationOutput(
+                    score=0.0,
+                    test_pass=False,
+                    reason="Data freshness measurement is unavailable",
+                )
+            ]
 
         hours_since = (now - last_refresh).total_seconds() / 3600
 
@@ -331,7 +369,15 @@ class LatencyEvaluator(Evaluator[InputT, OutputT]):
         self.p99_threshold_ms = p99_threshold_ms
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
-        latency_ms = _metrics(evaluation_case).get("latency_ms", 0)
+        latency_ms = _metrics(evaluation_case).get("latency_ms")
+        if not isinstance(latency_ms, (int, float)) or isinstance(latency_ms, bool):
+            return [
+                EvaluationOutput(
+                    score=0.0,
+                    test_pass=False,
+                    reason="Latency measurement is unavailable",
+                )
+            ]
 
         if latency_ms <= self.p50_threshold_ms:
             score = 1.0
@@ -378,8 +424,21 @@ class CostEvaluator(Evaluator[InputT, OutputT]):
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         metrics = _metrics(evaluation_case)
-        total_tokens = metrics.get("total_tokens", 0)
-        estimated_cost = metrics.get("estimated_cost_usd", 0.0)
+        total_tokens = metrics.get("total_tokens")
+        estimated_cost = metrics.get("estimated_cost_usd")
+        if (
+            not isinstance(total_tokens, (int, float))
+            or isinstance(total_tokens, bool)
+            or not isinstance(estimated_cost, (int, float))
+            or isinstance(estimated_cost, bool)
+        ):
+            return [
+                EvaluationOutput(
+                    score=0.0,
+                    test_pass=False,
+                    reason="Token or cost measurement is unavailable",
+                )
+            ]
 
         token_passed = total_tokens <= self.max_tokens_per_query
         cost_passed = estimated_cost <= self.max_cost_per_query
@@ -456,6 +515,74 @@ class ToolSelectionGrader(Evaluator[InputT, OutputT]):
                 score=score,
                 test_pass=score >= self.threshold,
                 reason=" | ".join(parts) if parts else "No tools called",
+            )
+        ]
+
+
+class ToolParameterGrader(Evaluator[InputT, OutputT]):
+    """Deterministically compare expected argument subsets with actual calls."""
+
+    def __init__(self, threshold: float = 0.95) -> None:
+        super().__init__()
+        self.threshold = threshold
+
+    @staticmethod
+    def _matches(expected: Any, actual: Any) -> bool:
+        if isinstance(expected, str) and isinstance(actual, str):
+            return expected.casefold() == actual.casefold()
+        return expected == actual
+
+    def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
+        metadata = evaluation_case.metadata or {}
+        expectations = metadata.get("expected_tool_parameters") or {}
+        if not expectations:
+            return [
+                EvaluationOutput(
+                    score=1.0,
+                    test_pass=True,
+                    reason="No tool parameter expectations declared",
+                )
+            ]
+        if not isinstance(expectations, dict):
+            return [
+                EvaluationOutput(
+                    score=0.0,
+                    test_pass=False,
+                    reason="Tool parameter expectations are malformed",
+                )
+            ]
+
+        actual_calls = _extract_tool_calls(evaluation_case.actual_trajectory)
+        matched = 0
+        total = 0
+        failures: list[str] = []
+        for tool_name, expected_arguments in expectations.items():
+            if not isinstance(expected_arguments, dict):
+                failures.append(f"{tool_name}: expected parameters are not a mapping")
+                total += 1
+                continue
+            candidates = [arguments for name, arguments in actual_calls if name == tool_name]
+            for parameter, expected_value in expected_arguments.items():
+                total += 1
+                if any(
+                    parameter in arguments
+                    and self._matches(expected_value, arguments.get(parameter))
+                    for arguments in candidates
+                ):
+                    matched += 1
+                else:
+                    failures.append(f"{tool_name}.{parameter} expected {expected_value!r}")
+
+        score = matched / total if total else 1.0
+        return [
+            EvaluationOutput(
+                score=score,
+                test_pass=score >= self.threshold,
+                reason=(
+                    f"Matched {matched}/{total} expected tool parameters"
+                    if not failures
+                    else "; ".join(failures)
+                ),
             )
         ]
 

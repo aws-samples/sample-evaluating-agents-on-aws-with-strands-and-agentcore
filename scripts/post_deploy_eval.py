@@ -33,6 +33,11 @@ from agentic_evaluation.test_cases import (  # noqa: E402
     TestCaseRegistry,
     TestCategory,
 )
+from scripts.aws_safety import (  # noqa: E402
+    confirm_mutation,
+    reverify_identity,
+    verified_session,
+)
 
 
 def _smoke_cases() -> TestCaseRegistry:
@@ -78,7 +83,15 @@ def _smoke_cases() -> TestCaseRegistry:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--runtime-arn", required=True)
+    p.add_argument("--profile", required=True)
     p.add_argument("--region", required=True)
+    p.add_argument("--expected-account", required=True)
+    p.add_argument("--yes", action="store_true")
+    p.add_argument(
+        "--evaluation-secret-id",
+        required=True,
+        help="Secrets Manager ARN/name that authorizes privileged evaluation telemetry.",
+    )
     p.add_argument(
         "--layers",
         default="layer_1,domain",
@@ -91,10 +104,30 @@ def main() -> int:
     )
     args = p.parse_args()
 
+    session, identity = verified_session(
+        profile=args.profile,
+        region=args.region,
+        expected_account=args.expected_account,
+    )
+    confirm_mutation(
+        action="run-post-deploy-evaluation",
+        account=identity["Account"],
+        region=args.region,
+        cost="AgentCore runtime and Bedrock model request charges for three smoke cases",
+        approved=args.yes,
+    )
+    reverify_identity(
+        session,
+        profile=args.profile,
+        region=args.region,
+        expected_account=args.expected_account,
+    )
     task_fn = make_task_fn(
         runtime_arn=args.runtime_arn,
         region=args.region,
         session_prefix="post-deploy",
+        evaluation_secret_id=args.evaluation_secret_id,
+        boto3_session=session,
     )
     registry = _smoke_cases()
     layers = [s.strip() for s in args.layers.split(",") if s.strip()]

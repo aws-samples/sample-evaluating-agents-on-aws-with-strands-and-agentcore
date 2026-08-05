@@ -11,6 +11,11 @@ This guide helps you diagnose and resolve common issues when deploying and opera
 - Access to the deployed infrastructure
 - Familiarity with AWS Cloud Development Kit (AWS CDK) deployment commands
 
+> **Placeholders:** Commands below use `<your-data-bucket>` for the S3 data
+> bucket created by your deployment (the `DataPipelineStack` output). Substitute
+> your own bucket name — do not run the commands against the literal placeholder,
+> and never assume ownership of a bucket name you did not create.
+
 ## Common Issues and Solutions
 
 This guide groups common problems by area, with diagnosis steps and fixes.
@@ -38,11 +43,19 @@ The stack 'agent-eval-dev-data-pipeline' requires bootstrap stack version '21', 
 
 **Solution**:
 ```bash
-# To prepare your environment for deployment, bootstrap AWS:
-AWS_REGION=eu-west-1 cdk bootstrap aws://<ACCOUNT_ID>/eu-west-1
+# Confirm this is the expected account before bootstrapping.
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
+cdk bootstrap \
+  --profile <profile> \
+  aws://<expected-account>/eu-west-1
 
-# Then redeploy
-AWS_REGION=eu-west-1 uv run cdk deploy --all
+# Then use the guarded build, diff, cost, approval, and deployment path.
+python scripts/deploy_stack.py \
+  --profile <profile> \
+  --region eu-west-1 \
+  --expected-account <expected-account>
 ```
 
 ---
@@ -57,19 +70,15 @@ CREATE_FAILED: /aws/lambda/agent-eval-data-ingestion-dev already exists in stack
 **Solution**:
 CloudFormation fails here because a resource with the same name already exists outside the stack.
 
-**Option 1**: Import existing resource into CDK
+Do not delete the existing resource until its ownership, retention, and data
+have been classified. Inspect its tags, retention, encryption, dependencies,
+and contents with the explicit profile and region. Then either:
 
-1. Delete the manually created resource:
-   ```bash
-   aws logs delete-log-group --log-group-name /aws/lambda/agent-eval-data-ingestion-dev --region eu-west-1
-   ```
-
-2. Redeploy the stack:
-   ```bash
-   AWS_REGION=eu-west-1 uv run cdk deploy --all
-   ```
-
-**Option 2**: Use `cdk import` to import existing resources
+1. Import it into the intended stack with `cdk import` after reviewing the
+   generated mapping and change set.
+2. Change the new resource's physical name when coexistence is intended.
+3. Back up and delete the existing resource only after it is listed in an
+   approved deletion manifest.
 
 ---
 
@@ -185,17 +194,21 @@ botocore.exceptions.ClientError: An error occurred (AccessDenied) when calling t
 1. Get the Lambda role ARN:
    ```bash
    aws lambda get-function --function-name agent-eval-data-ingestion-dev \
-     --query 'Configuration.Role' --region eu-west-1
+     --query 'Configuration.Role' \
+     --profile <profile> --region eu-west-1
    ```
 
 2. Check role policies:
    ```bash
-   aws iam list-attached-role-policies --role-name DataIngestionRole
+   aws iam list-attached-role-policies \
+     --role-name DataIngestionRole \
+     --profile <profile> --region eu-west-1
    ```
 
 3. Test S3 access:
    ```bash
-   aws s3 ls s3://amzn-s3-demo-bucket-agent-eval-dev/ --region eu-west-1
+   aws s3 ls s3://<your-data-bucket>/ \
+     --profile <profile> --region eu-west-1
    ```
 
 ---
@@ -210,7 +223,8 @@ ValidationException: The specified model 'anthropic.claude-opus-4-6' is not avai
 **Solution**:
 1. Check model availability in your region:
 ```bash
-aws bedrock list-foundation-models --region eu-west-1 \
+aws bedrock list-foundation-models \
+  --profile <profile> --region eu-west-1 \
   --query 'modelSummaries[?contains(modelId, `claude`)]'
 ```
 
@@ -236,10 +250,17 @@ NoSuchKey: The specified key does not exist: raw/sample_vehicles.json
 **Solution**:
 Upload sample data:
 ```bash
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 aws s3 cp examples/vehicle-auction-agent/lambda/functions/data_ingestion/sample_vehicles.json \
-  s3://amzn-s3-demo-bucket-agent-eval-dev/raw/sample_vehicles.json \
+  s3://<your-data-bucket>/raw/sample_vehicles.json \
+  --profile <profile> \
   --region eu-west-1
 ```
+
+Compare the STS account with the repository's expected account and approve the
+write before uploading.
 
 ---
 
@@ -275,15 +296,21 @@ def truncate_text(text: str, max_tokens: int = 8000) -> str:
 
 1. **Confirm that CloudWatch is receiving published metrics**:
 ```bash
-aws cloudwatch list-metrics --namespace AgentEvaluation/dev --region eu-west-1
+aws cloudwatch list-metrics \
+  --namespace AgentEvaluation/dev \
+  --profile <profile> --region eu-west-1
 ```
 
 2. **Manually publish test metric**:
 ```bash
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 aws cloudwatch put-metric-data \
   --namespace AgentEvaluation/dev \
   --metric-name TaskCompletionRate \
   --value 95.5 \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -299,6 +326,7 @@ aws cloudwatch put-metric-data \
 ```bash
 aws cloudwatch describe-alarms \
   --alarm-names "agent-eval-task-completion-dev" \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -306,15 +334,20 @@ aws cloudwatch describe-alarms \
 ```bash
 aws sns list-subscriptions-by-topic \
   --topic-arn arn:aws:sns:eu-west-1:{account}:agent-eval-alerts-dev \
+  --profile <profile> \
   --region eu-west-1
 ```
 
 3. **Subscribe to SNS topic** (if not already):
 ```bash
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 aws sns subscribe \
   --topic-arn arn:aws:sns:eu-west-1:{account}:agent-eval-alerts-dev \
   --protocol email \
   --notification-endpoint your-email@example.com \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -337,6 +370,7 @@ Amazon ECR authentication has likely failed:
 ```yaml
 pre_build:
   commands:
+    # Runs inside CodeBuild with its scoped service role; no local profile exists.
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 ```
 
@@ -350,17 +384,13 @@ exec /usr/local/bin/python: exec format error
 ```
 
 **Solution**:
-Use CodeBuild instead of local Docker build:
+Use the guarded deployment script instead of local Docker. It verifies STS,
+shows cost, invokes CodeBuild, resolves the ECR digest, and reviews the CDK diff:
 ```bash
-# Trigger CodeBuild
-aws codebuild start-build \
-  --project-name agent-eval-runtime-build \
-  --region eu-west-1
-
-# Monitor build
-aws codebuild batch-get-builds \
-  --ids <build-id> \
-  --region eu-west-1
+python scripts/deploy_stack.py \
+  --profile <profile> \
+  --region eu-west-1 \
+  --expected-account <expected-account>
 ```
 
 ---
@@ -378,13 +408,16 @@ The AgentCore Runtime (not a Lambda function) pulls the agent's container image.
 1. **Verify the runtime execution role can pull from ECR**:
 ```bash
 # The runtime execution role is agent-eval-runtime-role-<env>
-aws iam list-role-policies --role-name agent-eval-runtime-role-dev
+aws iam list-role-policies \
+  --role-name agent-eval-runtime-role-dev \
+  --profile <profile> --region eu-west-1
 ```
 
 2. **Verify the image exists** (repo name has no environment suffix):
 ```bash
 aws ecr describe-images \
   --repository-name agent-eval-runtime \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -405,6 +438,7 @@ aws cloudwatch get-metric-statistics \
   --end-time 2026-02-17T23:59:59Z \
   --period 86400 \
   --statistics Sum \
+  --profile <profile> \
   --region eu-west-1
 ```
 
@@ -419,13 +453,16 @@ aws cloudwatch get-metric-statistics \
 
 **Causes**:
 1. Large dataset (>100K vectors)
-2. In-memory loading on every invocation
-3. No caching
+2. No ANN index for a large inventory
+3. Broad filters or an oversized candidate limit
 
 **Solutions**:
-1. **Use LanceDB persistence** (not in-memory)
-2. **Enable Lambda provisioned concurrency** for warm starts
-3. **Implement caching layer** (ElastiCache/Redis)
+1. **Keep LanceDB** and measure exact-search latency at realistic inventory size.
+2. **Create and tune a LanceDB ANN index** only when measurements justify it.
+3. **Push scalar filters into LanceDB before vector search** and keep result
+   limits bounded.
+4. **Tune the existing warm-runtime manifest refresh and bounded local cache**
+   rather than adding a separate cache service by default.
 
 ---
 
@@ -442,7 +479,8 @@ logger = logging.getLogger(__name__)
 ### Tail Lambda Logs in Real-Time
 
 ```bash
-aws logs tail /aws/lambda/agent-eval-data-ingestion-dev --follow --region eu-west-1
+aws logs tail /aws/lambda/agent-eval-data-ingestion-dev \
+  --follow --profile <profile> --region eu-west-1
 ```
 
 ### Test Agent Locally
@@ -450,7 +488,7 @@ aws logs tail /aws/lambda/agent-eval-data-ingestion-dev --follow --region eu-wes
 ```bash
 # Run the agent locally using bedrock-agentcore
 cd examples/vehicle-auction-agent/agent
-DATA_BUCKET=amzn-s3-demo-bucket-agent-eval-dev \
+DATA_BUCKET=<your-data-bucket> \
   ENVIRONMENT=dev \
   AWS_REGION=eu-west-1 \
   python app.py
@@ -461,6 +499,7 @@ DATA_BUCKET=amzn-s3-demo-bucket-agent-eval-dev \
 ```bash
 aws cloudformation describe-stacks \
   --stack-name agent-eval-dev-data-pipeline \
+  --profile <profile> \
   --region eu-west-1 \
   --query 'Stacks[0].Outputs'
 ```
@@ -493,92 +532,88 @@ cd examples/vehicle-auction-agent/cdk
 
 **Validate**: synthesize every stack and check for errors:
 ```bash
-uv run cdk synth --strict
+AWS_ACCOUNT_ID=<expected-account> \
+AWS_REGION=eu-west-1 \
+AGENT_IMAGE_URI=<immutable-ecr-digest-uri> \
+uv run cdk synth -c environment=dev \
+  -c agent_image_uri=<immutable-ecr-digest-uri>
 ```
 
 **Diff**: preview changes before deploying:
 ```bash
-AWS_REGION=eu-west-1 uv run cdk diff
+AWS_PROFILE=<profile> \
+AWS_ACCOUNT_ID=<expected-account> \
+AWS_REGION=eu-west-1 \
+uv run cdk diff --all --profile <profile> -c environment=dev \
+  -c agent_image_uri=<immutable-ecr-digest-uri>
 ```
 
-**Deploy**: deploy all stacks:
+**Deploy**: use the guarded deployment path. It verifies STS identity, resolves
+the image to a digest, runs `cdk diff`, shows cost, and requires approval:
 ```bash
-AWS_REGION=eu-west-1 uv run cdk deploy --all --require-approval never
-```
-
-**Destroy**: tear down all stacks:
-```bash
-AWS_REGION=eu-west-1 uv run cdk destroy --all
+python scripts/deploy_stack.py \
+  --profile <profile> \
+  --region eu-west-1 \
+  --expected-account <expected-account>
 ```
 
 ### Lambda Operations
 ```bash
-# Invoke function
+# Invoking ingestion mutates S3 and incurs service/model cost.
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
 aws lambda invoke --function-name agent-eval-data-ingestion-dev \
-  --region eu-west-1 --payload '{}' response.json
+  --payload '{}' response.json \
+  --profile <profile> --region eu-west-1
 
 # Get function config
 aws lambda get-function-configuration \
   --function-name agent-eval-data-ingestion-dev \
-  --region eu-west-1
+  --profile <profile> --region eu-west-1
 
 # Update the AGENT RUNTIME image (the agent runs on AgentCore Runtime, not
 # Lambda). Rebuild + redeploy through the project's deploy script, which builds
 # the image in CodeBuild and points the runtime at the new immutable tag:
-python scripts/deploy_stack.py --region eu-west-1 --image-tag <git-sha>
-# (Under the hood this calls bedrock-agentcore-control update-agent-runtime with
-# the new container image; do not use `aws lambda update-function-code`.)
+python scripts/deploy_stack.py \
+  --profile <profile> \
+  --region eu-west-1 \
+  --expected-account <expected-account> \
+  --image-tag <git-sha>
+# CDK updates the AgentCore Runtime to the resolved immutable ECR digest.
 ```
 
 ### S3 Operations
 ```bash
 # List objects
-aws s3 ls s3://amzn-s3-demo-bucket-agent-eval-dev/ --recursive --region eu-west-1
+aws s3 ls s3://<your-data-bucket>/ --recursive \
+  --profile <profile> --region eu-west-1
 
 # Download file
-aws s3 cp s3://amzn-s3-demo-bucket-agent-eval-dev/lancedb/latest.json . --region eu-west-1
+aws s3 cp s3://<your-data-bucket>/lancedb/manifest.json . \
+  --profile <profile> --region eu-west-1
 
 # Upload file
-aws s3 cp local-file.json s3://amzn-s3-demo-bucket-agent-eval-dev/raw/ --region eu-west-1
+aws sts get-caller-identity \
+  --profile <profile> \
+  --region eu-west-1
+aws s3 cp local-file.json s3://<your-data-bucket>/raw/ \
+  --profile <profile> --region eu-west-1
 ```
 
 ---
 
 ## Cleaning Up
 
-After troubleshooting is complete, remove AWS resources to avoid ongoing charges.
-
-> **Warning:** The following commands delete data and deployed infrastructure. Verify you have backed up any results or logs you want to keep before running them.
-
-**CDK stacks** (removes Lambda functions, EventBridge rules, CloudWatch dashboards, and SNS topics):
-```bash
-cd examples/vehicle-auction-agent/cdk
-AWS_REGION=eu-west-1 uv run cdk destroy --all
-```
-
-**Amazon S3 objects** (empty the bucket before stack deletion if versioning is enabled):
-```bash
-# Back up first if you need the data:
-aws s3 sync s3://amzn-s3-demo-bucket-agent-eval-dev/ ./backup/ --region eu-west-1
-# Then delete:
-aws s3 rm s3://amzn-s3-demo-bucket-agent-eval-dev/ --recursive --region eu-west-1
-```
-
-**Amazon ECR repository** (if not removed by CDK destroy):
-```bash
-aws ecr delete-repository \
-  --repository-name agent-eval-runtime \
-  --force \
-  --region eu-west-1
-```
-
-**Amazon CloudWatch Log groups** (if not removed by CDK destroy):
-```bash
-aws logs delete-log-group --log-group-name /aws/lambda/agent-eval-data-ingestion-dev --region eu-west-1
-# The agent runtime logs under the AgentCore path (not /aws/lambda), using the
-# underscore-based runtime name:
-aws logs delete-log-group --log-group-name /aws/bedrock-agentcore/runtimes/agent_eval_runtime_dev --region eu-west-1
-```
+After troubleshooting, inventory billable resources independently. The CDK
+data and access-log buckets are retained, including in dev. Before any teardown,
+record a retention/backup manifest, verify the explicit profile/account/region,
+review a destroy change set, and obtain separate approval for stack deletion and
+for every retained data store. A deleted stack is not evidence that retained
+S3 objects, versions, tables, logs, secrets, or ECR images were removed. Follow
+the exact teardown and residual-inventory procedure in the main
+[Cleaning Up guide](../README.md#cleaning-up); do not use forced repository or
+bucket deletion as a substitute for retention classification.
 
 ## Conclusion
 

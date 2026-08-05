@@ -9,6 +9,9 @@ lancedb==0.33.0
 numpy>=1.26.0
 pandas>=2.0.0
 # MCP client transport used to reach the AgentCore Gateway (streamable HTTP).
+# Floor is also a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
+# (the WebSocket server transport does not validate Host/Origin). This image
+# runs no MCP server, but keep the floor.
 mcp>=1.28.1
 # SigV4-signing MCP transport (aws_iam_streamablehttp_client) for IAM-authorized
 # access to the AgentCore Gateway MCP endpoint. Ships with the strands-agents

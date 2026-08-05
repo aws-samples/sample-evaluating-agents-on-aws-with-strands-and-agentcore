@@ -23,6 +23,9 @@ agentcore = [
     # (argument injection in Code Interpreter install_packages()).
     "bedrock-agentcore[strands-agents]>=1.18.1",
     "lancedb==0.33.0",
+    # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
+    # (the WebSocket server transport does not validate Host/Origin). This
+    # project only consumes MCP as a client, but keep the floor.
     "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
 ]
@@ -39,6 +42,9 @@ all = [
     # (argument injection in Code Interpreter install_packages()).
     "bedrock-agentcore[strands-agents]>=1.18.1",
     "lancedb==0.33.0",
+    # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
+    # (the WebSocket server transport does not validate Host/Origin). This
+    # project only consumes MCP as a client, but keep the floor.
     "mcp>=1.28.1",
     "mcp-proxy-for-aws>=1.6.2",
     "requests>=2.31.0",
@@ -86,6 +92,13 @@ constraint-dependencies = [
     # 44.0.0 <= version < 50.0.0 is vulnerable to CVE-2026-69247 (Bleichenbacher
     # oracle in PKCS#7 EnvelopedData decryption).
     "cryptography>=50.0.0",
+    # pillow arrives via strands-agents-evals -> strands-agents-tools.
+    # < 12.3.0 is vulnerable to thirteen advisories, including heap
+    # out-of-bounds writes in ImageFilter.RankFilter, Image.paste()/crop() and
+    # ImageCmsTransform.apply() (CVE-2026-59197, CVE-2026-59199,
+    # CVE-2026-59205) and several decompression-bomb bypasses in the font and
+    # PDF parsers.
+    "pillow>=12.3.0",
 ]
 
 [tool.ruff]

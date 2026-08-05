@@ -104,6 +104,8 @@ uv pip compile requirements.txt --constraint constraints.txt \
 | aiohttp | CVE-2026-69244, CVE-2026-69243, CVE-2026-59881 | Resolved: constrained to >=3.14.3 | None: patched version in use. Reached only transitively via `strands-agents-evals` -> `strands-agents-tools`; no first-party code imports aiohttp, and it is absent from the deployed agent image |
 | bedrock-agentcore | CVE-2026-16796 | Resolved: floor raised to >=1.18.1 | None: patched version in use. The affected Code Interpreter `install_packages()` path is not used by this project |
 | cryptography | CVE-2026-69247 | Resolved: constrained to >=50.0.0 | None: patched version in use. Reached transitively via authlib, joserfc, `pyjwt[crypto]` and secretstorage; no PKCS#7 `EnvelopedData` decryption anywhere in the project |
+| Pillow | 13 advisories, including CVE-2026-59197, CVE-2026-59199, CVE-2026-59205 | Resolved: constrained to >=12.3.0 | None: patched version in use. Reached only transitively via `strands-agents-evals` -> `strands-agents-tools`; no first-party code imports Pillow, and it is absent from the deployed agent image |
+| mcp | CVE-2026-59950 | Resolved: floor raised to >=1.28.1 | None: patched version in use. The affected WebSocket server transport is unused: the agent consumes MCP only as a client, over SigV4-signed streamable HTTP to the AgentCore Gateway |
 
 Transitive floors live in `[tool.uv] constraint-dependencies` (root `pyproject.toml`) and
 `examples/vehicle-auction-agent/agent/constraints.txt`, so they survive re-resolution.

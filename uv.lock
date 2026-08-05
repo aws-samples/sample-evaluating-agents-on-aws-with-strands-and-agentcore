@@ -11,6 +11,7 @@ resolution-markers = [
 constraints = [
     { name = "aiohttp", specifier = ">=3.14.3" },
     { name = "cryptography", specifier = ">=50.0.0" },
+    { name = "pillow", specifier = ">=12.3.0" },
 ]
 
 [[package]]

@@ -45,7 +45,9 @@ class _FakeS3:
         self.manifest = manifest
         self.snapshot_body = snapshot_body
 
-    def get_object(self, *, Bucket: str, Key: str) -> dict:
+    # N803: these are the S3 API's own parameter names. A fake client has to
+    # spell them exactly as boto3 does or the code under test cannot call it.
+    def get_object(self, *, Bucket: str, Key: str) -> dict:  # noqa: N803
         del Bucket
         if Key == "lancedb/manifest.json":
             body = json.dumps(self.manifest).encode()
@@ -66,7 +68,7 @@ def _reset_runtime_state(app) -> None:
 
 
 def test_warm_runtime_activates_new_manifest_version(monkeypatch, tmp_path) -> None:
-    import agent.app as app
+    from agent import app
 
     manifest_v1, snapshot_v1 = _publication(1)
     manifest_v2, snapshot_v2 = _publication(2)
@@ -94,7 +96,7 @@ def test_warm_runtime_activates_new_manifest_version(monkeypatch, tmp_path) -> N
 
 
 def test_refresh_failure_retains_last_known_good_table(monkeypatch, tmp_path) -> None:
-    import agent.app as app
+    from agent import app
 
     manifest_v1, snapshot_v1 = _publication(1)
     manifest_v2, _ = _publication(2)
@@ -119,7 +121,7 @@ def test_refresh_failure_retains_last_known_good_table(monkeypatch, tmp_path) ->
 
 
 def test_cache_pruning_keeps_current_and_bounds_generations(monkeypatch, tmp_path) -> None:
-    import agent.app as app
+    from agent import app
 
     versions = [f"{index:064x}" for index in range(1, 6)]
     for version in versions:
@@ -135,7 +137,7 @@ def test_cache_pruning_keeps_current_and_bounds_generations(monkeypatch, tmp_pat
 
 
 def test_hybrid_search_prefilters_and_never_requests_all_rows() -> None:
-    import agent.app as app
+    from agent import app
 
     table = MagicMock()
     query = MagicMock()

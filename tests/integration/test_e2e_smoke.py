@@ -355,13 +355,13 @@ class TestEvaluationLogicE2E:
 
     def test_data_freshness_passes(self) -> None:
         """Data freshness evaluator passes for recent data."""
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         from strands_evals.types.evaluation import EvaluationData
 
         from agentic_evaluation.evaluators import DataFreshnessEvaluator
 
-        timestamp = datetime.now() - timedelta(hours=2)
+        timestamp = datetime.now(UTC) - timedelta(hours=2)
         case = EvaluationData(
             input="Find vehicles",
             expected_output="vehicles",

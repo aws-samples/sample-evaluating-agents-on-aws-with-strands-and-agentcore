@@ -14,7 +14,6 @@ import pandas as pd
 import pytest
 from bedrock_agentcore import RequestContext
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
@@ -114,7 +113,7 @@ def _patch_env(monkeypatch):
 
 def _get_tool_fn(tool_name: str):
     """Import and return a tool function from agent.app."""
-    import agent.app as app
+    from agent import app
 
     tool_map = {
         "get_schema": app.get_schema,
@@ -240,7 +239,7 @@ class TestLanceDb:
     """Test the real LanceDB path used by AgentCore Runtime."""
 
     def test_materializes_vehicle_table(self, tmp_path):
-        import agent.app as app
+        from agent import app
 
         table = app._materialize_lancedb(
             SAMPLE_VEHICLES.to_dict(orient="records"),
@@ -251,7 +250,7 @@ class TestLanceDb:
         assert table.schema.field("embedding").type.list_size == 4
 
     def test_materializes_invalid_optional_numbers_as_null(self, tmp_path):
-        import agent.app as app
+        from agent import app
 
         vehicles = SAMPLE_VEHICLES.to_dict(orient="records")
         vehicles[0]["year"] = "Unknown"
@@ -264,7 +263,7 @@ class TestLanceDb:
         assert pd.isna(row["price"])
 
     def test_hybrid_search_uses_lancedb_cosine_search(self, tmp_path):
-        import agent.app as app
+        from agent import app
 
         table = app._materialize_lancedb(
             SAMPLE_VEHICLES.to_dict(orient="records"),
@@ -285,7 +284,7 @@ class TestLanceDb:
         assert "embedding" not in result["vehicles"][0]
 
     def test_hybrid_search_applies_safe_filter(self, tmp_path):
-        import agent.app as app
+        from agent import app
 
         table = app._materialize_lancedb(
             SAMPLE_VEHICLES.to_dict(orient="records"),
@@ -515,7 +514,7 @@ class TestTrustedIdentity:
     """Dealer identity must come from AgentCore context, never request JSON."""
 
     def test_rejects_body_identity(self):
-        import agent.app as app
+        from agent import app
 
         with (
             patch.object(app, "IDENTITY_MODE", "runtime_user_id"),
@@ -530,7 +529,7 @@ class TestTrustedIdentity:
             )
 
     def test_uses_runtime_user_id_header(self):
-        import agent.app as app
+        from agent import app
 
         with patch.object(app, "IDENTITY_MODE", "runtime_user_id"):
             actor_id = app._resolve_actor_id(
@@ -543,7 +542,7 @@ class TestTrustedIdentity:
         assert actor_id == "DLR24946"
 
     def test_single_tenant_mode_ignores_runtime_user_id(self):
-        import agent.app as app
+        from agent import app
 
         with (
             patch.object(app, "IDENTITY_MODE", "single_tenant"),
@@ -563,7 +562,7 @@ class TestScopedDealerProfile:
     """The model can access only the authenticated dealer's profile."""
 
     def test_hides_list_and_injects_trusted_dealer_id(self):
-        import agent.app as app
+        from agent import app
 
         list_tool = MagicMock()
         list_tool.tool_name = "dealer_target___listDealers"
@@ -595,7 +594,7 @@ class TestEvaluationTraceAuthorization:
     """Tool trajectories are available only to authorized evaluators."""
 
     def test_authorized_token_is_removed_and_accepted(self):
-        import agent.app as app
+        from agent import app
 
         payload = {"prompt": "hello", "evaluation_token": "expected"}
         with patch("agent.app._get_evaluation_trace_token", return_value="expected"):
@@ -603,7 +602,7 @@ class TestEvaluationTraceAuthorization:
         assert "evaluation_token" not in payload
 
     def test_wrong_token_fails_closed(self):
-        import agent.app as app
+        from agent import app
 
         payload = {"evaluation_token": "wrong"}
         with patch("agent.app._get_evaluation_trace_token", return_value="expected"):
@@ -611,7 +610,7 @@ class TestEvaluationTraceAuthorization:
         assert "evaluation_token" not in payload
 
     def test_authorized_no_tool_invocation_includes_lancedb_freshness(self):
-        import agent.app as app
+        from agent import app
 
         generated_at = "2026-07-21T01:00:00+00:00"
         response = MagicMock()
@@ -645,7 +644,7 @@ class TestEvaluationTraceAuthorization:
         assert result["lancedb_version"] == "a" * 64
 
     def test_authorized_trace_contains_only_current_invocation(self):
-        import agent.app as app
+        from agent import app
 
         prior_messages = [
             {
@@ -727,7 +726,7 @@ class TestEvaluationTraceAuthorization:
         }
 
     def test_uses_fixed_fallback_without_runtime_user_id(self):
-        import agent.app as app
+        from agent import app
 
         with (
             patch.object(app, "IDENTITY_MODE", "runtime_user_id"),
@@ -737,7 +736,7 @@ class TestEvaluationTraceAuthorization:
         assert actor_id == "default"
 
     def test_reads_dealer_claim_from_verified_jwt(self):
-        import agent.app as app
+        from agent import app
 
         header = urlsafe_b64encode(b'{"alg":"none"}').decode().rstrip("=")
         claims = urlsafe_b64encode(b'{"custom:dealer_id":"DLR24946"}').decode().rstrip("=")
@@ -760,14 +759,14 @@ class TestSystemPromptContracts:
     """Keep user-visible safety and empty-result behavior explicit."""
 
     def test_safety_refusal_and_empty_results_are_explained(self):
-        import agent.app as app
+        from agent import app
 
         assert "I cannot place bids or predict auction outcomes" in app.SYSTEM_PROMPT
         assert "explicitly state the active filters" in app.SYSTEM_PROMPT
         assert "search returned zero results" in app.SYSTEM_PROMPT
 
     def test_multi_turn_refinements_repeat_complete_active_filters(self):
-        import agent.app as app
+        from agent import app
 
         assert "complete active filter set" in app.SYSTEM_PROMPT
         assert "preserve every unchanged filter" in app.SYSTEM_PROMPT
@@ -775,7 +774,7 @@ class TestSystemPromptContracts:
         assert "Do not replay a superseded body type" in app.SYSTEM_PROMPT
 
     def test_location_lookup_is_mandatory_and_sequential(self):
-        import agent.app as app
+        from agent import app
 
         assert "you MUST first call get_dealer_profile" in app.SYSTEM_PROMPT
         assert "Never infer dealer coordinates from memory" in app.SYSTEM_PROMPT
@@ -783,7 +782,7 @@ class TestSystemPromptContracts:
         assert "filter_by_distance candidate_ids" in app.SYSTEM_PROMPT
 
     def test_searches_do_not_add_preferences_or_fallbacks(self):
-        import agent.app as app
+        from agent import app
 
         assert "Never add dealer preferences" in app.SYSTEM_PROMPT
         assert "Choose exactly one primary inventory search strategy" in app.SYSTEM_PROMPT
@@ -791,13 +790,13 @@ class TestSystemPromptContracts:
         assert "ask before broadening it" in app.SYSTEM_PROMPT
 
     def test_vehicle_results_use_compact_non_table_format(self):
-        import agent.app as app
+        from agent import app
 
         assert "one compact bullet per vehicle" in app.SYSTEM_PROMPT
         assert "Do not use Markdown tables" in app.SYSTEM_PROMPT
 
     def test_agent_disables_content_streaming_callback(self):
-        import agent.app as app
+        from agent import app
 
         with patch("agent.app.Agent") as agent_cls:
             app._build_agent([], None)
@@ -809,12 +808,12 @@ class TestRequestToolSelection:
 
     @staticmethod
     def _names(tools):
-        import agent.app as app
+        from agent import app
 
         return [app._tool_name(tool_value) for tool_value in tools]
 
     def test_structured_location_request(self):
-        import agent.app as app
+        from agent import app
 
         prompt = "Find me diesel SUVs under 25k near my dealership"
         assert self._names(app._select_local_tools(prompt)) == [
@@ -824,21 +823,21 @@ class TestRequestToolSelection:
         assert app._needs_dealer_profile(prompt) is True
 
     def test_semantic_request(self):
-        import agent.app as app
+        from agent import app
 
         prompt = "Show me something sporty and automatic for a family"
         assert self._names(app._select_local_tools(prompt)) == ["hybrid_search"]
         assert app._needs_dealer_profile(prompt) is False
 
     def test_long_term_memory_requires_explicit_intent(self):
-        import agent.app as app
+        from agent import app
 
         assert app._needs_long_term_memory("Find BMW 3 Series with under 50k miles") is False
         assert app._needs_long_term_memory("Use my preferences to find a vehicle") is True
         assert app._needs_long_term_memory("What do I usually buy?") is True
 
     def test_memory_manager_keeps_short_term_without_implicit_retrieval(self):
-        import agent.app as app
+        from agent import app
 
         with (
             patch.object(app, "MEMORY_ID", "memory-123"),
@@ -853,7 +852,7 @@ class TestRequestToolSelection:
         assert config.retrieval_config is None
 
     def test_memory_manager_retrieves_long_term_on_explicit_request(self):
-        import agent.app as app
+        from agent import app
 
         with (
             patch.object(app, "MEMORY_ID", "memory-123"),
@@ -865,21 +864,21 @@ class TestRequestToolSelection:
         assert config.retrieval_config == app._MEMORY_NAMESPACES
 
     def test_follow_up_keeps_structured_search(self):
-        import agent.app as app
+        from agent import app
 
         assert self._names(app._select_local_tools("What about estates instead?")) == [
             "search_vehicles"
         ]
 
     def test_specialized_tools_are_opt_in(self):
-        import agent.app as app
+        from agent import app
 
         assert self._names(app._select_local_tools("Show the data schema")) == ["get_schema"]
         assert self._names(app._select_local_tools("Get the bid count")) == ["get_bids"]
         assert self._names(app._select_local_tools("Generate an embedding")) == ["get_embedding"]
 
     def test_agent_prompt_names_only_exposed_tools(self):
-        import agent.app as app
+        from agent import app
 
         with patch("agent.app.Agent") as agent_cls:
             app._build_agent([app.search_vehicles], None)

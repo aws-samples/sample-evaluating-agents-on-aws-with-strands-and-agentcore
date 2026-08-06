@@ -21,9 +21,12 @@ import argparse
 import importlib
 import json
 import logging
+import os
 import sys
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from agentic_evaluation.config import load_config
 from agentic_evaluation.exceptions import (
@@ -34,6 +37,8 @@ from agentic_evaluation.exceptions import (
     TaskFnError,
 )
 from agentic_evaluation.judges import build_judge
+from agentic_evaluation.plugins import load_evaluator_plugin
+from agentic_evaluation.run_experiment import reset_config_cache, run_all_layers
 
 logger = logging.getLogger("agentic_evaluation.cli")
 
@@ -55,9 +60,7 @@ def _import_task_fn(spec: str) -> Callable[..., Any]:
     module_path, attr = spec.split(":", 1)
     # Make the user's working directory importable so a sibling task_fn.py resolves
     # without requiring PYTHONPATH. Mirrors pytest's rootdir / hatch / alembic behavior.
-    import os
-
-    cwd = os.getcwd()  # cwd: current working directory
+    cwd = str(Path.cwd())
     if cwd not in sys.path:
         sys.path.insert(0, cwd)
     try:
@@ -83,17 +86,21 @@ def _setup_logging(quiet: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Subcommand: run
+# The ``run`` subcommand
 # ---------------------------------------------------------------------------
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    from agentic_evaluation.run_experiment import reset_config_cache, run_all_layers
+    """Run the requested layers against the user's task_fn.
 
+    Args:
+        args: Parsed ``run`` subcommand arguments.
+
+    Returns:
+        Process exit code, per the contract in the module docstring.
+    """
     if args.config:
         # load_config caches via run_experiment; reset so --config takes effect
-        import os
-
         os.environ["EVAL_CONFIG_PATH"] = str(args.config)
         reset_config_cache()
 
@@ -131,8 +138,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except TaskFnError as exc:
         logger.error("task_fn failed: %s", exc)
         return 1
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Internal error during evaluation: %s", exc)
+    except Exception:
+        # Exit code 3: unexpected failure, so the traceback is the useful output.
+        logger.exception("Internal error during evaluation")
         return 3
 
     if args.output:
@@ -177,11 +185,9 @@ def _serialize_report(report: Any) -> dict[str, Any]:
 
 def _build_output_payload(results: dict[str, Any], cfg: Any, detail: str) -> dict[str, Any]:
     """Build the JSON output payload at the requested detail level."""
-    from datetime import datetime, timezone
-
     payload: dict[str, Any] = {
         "project": cfg.project_name,
-        "run_id": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "run_id": datetime.now(UTC).isoformat(timespec="seconds"),
         "all_passed": results.get("all_passed"),
         "layers": {},
     }
@@ -214,7 +220,7 @@ def _format_results(results: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Subcommand: init
+# The ``init`` subcommand
 # ---------------------------------------------------------------------------
 
 
@@ -309,11 +315,19 @@ def run(case: Any) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Subcommand: validate
+# The ``validate`` subcommand
 # ---------------------------------------------------------------------------
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
+    """Lint an eval_config.yaml without running any evaluation.
+
+    Args:
+        args: Parsed ``validate`` subcommand arguments.
+
+    Returns:
+        Process exit code, per the contract in the module docstring.
+    """
     try:
         cfg = load_config(args.config)
     except (ConfigError, FileNotFoundError) as exc:
@@ -343,8 +357,6 @@ def _cmd_validate(args: argparse.Namespace) -> int:
         )
 
     # Plugin evaluators referenced must resolve
-    from agentic_evaluation.plugins import load_evaluator_plugin
-
     for spec in cfg.plugin_evaluators:
         name = spec.get("name", "")
         try:
@@ -365,6 +377,12 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the ``agentic-eval`` argument parser.
+
+    Returns:
+        A parser with the ``run``, ``init`` and ``validate`` subcommands
+        registered, each with its handler set via ``set_defaults(func=...)``.
+    """
     parser = argparse.ArgumentParser(
         prog="agentic-eval",
         description="Evaluate any AI agent against the three-layer SDK framework.",
@@ -411,6 +429,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Entry point for ``agentic-eval`` and ``python -m agentic_evaluation``.
+
+    Args:
+        argv: Argument list to parse. Defaults to ``sys.argv[1:]``.
+
+    Returns:
+        Process exit code, per the contract in the module docstring.
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
     _setup_logging(args.quiet)

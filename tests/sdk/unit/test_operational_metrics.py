@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 """Operational evaluators must fail when required measurements are absent."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from strands_evals import Case, Experiment
 from strands_evals.types.evaluation import EnvironmentState
@@ -48,7 +48,7 @@ def test_missing_cost_fails() -> None:
 
 
 def test_complete_metrics_pass() -> None:
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     def task(case: Case) -> dict:
         return {

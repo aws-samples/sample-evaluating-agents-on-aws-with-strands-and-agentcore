@@ -47,7 +47,7 @@ def load_evaluator_plugin(name: str) -> type:
         raise PluginNotFoundError(name, available=sorted(eps))
     try:
         return eps[name].load()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise PluginLoadError(name, exc) from exc
 
 

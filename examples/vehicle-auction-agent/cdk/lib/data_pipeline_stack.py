@@ -31,10 +31,10 @@ from aws_cdk import (
     aws_iam as iam,
 )
 from aws_cdk import (
-    aws_lambda as lambda_,
+    aws_kms as kms,
 )
 from aws_cdk import (
-    aws_kms as kms,
+    aws_lambda as lambda_,
 )
 from aws_cdk import (
     aws_logs as logs,
@@ -47,7 +47,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from .security import (
+from lib.security import (
     explicit_kms_key_policy,
     finalize_explicit_kms_actions,
     grant_cloudwatch_logs_encryption,
@@ -90,6 +90,14 @@ class DataPipelineStack(Stack):
     """Stack for data ingestion pipeline with mocked BigQuery."""
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs: Any) -> None:
+        """Provision the ingestion bucket, function, and its scheduled trigger.
+
+        Args:
+            scope: The parent construct, normally the CDK ``App``.
+            construct_id: Logical id of the stack.
+            **kwargs: Passed through to ``Stack``, notably ``env``. The target
+                environment is read from the ``environment`` context value.
+        """
         super().__init__(scope, construct_id, **kwargs)
 
         # Get environment from context

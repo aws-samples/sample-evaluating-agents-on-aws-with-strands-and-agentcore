@@ -13,11 +13,9 @@ from aws_cdk.assertions import Template
 CDK_DIR = Path(__file__).resolve().parents[2] / "examples" / "vehicle-auction-agent" / "cdk"
 sys.path.insert(0, str(CDK_DIR))
 
+from lib.agent_runtime_stack import AgentRuntimeStack  # noqa: E402
 from lib.data_pipeline_stack import DataPipelineStack  # noqa: E402
-from lib.agent_runtime_stack import (  # noqa: E402
-    AgentRuntimeStack,
-    _GUARDRAIL_POLICY_REVISION,
-)
+from lib.runtime_guardrail import _POLICY_REVISION  # noqa: E402
 
 
 def test_ingestion_can_publish_lancedb_and_refresh_metadata() -> None:
@@ -73,6 +71,4 @@ def test_guardrail_policy_is_pinned_to_its_fingerprint() -> None:
     ]
 
     version = next(iter(template.find_resources("AWS::Bedrock::GuardrailVersion").values()))
-    assert version["Properties"]["Description"] == (
-        f"Pinned dev policy {_GUARDRAIL_POLICY_REVISION}"
-    )
+    assert version["Properties"]["Description"] == f"Pinned dev policy {_POLICY_REVISION}"

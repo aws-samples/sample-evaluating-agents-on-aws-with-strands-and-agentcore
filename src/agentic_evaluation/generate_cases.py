@@ -17,6 +17,7 @@ import asyncio
 import json
 import logging
 import os
+from pathlib import Path
 
 from strands_evals.evaluators import OutputEvaluator
 from strands_evals.generators import ExperimentGenerator
@@ -80,7 +81,12 @@ async def generate_cases_async(
         context=AGENT_CONTEXT,
         task_description=TASK_DESCRIPTION,
         num_cases=num_cases,
-        evaluator=OutputEvaluator,
+        # The class, not an instance: ExperimentGenerator looks the argument up
+        # in its `_default_evaluators` table (keyed by class) and then calls it
+        # to build the instance with the generated rubric. Its annotation says
+        # `Evaluator`, which contradicts that usage — an upstream bug, so the
+        # correct call has to be silenced here.
+        evaluator=OutputEvaluator,  # pyright: ignore[reportArgumentType]
     )
 
     return [
@@ -95,6 +101,7 @@ async def generate_cases_async(
 
 
 def main() -> None:
+    """Generate cases from the CLI, writing JSON to ``--output`` or stdout."""
     parser = argparse.ArgumentParser(
         description="Generate evaluation test cases with ExperimentGenerator"
     )
@@ -123,11 +130,12 @@ def main() -> None:
 
     output = json.dumps(cases, indent=2)
     if args.output:
-        with open(args.output, "w") as f:
-            f.write(output)
-        logger.info(f"Wrote {len(cases)} cases to {args.output}")
+        Path(args.output).write_text(output)
+        logger.info("Wrote %d cases to %s", len(cases), args.output)
     else:
-        print(output)
+        # Without --output the generated JSON *is* this command's result, so it
+        # goes to stdout to stay pipeable. Diagnostics use `logger` above.
+        print(output)  # noqa: T201
 
 
 if __name__ == "__main__":

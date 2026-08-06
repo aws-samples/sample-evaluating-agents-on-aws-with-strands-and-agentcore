@@ -40,6 +40,13 @@ jobs:
         working-directory: repo
         run: uv run ruff format --check .
 
+      # The type half of the gate. Scope and strictness live in
+      # [tool.pyright]; it resolves the synced .venv this job just created, so
+      # third-party imports are checked rather than reported missing.
+      - name: Pyright
+        working-directory: repo
+        run: uv run pyright
+
       - name: Offline unit tests with coverage
         working-directory: repo
         run: |

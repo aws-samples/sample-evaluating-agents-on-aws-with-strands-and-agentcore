@@ -38,7 +38,9 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import boto3
 
@@ -54,12 +56,41 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CDK_DIR = REPO_ROOT / "examples" / "vehicle-auction-agent" / "cdk"
 
 
-def _run(cmd: list[str], **kw) -> subprocess.CompletedProcess:
+@dataclass(frozen=True, slots=True)
+class AwsTarget:
+    """The verified account and region every deployment step runs against.
+
+    Attributes:
+        session: Session whose caller identity was already verified.
+        profile: Explicit AWS CLI profile, forwarded to CDK and child scripts.
+        region: Region to deploy to.
+        account: Account id the verified caller belongs to.
+        expected_account: Account id the operator asserted, re-checked before
+            each mutation.
+    """
+
+    session: boto3.Session
+    profile: str
+    region: str
+    account: str
+    expected_account: str
+
+    def reverify(self) -> None:
+        """Re-check the caller identity immediately before a mutation."""
+        reverify_identity(
+            self.session,
+            profile=self.profile,
+            region=self.region,
+            expected_account=self.expected_account,
+        )
+
+
+def _run(cmd: list[str], **kw: Any) -> subprocess.CompletedProcess:
     logger.info("$ %s", " ".join(cmd))
     # cmd is built entirely from static/operator-controlled values (sys.executable,
     # repo-internal paths from Path(__file__), and argparse inputs). No external
     # or user-supplied shell strings are involved; shell=True is not used.
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603 - args are static/operator-controlled, never shell
         cmd, check=True, **kw
     )  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit -- args are static/operator-controlled, not external input  # nosec B603
 
@@ -77,45 +108,32 @@ def _git_sha() -> str | None:
     return result.stdout.strip() or None
 
 
-def _digest_uri(
-    session: boto3.Session,
-    *,
-    region: str,
-    account: str,
-    ecr_repo: str,
-    image_tag: str,
-) -> str:
-    ecr = session.client("ecr", region_name=region)
+def _digest_uri(target: AwsTarget, *, ecr_repo: str, image_tag: str) -> str:
+    ecr = target.session.client("ecr", region_name=target.region)
     details = ecr.describe_images(
         repositoryName=ecr_repo,
         imageIds=[{"imageTag": image_tag}],
     )["imageDetails"]
     if len(details) != 1 or not details[0].get("imageDigest"):
         raise RuntimeError(f"Could not resolve ECR digest for {ecr_repo}:{image_tag}")
-    return f"{account}.dkr.ecr.{region}.amazonaws.com/{ecr_repo}@{details[0]['imageDigest']}"
+    return (
+        f"{target.account}.dkr.ecr.{target.region}.amazonaws.com/"
+        f"{ecr_repo}@{details[0]['imageDigest']}"
+    )
 
 
-def _build_image(
-    session: boto3.Session,
-    *,
-    profile: str,
-    region: str,
-    account: str,
-    expected_account: str,
-    ecr_repo: str,
-    image_tag: str,
-) -> str:
+def _build_image(target: AwsTarget, *, ecr_repo: str, image_tag: str) -> str:
     """Build via CodeBuild and return an immutable digest URI."""
     _run(
         [
             sys.executable,
             str(REPO_ROOT / "scripts" / "deploy_codebuild.py"),
             "--region",
-            region,
+            target.region,
             "--profile",
-            profile,
+            target.profile,
             "--expected-account",
-            expected_account,
+            target.expected_account,
             "--ecr-repo",
             ecr_repo,
             "--image-tag",
@@ -125,31 +143,17 @@ def _build_image(
             # runtime and its role/env wiring.
         ]
     )
-    return _digest_uri(
-        session,
-        region=region,
-        account=account,
-        ecr_repo=ecr_repo,
-        image_tag=image_tag,
-    )
+    return _digest_uri(target, ecr_repo=ecr_repo, image_tag=image_tag)
 
 
-def _cdk_command(
-    action: str,
-    *,
-    image_uri: str,
-    profile: str,
-    region: str,
-    account: str,
-    env_name: str,
-) -> None:
+def _cdk_command(target: AwsTarget, action: str, *, image_uri: str, env_name: str) -> None:
     if shutil.which("cdk") is None:
         raise RuntimeError("cdk CLI not found on PATH. Install with: npm install -g aws-cdk")
     env = {
         **os.environ,
-        "AWS_PROFILE": profile,
-        "AWS_ACCOUNT_ID": account,
-        "AWS_REGION": region,
+        "AWS_PROFILE": target.profile,
+        "AWS_ACCOUNT_ID": target.account,
+        "AWS_REGION": target.region,
         "AGENT_IMAGE_URI": image_uri,
         "JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION": "1",
     }
@@ -157,7 +161,7 @@ def _cdk_command(
         "cdk",
         action,
         "--profile",
-        profile,
+        target.profile,
         "-c",
         f"environment={env_name}",
         "-c",
@@ -176,6 +180,7 @@ def _cdk_command(
 
 
 def main() -> int:
+    """Build the agent image in CodeBuild, then deploy every CDK stack."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--profile", required=True, help="Explicit AWS CLI profile")
     p.add_argument("--region", required=True)
@@ -196,62 +201,42 @@ def main() -> int:
         region=args.region,
         expected_account=args.expected_account,
     )
-    account = identity["Account"]
+    target = AwsTarget(
+        session=session,
+        profile=args.profile,
+        region=args.region,
+        account=identity["Account"],
+        expected_account=args.expected_account,
+    )
     if args.image_tag is None:
         args.image_tag = _git_sha()
         if not args.image_tag:
             p.error("--image-tag is required outside a git checkout")
 
     if args.skip_build:
-        image_uri = _digest_uri(
-            session,
-            region=args.region,
-            account=account,
-            ecr_repo=args.ecr_repo,
-            image_tag=args.image_tag,
-        )
+        image_uri = _digest_uri(target, ecr_repo=args.ecr_repo, image_tag=args.image_tag)
         logger.info("Skipping CodeBuild; using existing image: %s", image_uri)
     else:
         confirm_mutation(
             action="build-agent-image",
-            account=account,
-            region=args.region,
+            account=target.account,
+            region=target.region,
             cost=(
                 "about $0.01 per CodeBuild minute, $0.10/GB-month ECR, and "
                 "$0.023/GB-month S3 source storage"
             ),
             approved=args.yes,
         )
-        image_uri = _build_image(
-            session,
-            profile=args.profile,
-            region=args.region,
-            account=account,
-            expected_account=args.expected_account,
-            ecr_repo=args.ecr_repo,
-            image_tag=args.image_tag,
-        )
+        image_uri = _build_image(target, ecr_repo=args.ecr_repo, image_tag=args.image_tag)
         logger.info("Built image: %s", image_uri)
 
-    reverify_identity(
-        session,
-        profile=args.profile,
-        region=args.region,
-        expected_account=args.expected_account,
-    )
+    target.reverify()
     logger.info("Reviewing CDK diff before deployment")
-    _cdk_command(
-        "diff",
-        image_uri=image_uri,
-        profile=args.profile,
-        region=args.region,
-        account=account,
-        env_name=args.environment,
-    )
+    _cdk_command(target, "diff", image_uri=image_uri, env_name=args.environment)
     confirm_mutation(
         action="deploy-cdk-stacks",
-        account=account,
-        region=args.region,
+        account=target.account,
+        region=target.region,
         cost=(
             "estimated $55-105/month for the dev reference stack (including "
             "four customer-managed KMS keys), plus Bedrock model and AgentCore "
@@ -259,20 +244,8 @@ def main() -> int:
         ),
         approved=args.yes,
     )
-    reverify_identity(
-        session,
-        profile=args.profile,
-        region=args.region,
-        expected_account=args.expected_account,
-    )
-    _cdk_command(
-        "deploy",
-        image_uri=image_uri,
-        profile=args.profile,
-        region=args.region,
-        account=account,
-        env_name=args.environment,
-    )
+    target.reverify()
+    _cdk_command(target, "deploy", image_uri=image_uri, env_name=args.environment)
     logger.info("Deploy complete.")
     return 0
 

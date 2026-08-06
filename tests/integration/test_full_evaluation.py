@@ -13,7 +13,7 @@ Also tests run_all_layers() for the full CI/CD quality gate flow.
 
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -23,11 +23,11 @@ from strands_evals.types.trace import (
     AgentInvocationSpan,
     Session,
     SpanInfo,
-    Trace,
     ToolCall,
     ToolConfig,
     ToolExecutionSpan,
     ToolResult,
+    Trace,
 )
 
 from agentic_evaluation.evaluators import (
@@ -49,7 +49,6 @@ from agentic_evaluation.run_experiment import (
 from agentic_evaluation.test_cases import TestCategory
 from agentic_evaluation.thresholds import EVALUATION_THRESHOLDS
 
-
 # ---------------------------------------------------------------------------
 # Mock Session builder — wraps mock data in the strands_evals trace format
 # that HelpfulnessEvaluator and GoalSuccessRateEvaluator require.
@@ -68,7 +67,7 @@ AGENT_TOOLS = [
 
 
 def _make_span_info(session_id: str) -> SpanInfo:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return SpanInfo(
         session_id=session_id,
         trace_id=str(uuid.uuid4()),
@@ -274,7 +273,7 @@ def mock_agent_task_with_metadata(case: Case) -> dict[str, Any]:
     """Simulate agent behaviour with metadata for domain evaluators."""
     result = mock_agent_task(case)
     metrics = {
-        "last_refresh_time": (datetime.now() - timedelta(hours=2)).isoformat(),
+        "last_refresh_time": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
         "dealer_id": "DLR24946",
         "current_auction_id": "auction_2024_02_17",
         "latency_ms": 1500,
@@ -290,7 +289,7 @@ def _print_report(report, evaluator_idx: int = 0) -> None:
     """Print a formatted EvaluationReport."""
     print(f"\n  overall_score: {report.overall_score:.2f}")
     for i, (score, passed, reason) in enumerate(
-        zip(report.scores, report.test_passes, report.reasons)
+        zip(report.scores, report.test_passes, report.reasons, strict=True)
     ):
         case_name = (
             report.cases[i].get("name", f"case_{i}")
@@ -360,7 +359,7 @@ class TestLayer1ToolUsage:
         reports = exp.run_evaluations(mock_agent_task)
 
         report = reports[0]
-        for i, (score, case_data) in enumerate(zip(report.scores, report.cases)):
+        for score, case_data in zip(report.scores, report.cases, strict=True):
             case_name = case_data.get("name", "") if isinstance(case_data, dict) else ""
             if case_name.startswith("sf_"):
                 assert score == 1.0, f"Safety case {case_name} should score 1.0, got {score}"

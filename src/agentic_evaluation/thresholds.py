@@ -89,7 +89,11 @@ class EvaluationThresholds:
             goal_success >= self.goal_success_rate and output_quality >= self.output_quality_score
         )
 
-    def validate_all_layers(
+    # PLR0913 (6 > 5 args): the three layers measure two scores each, and every
+    # call site passes them by name. Grouping them into per-layer tuples would
+    # satisfy the rule but hide which number is which at the call site, so the
+    # six named floats are kept deliberately.
+    def validate_all_layers(  # noqa: PLR0913
         self,
         tool_accuracy: float,
         param_accuracy: float,
@@ -98,16 +102,28 @@ class EvaluationThresholds:
         goal_success: float,
         output_quality: float,
     ) -> dict[str, bool]:
-        """Validate all three layers and return detailed results."""
+        """Validate all three layers and return detailed results.
+
+        Args:
+            tool_accuracy: Layer 1 tool-selection accuracy.
+            param_accuracy: Layer 1 tool-parameter accuracy.
+            helpfulness: Layer 2 helpfulness score.
+            coherence: Layer 2 reasoning-coherence score.
+            goal_success: Layer 3 goal-success rate.
+            output_quality: Layer 3 output-quality score.
+
+        Returns:
+            ``layer_N_passed`` for each layer plus ``all_passed``, true only
+            when all three pass.
+        """
+        layer_1 = self.validate_layer_1(tool_accuracy, param_accuracy)
+        layer_2 = self.validate_layer_2(helpfulness, coherence)
+        layer_3 = self.validate_layer_3(goal_success, output_quality)
         return {
-            "layer_1_passed": self.validate_layer_1(tool_accuracy, param_accuracy),
-            "layer_2_passed": self.validate_layer_2(helpfulness, coherence),
-            "layer_3_passed": self.validate_layer_3(goal_success, output_quality),
-            "all_passed": (
-                self.validate_layer_1(tool_accuracy, param_accuracy)
-                and self.validate_layer_2(helpfulness, coherence)
-                and self.validate_layer_3(goal_success, output_quality)
-            ),
+            "layer_1_passed": layer_1,
+            "layer_2_passed": layer_2,
+            "layer_3_passed": layer_3,
+            "all_passed": layer_1 and layer_2 and layer_3,
         }
 
 

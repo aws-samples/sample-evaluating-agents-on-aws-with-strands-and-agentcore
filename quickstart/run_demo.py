@@ -26,6 +26,11 @@ from quickstart.mock_task_fn import task_fn  # noqa: E402
 
 
 def main() -> int:
+    """Evaluate the mock task_fn through every layer and report the outcome.
+
+    Returns:
+        A process exit code: 0 when every layer passed, 1 otherwise.
+    """
     logging.basicConfig(level=logging.WARNING, format="%(message)s")
     cfg = load_config()
     print(f"Loaded config: {cfg.project_name} (judge={cfg.judge_backend})")

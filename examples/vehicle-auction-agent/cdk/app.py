@@ -33,6 +33,7 @@ from lib.data_pipeline_stack import DataPipelineStack
 from lib.dealer_api_stack import DealerApiStack
 from lib.evaluation_stack import EvaluationStack
 from lib.monitoring_stack import MonitoringStack
+from lib.runtime_integrations import RuntimeIntegrations
 from lib.security import LambdaInvokeBoundary
 
 app = cdk.App()
@@ -49,7 +50,7 @@ stack_prefix = f"agent-eval-{env_name}"
 # Agent container image URI (built by CodeBuild, no local Docker).
 # Pass with: `cdk deploy ... -c agent_image_uri=<account>.dkr.ecr.<region>...:tag`
 # or set AGENT_IMAGE_URI env var. Without it, the agent_runtime stack is
-# skipped (use --build-image in deploy_stack.py to populate it automatically).
+# skipped; scripts/deploy_stack.py builds the image and passes the URI for you.
 agent_image_uri = app.node.try_get_context("agent_image_uri") or os.environ.get("AGENT_IMAGE_URI")
 skip_agent_runtime = (
     str(app.node.try_get_context("skip_agent_runtime") or "").lower() == "true"
@@ -87,9 +88,11 @@ if not skip_agent_runtime:
         f"{stack_prefix}-agent-runtime",
         image_uri=agent_image_uri,
         data_bucket=data_pipeline.data_bucket,
-        dealer_gateway=dealer_api.gateway,
-        gateway_url=dealer_api.gateway_url,
-        enable_cognito=enable_cognito,
+        integrations=RuntimeIntegrations(
+            dealer_gateway=dealer_api.gateway,
+            gateway_url=dealer_api.gateway_url,
+            enable_cognito=enable_cognito,
+        ),
         env=env,
         description=f"AgentCore Runtime ({env_name})",
     )

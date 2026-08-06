@@ -22,6 +22,14 @@ class DecimalEncoder(json.JSONEncoder):
     """Convert Decimal to int or float for JSON serialization."""
 
     def default(self, o: Any) -> Any:
+        """Serialize a Decimal as an int when whole, otherwise as a float.
+
+        Args:
+            o: The object json cannot serialize on its own.
+
+        Returns:
+            A JSON-serializable equivalent.
+        """
         if isinstance(o, Decimal):
             # Convert to int if no decimal places, otherwise float
             return int(o) if o % 1 == 0 else float(o)
@@ -53,9 +61,8 @@ class DealerNotFoundError(Exception):
     """Raised when a requested dealer_id has no item in the table."""
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """
-    Handle dealer API requests.
+def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:  # noqa: ARG001 - Lambda passes context positionally
+    """Handle dealer API requests.
 
     Endpoints:
     - GET /dealers - List all dealers
@@ -76,10 +83,10 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         if http_method == "GET":
             if path_parameters.get("dealer_id"):
-                # GET /dealers/{dealer_id}
+                # Single dealer lookup by path parameter.
                 result = get_dealer(path_parameters["dealer_id"])
             else:
-                # GET /dealers
+                # Bounded summary listing.
                 result = list_dealers()
 
             return {
@@ -91,12 +98,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "body": json.dumps(result, cls=DecimalEncoder),
             }
 
-        else:
-            return {
-                "statusCode": 405,
-                "headers": {"Access-Control-Allow-Origin": ALLOWED_ORIGIN},
-                "body": json.dumps({"error": "Method not allowed"}, cls=DecimalEncoder),
-            }
+        return {
+            "statusCode": 405,
+            "headers": {"Access-Control-Allow-Origin": ALLOWED_ORIGIN},
+            "body": json.dumps({"error": "Method not allowed"}, cls=DecimalEncoder),
+        }
 
     except DealerNotFoundError as e:
         return {
@@ -109,7 +115,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         }
 
     except Exception as e:
-        logger.error(f"Error: {type(e).__name__}: {str(e)}", exc_info=True)
+        logger.exception("Unhandled error: %s", type(e).__name__)
 
         return {
             "statusCode": 500,
@@ -119,8 +125,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
 
 def get_dealer(dealer_id: str) -> dict[str, Any]:
-    """
-    Get a specific dealer by ID.
+    """Get a specific dealer by ID.
 
     Args:
         dealer_id: Dealer ID
@@ -140,8 +145,7 @@ def get_dealer(dealer_id: str) -> dict[str, Any]:
 
 
 def list_dealers() -> dict[str, Any]:
-    """
-    List dealers using a bounded DynamoDB scan.
+    """List dealers using a bounded DynamoDB scan.
 
     The scan is capped at SCAN_MAX_ITEMS across pages (SCAN_PAGE_SIZE per page)
     so a caller cannot force an unbounded full-table walk that exhausts the

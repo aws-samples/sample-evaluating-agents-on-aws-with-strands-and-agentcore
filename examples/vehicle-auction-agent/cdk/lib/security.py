@@ -60,8 +60,21 @@ class LambdaInvokeBoundary:
     """Reject Lambda URLs and unscoped resource-based invoke permissions."""
 
     def visit(self, node: IConstruct) -> None:
+        """Fail synthesis if a node would expose a Lambda without authentication.
+
+        Args:
+            node: Each construct in the tree, as the CDK aspect visitor supplies
+                it.
+
+        Raises:
+            ValueError: The node is a Function URL, or an invoke permission that
+                is not scoped to one AWS service principal and source ARN.
+        """
         if isinstance(node, lambda_.CfnUrl):
-            raise ValueError(
+            # TRY004 wants TypeError because an isinstance check guards the
+            # raise. The type is not the complaint: a CfnUrl is well-formed and
+            # rejected on policy, which is what ValueError means here.
+            raise ValueError(  # noqa: TRY004
                 "Lambda Function URLs are prohibited; use an authenticated API Gateway"
             )
 

@@ -1,8 +1,21 @@
 """Tests for guarded CDK command construction."""
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from scripts.deploy_stack import _cdk_command
+from scripts.deploy_stack import AwsTarget, _cdk_command
+
+_IMAGE_URI = "111122223333.dkr.ecr.eu-west-1.amazonaws.com/repo@sha256:abc"
+
+
+def _target() -> AwsTarget:
+    """A verified target whose session is never used by _cdk_command."""
+    return AwsTarget(
+        session=Mock(),
+        profile="test",
+        region="eu-west-1",
+        account="111122223333",
+        expected_account="111122223333",
+    )
 
 
 def test_deploy_forwards_recorded_approval_to_cdk() -> None:
@@ -10,14 +23,7 @@ def test_deploy_forwards_recorded_approval_to_cdk() -> None:
         patch("scripts.deploy_stack.shutil.which", return_value="/usr/local/bin/cdk"),
         patch("scripts.deploy_stack._run") as run,
     ):
-        _cdk_command(
-            "deploy",
-            image_uri="111122223333.dkr.ecr.eu-west-1.amazonaws.com/repo@sha256:abc",
-            profile="test",
-            region="eu-west-1",
-            account="111122223333",
-            env_name="dev",
-        )
+        _cdk_command(_target(), "deploy", image_uri=_IMAGE_URI, env_name="dev")
 
     command = run.call_args.args[0]
     assert command[:2] == ["cdk", "deploy"]
@@ -30,14 +36,7 @@ def test_diff_does_not_pass_unsupported_all_option() -> None:
         patch("scripts.deploy_stack.shutil.which", return_value="/usr/local/bin/cdk"),
         patch("scripts.deploy_stack._run") as run,
     ):
-        _cdk_command(
-            "diff",
-            image_uri="111122223333.dkr.ecr.eu-west-1.amazonaws.com/repo@sha256:abc",
-            profile="test",
-            region="eu-west-1",
-            account="111122223333",
-            env_name="dev",
-        )
+        _cdk_command(_target(), "diff", image_uri=_IMAGE_URI, env_name="dev")
 
     command = run.call_args.args[0]
     assert command[:2] == ["cdk", "diff"]

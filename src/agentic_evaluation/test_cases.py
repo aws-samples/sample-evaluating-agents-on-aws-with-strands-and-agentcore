@@ -108,7 +108,7 @@ class TestCaseRegistry:
         self.test_cases: list[TestCase] = []
 
     @classmethod
-    def from_config(cls, test_cases: list[TestCase]) -> "TestCaseRegistry":
+    def from_config(cls, test_cases: list[TestCase]) -> TestCaseRegistry:
         """Create a registry from a pre-loaded list of test cases.
 
         Use this with agentic_evaluation.config.load_config() to load test cases

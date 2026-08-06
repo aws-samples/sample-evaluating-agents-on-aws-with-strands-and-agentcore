@@ -13,7 +13,6 @@ import io
 import logging
 
 import pytest
-
 from utils import log_redactor
 
 

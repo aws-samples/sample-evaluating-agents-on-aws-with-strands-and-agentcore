@@ -306,6 +306,16 @@ AWS_REGION=eu-west-1 \
 ENVIRONMENT=dev \
 AWS_DEPLOYED_TEST_APPROVAL="run-deployed-tests <12-digit-account-id> eu-west-1" \
 uv run pytest tests/ -m deployed -v
+
+# The six real end-to-end tests in tests/integration/test_real_agent_eval.py skip
+# unless you also point them at your deployed runtime. Both variables are needed:
+# the runtime withholds the privileged trajectory/usage telemetry from callers
+# that do not present the evaluation token. Get the runtime ARN from
+# `aws bedrock-agentcore-control list-agent-runtimes` and the secret ARN from the
+# EvaluationTraceSecretArn output of the agent-eval-<env>-agent-runtime stack.
+AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/<runtime-id> \
+EVALUATION_TRACE_SECRET_ID=arn:aws:secretsmanager:eu-west-1:<account-id>:secret:agent-eval/evaluation-trace/dev-XXXXXX \
+uv run pytest tests/integration/test_real_agent_eval.py -m deployed -v
 ```
 
 All tests should pass with no failures. A successful run produces output similar to:

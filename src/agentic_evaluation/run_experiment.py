@@ -18,18 +18,20 @@ import os
 import uuid
 from collections.abc import Callable
 from copy import deepcopy
+from functools import cache
 from typing import Any
 
 from strands_evals import Case, Experiment
+from strands_evals.types.trace import Session
 
 from agentic_evaluation.config import EvalConfig, load_config
-from agentic_evaluation.types import TaskFnResult
 from agentic_evaluation.evaluators import (
     CostEvaluator,
     DataFreshnessEvaluator,
     LatencyEvaluator,
     SafetyGuardrailEvaluator,
     SchemaScopingEvaluator,
+    SecondaryScope,
     ToolParameterGrader,
     ToolSelectionGrader,
     TrajectoryOrderGrader,
@@ -37,6 +39,7 @@ from agentic_evaluation.evaluators import (
 from agentic_evaluation.judges import JudgeBackend, build_judge
 from agentic_evaluation.plugins import build_evaluators_from_config
 from agentic_evaluation.test_cases import TestCaseRegistry, TestCategory
+from agentic_evaluation.types import TaskFnResult
 
 logger = logging.getLogger(__name__)
 
@@ -55,22 +58,30 @@ _CASE_LAYER_VALUES = {
     "layer_3": "layer_3_output_quality",
 }
 
-# Global config — loaded lazily on first use
-_config: EvalConfig | None = None
+# One layer selected for a run: its canonical name, the experiment builder to
+# call with that layer's cases, and the score threshold(s) its evaluators must
+# clear (one float shared by all, or one per evaluator in declaration order).
+LayerPlan = tuple[str, Callable[..., Experiment[str, str]], float | list[float]]
 
 
+@cache
 def get_config() -> EvalConfig:
-    """Get the evaluation config, loading from YAML if not yet loaded."""
-    global _config
-    if _config is None:
-        _config = load_config()
-    return _config
+    """Get the evaluation config, loading from YAML on first use.
+
+    Returns:
+        The parsed config. Cached, so the YAML is read at most once per process
+        until :func:`reset_config_cache` is called.
+    """
+    return load_config()
 
 
 def reset_config_cache() -> None:
-    """Reset the cached config (used by tests and the CLI)."""
-    global _config
-    _config = None
+    """Drop the cached config so the next :func:`get_config` re-reads the YAML.
+
+    Used by the CLI after setting ``EVAL_CONFIG_PATH``, and by tests that point
+    at a fixture config.
+    """
+    get_config.cache_clear()
 
 
 def _get_judge_model() -> str:
@@ -251,6 +262,27 @@ def build_layer3_experiment(
     )
 
 
+def _secondary_scope(scoping_cfg: dict[str, Any]) -> SecondaryScope | None:
+    """Build the optional secondary-scope check from a ``schema_scoping`` block.
+
+    The three ``secondary_*`` keys are only meaningful together, so this is the
+    boundary where a partial declaration is resolved to "no secondary check"
+    rather than carried into the evaluator as three loose optionals.
+
+    Args:
+        scoping_cfg: The ``domain_evaluators.schema_scoping`` config block.
+
+    Returns:
+        A :class:`SecondaryScope` when all three keys are set, else None.
+    """
+    field = scoping_cfg.get("secondary_field")
+    scope_field = scoping_cfg.get("secondary_scope")
+    metadata_key = scoping_cfg.get("secondary_metadata_key")
+    if field and scope_field and metadata_key:
+        return SecondaryScope(field=field, scope_field=scope_field, metadata_key=metadata_key)
+    return None
+
+
 def build_domain_experiment(
     cases: list[Case[str, str]] | None = None,
     custom_evaluators: list | None = None,
@@ -290,9 +322,7 @@ def build_domain_experiment(
                     list_field=scoping_cfg["list_field"],
                     scope_field=scoping_cfg["scope_field"],
                     metadata_key=scoping_cfg.get("metadata_key", scoping_cfg["scope_field"]),
-                    secondary_field=scoping_cfg.get("secondary_field"),
-                    secondary_scope=scoping_cfg.get("secondary_scope"),
-                    secondary_metadata_key=scoping_cfg.get("secondary_metadata_key"),
+                    secondary=_secondary_scope(scoping_cfg),
                 )
             )
 
@@ -363,7 +393,9 @@ def _layer_passed(
         ]
     else:
         report_thresholds = report_thresholds[: len(reports)]
-    for r, report_threshold in zip(reports, report_thresholds):
+    # strict=True documents the invariant established immediately above:
+    # report_thresholds has been padded or truncated to exactly len(reports).
+    for r, report_threshold in zip(reports, report_thresholds, strict=True):
         if not r.scores:
             return False
         if strict_case_pass and not all(r.test_passes):
@@ -387,7 +419,7 @@ def _run_layer(
     threshold: float | list[float],
 ) -> dict[str, Any]:
     """Run a single evaluation layer and return results."""
-    logger.info(f"Running {name} evaluation")
+    logger.info("Running %s evaluation", name)
     experiment = experiment_builder(cases)
     reports = experiment.run_evaluations(task_fn)
     passed = _layer_passed(reports, threshold, strict_case_pass=name in _DETERMINISTIC_LAYERS)
@@ -413,7 +445,271 @@ def _cases_for_layer(cases: list[Case[str, str]], layer_name: str) -> list[Case[
     return selected
 
 
-def run_all_layers(
+def _case_key(case: Case[str, str]) -> str:
+    """Identify a case for the duration of one trial.
+
+    Args:
+        case: The case being executed.
+
+    Returns:
+        The cache and bookkeeping key. ``Case.name`` is optional upstream, so
+        coercing here keeps the per-trial cache and the priming set in agreement
+        about what identifies a case.
+    """
+    return str(case.name)
+
+
+def _make_cached_task_fn(
+    task_fn: Callable[[Case[str, str]], TaskFnResult],
+    run_artifacts: dict[str, TaskFnResult],
+    conversation_traces: dict[str, list[Any]],
+) -> Callable[[Case[str, str]], TaskFnResult]:
+    """Wrap ``task_fn`` so each case executes at most once per trial.
+
+    Every layer in a trial evaluates the same cases, so the raw ``task_fn``
+    would be invoked once per layer per case. This memoises the first result in
+    ``run_artifacts`` and hands out deep copies, so layers cannot observe each
+    other's mutations. For cases carrying a ``conversation_id``, traces are
+    accumulated across turns in ``conversation_traces`` so a multi-turn
+    trajectory is evaluated as a whole.
+
+    The caches are passed in rather than captured from an enclosing loop: one
+    instance belongs to exactly one trial, and binding them as parameters makes
+    that ownership explicit instead of dependent on rebinding order.
+
+    Args:
+        task_fn: The user's task function.
+        run_artifacts: Per-trial cache, keyed by case name.
+        conversation_traces: Per-trial trace accumulator, keyed by conversation.
+
+    Returns:
+        A single-argument callable with the same shape as ``task_fn``.
+    """
+
+    def cached_task_fn(case: Case[str, str]) -> TaskFnResult:
+        key = _case_key(case)
+        if key not in run_artifacts:
+            artifact = deepcopy(task_fn(case))
+            conversation_id = (case.metadata or {}).get("conversation_id")
+            trajectory = artifact.get("trajectory")
+            if conversation_id and isinstance(trajectory, Session):
+                traces = conversation_traces.setdefault(str(conversation_id), [])
+                traces.extend(deepcopy(trajectory.traces))
+                trajectory.traces = deepcopy(traces)
+            run_artifacts[key] = artifact
+        return deepcopy(run_artifacts[key])
+
+    return cached_task_fn
+
+
+def _layer_plans(
+    judge_backend: JudgeBackend | str | None,
+    custom_evaluators: list | None,
+    layers: list[str] | None,
+) -> list[LayerPlan]:
+    """Select and configure the layers a run will execute.
+
+    Args:
+        judge_backend: Judge override passed through to the LLM layers; None
+            leaves each builder to read the config.
+        custom_evaluators: Extra evaluators for the domain layer.
+        layers: Subset of canonical layer names, or None for all four.
+
+    Returns:
+        One plan per selected layer, in canonical order.
+
+    Raises:
+        ValueError: ``layers`` matched none of the known layer names.
+    """
+    backend = build_judge(judge_backend) if judge_backend is not None else None
+
+    def _build_l2(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
+        return build_layer2_experiment(c, judge_backend=backend)
+
+    def _build_l3(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
+        return build_layer3_experiment(c, judge_backend=backend)
+
+    def _build_domain(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
+        return build_domain_experiment(c, custom_evaluators=custom_evaluators)
+
+    thresholds = get_config().thresholds
+    all_layers: list[LayerPlan] = [
+        (
+            "layer_1",
+            build_layer1_experiment,
+            [
+                thresholds.tool_selection_accuracy,
+                thresholds.tool_parameter_accuracy,
+                thresholds.reasoning_coherence,
+            ],
+        ),
+        (
+            "layer_2",
+            _build_l2,
+            [thresholds.helpfulness_score, thresholds.reasoning_coherence],
+        ),
+        (
+            "layer_3",
+            _build_l3,
+            [thresholds.output_quality_score, thresholds.goal_success_rate],
+        ),
+        ("domain", _build_domain, thresholds.domain_aggregate_score),
+    ]
+    plans = [plan for plan in all_layers if plan[0] in layers] if layers else all_layers
+    if not plans:
+        raise ValueError(
+            f"No layers selected. Got layers={layers!r}; valid: {[p[0] for p in all_layers]}"
+        )
+    return plans
+
+
+def _prime_task_fn(
+    cached_task_fn: Callable[[Case[str, str]], TaskFnResult],
+    trial_cases: list[Case[str, str]],
+    execution_names: set[str],
+) -> None:
+    """Execute every case some layer will evaluate, exactly once, in case order.
+
+    Priming up front does two things the per-layer runs cannot: it guarantees one
+    agent invocation per case per trial (later layers hit the cache), and it
+    fixes conversational turn order before any layer evaluates, so a multi-turn
+    trajectory is assembled in the order the cases declare.
+
+    Args:
+        cached_task_fn: The memoising wrapper from :func:`_make_cached_task_fn`.
+        trial_cases: This trial's cases, in declaration order.
+        execution_names: Names of the cases at least one layer will evaluate.
+    """
+    case_count = sum(_case_key(case) in execution_names for case in trial_cases)
+    case_index = 0
+    for case in trial_cases:
+        if _case_key(case) in execution_names:
+            case_index += 1
+            logger.info("Executing evaluation case %d/%d: %s", case_index, case_count, case.name)
+            cached_task_fn(case)
+            logger.info("Completed evaluation case %d/%d: %s", case_index, case_count, case.name)
+
+
+def _run_trial(
+    task_fn: Callable[[Case[str, str]], TaskFnResult],
+    cases: list[Case[str, str]],
+    plans: list[LayerPlan],
+) -> dict[str, dict[str, Any]]:
+    """Run every selected layer once against a fresh copy of the cases.
+
+    Each trial gets its own deep copy of the cases, its own
+    ``evaluation_run_id`` and its own task_fn cache, so trials cannot observe
+    one another.
+
+    Args:
+        task_fn: The user's task function.
+        cases: The cases to copy for this trial.
+        plans: The layers to run.
+
+    Returns:
+        Per-layer ``{"reports": ..., "passed": ...}``, keyed by layer name. A
+        layer with no routed cases reports ``passed=False`` rather than
+        vacuously passing.
+    """
+    trial_cases = deepcopy(cases)
+    run_id = uuid.uuid4().hex
+    for case in trial_cases:
+        case.metadata = {**(case.metadata or {}), "evaluation_run_id": run_id}
+
+    layer_cases = {name: _cases_for_layer(trial_cases, name) for name, _, _ in plans}
+    execution_names = {
+        _case_key(case) for selected_cases in layer_cases.values() for case in selected_cases
+    }
+    run_artifacts: dict[str, TaskFnResult] = {}
+    conversation_traces: dict[str, list[Any]] = {}
+    cached_task_fn = _make_cached_task_fn(task_fn, run_artifacts, conversation_traces)
+    _prime_task_fn(cached_task_fn, trial_cases, execution_names)
+
+    trial_result: dict[str, dict[str, Any]] = {}
+    for name, builder, threshold in plans:
+        selected_cases = layer_cases[name]
+        if not selected_cases:
+            trial_result[name] = {"reports": [], "passed": False}
+        else:
+            trial_result[name] = _run_layer(
+                name, builder, selected_cases, cached_task_fn, threshold
+            )
+    return trial_result
+
+
+def _log_multi_trial(results: dict[str, Any], plans: list[LayerPlan], num_trials: int) -> None:
+    """Log the pass@k / pass^k summary for a multi-trial run.
+
+    Args:
+        results: The aggregated results, already carrying the multi-trial keys.
+        plans: The layers that ran.
+        num_trials: How many trials were run.
+    """
+    logger.info("Multi-trial results:")
+    for name, _, _ in plans:
+        logger.info(
+            "  %s: pass@%d=%s, pass^%d=%s, rate=%.0f%%",
+            name,
+            num_trials,
+            "PASS" if results[name]["pass_at_k"] else "FAIL",
+            num_trials,
+            "PASS" if results[name]["pass_all_k"] else "FAIL",
+            results[name]["pass_rate"] * 100,
+        )
+
+
+def _aggregate_trials(
+    trial_results: list[dict[str, dict[str, Any]]],
+    plans: list[LayerPlan],
+) -> dict[str, Any]:
+    """Fold per-trial layer results into the run's final result dict.
+
+    Args:
+        trial_results: One entry per trial, as returned by :func:`_run_trial`.
+        plans: The layers that ran.
+
+    Returns:
+        The public result dict documented on :func:`run_all_layers`, including
+        the industry-standard aliases.
+    """
+    num_trials = len(trial_results)
+    results: dict[str, Any] = {}
+    for name, _, _ in plans:
+        passes = [trial[name]["passed"] for trial in trial_results]
+        results[name] = {
+            # Reports come from the first trial: they are a sample of what the
+            # agent produced, while the gate below considers every trial.
+            "reports": trial_results[0][name]["reports"],
+            "passed": passes[-1],
+            "pass_rate": sum(passes) / num_trials,
+        }
+        if num_trials > 1:
+            results[name]["pass_at_k"] = any(passes)
+            results[name]["pass_all_k"] = all(passes)
+
+    # One trial gates on that trial; several gate on every trial passing.
+    gate = "passed" if num_trials == 1 else "pass_all_k"
+    results["all_passed"] = all(results[name][gate] for name, _, _ in plans)
+    if num_trials > 1:
+        results["num_trials"] = num_trials
+        _log_multi_trial(results, plans, num_trials)
+
+    # Industry-standard aliases pointing at the same per-layer result objects.
+    # The canonical layer_1/2/3/domain keys remain the primary API (and match
+    # the blog post); these let callers use the vocabulary other eval tools
+    # use (DeepEval / Ragas / Anthropic). They share the underlying dict, so
+    # mutating one is reflected in the other.
+    for canonical, alias in _LAYER_ALIASES.items():
+        if canonical in results:
+            results[alias] = results[canonical]
+    return results
+
+
+# PLR0913 (6 > 5 args): the SDK's primary entry point, and every argument is an
+# independent, documented knob that callers pass by name. Grouping them into a
+# config object would move the same six values behind one more indirection and
+# break every caller and code sample.
+def run_all_layers(  # noqa: PLR0913
     task_fn: Callable[[Case[str, str]], TaskFnResult],
     registry: TestCaseRegistry | None = None,
     num_trials: int = 1,
@@ -464,151 +760,20 @@ def run_all_layers(
         under industry-standard aliases (``tool_correctness``,
         ``process_evaluation``, ``outcome_evaluation``,
         ``operational_metrics``) that point at the same dict objects.
+
+    Raises:
+        ValueError: ``num_trials`` is below 1, or ``layers`` selected no layer.
     """
+    if num_trials < 1:
+        raise ValueError(f"num_trials must be at least 1, got {num_trials}")
+
     cases = build_cases_from_registry(registry)
-    backend = build_judge(judge_backend) if judge_backend is not None else None
+    plans = _layer_plans(judge_backend, custom_evaluators, layers)
 
-    def _build_l2(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
-        return build_layer2_experiment(c, judge_backend=backend)
-
-    def _build_l3(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
-        return build_layer3_experiment(c, judge_backend=backend)
-
-    def _build_domain(c: list[Case[str, str]] | None = None) -> Experiment[str, str]:
-        return build_domain_experiment(c, custom_evaluators=custom_evaluators)
-
-    thresholds = get_config().thresholds
-    all_layers = [
-        (
-            "layer_1",
-            build_layer1_experiment,
-            [
-                thresholds.tool_selection_accuracy,
-                thresholds.tool_parameter_accuracy,
-                thresholds.reasoning_coherence,
-            ],
-        ),
-        (
-            "layer_2",
-            _build_l2,
-            [thresholds.helpfulness_score, thresholds.reasoning_coherence],
-        ),
-        (
-            "layer_3",
-            _build_l3,
-            [thresholds.output_quality_score, thresholds.goal_success_rate],
-        ),
-        ("domain", _build_domain, thresholds.domain_aggregate_score),
-    ]
-    layer_configs = [lc for lc in all_layers if lc[0] in layers] if layers else all_layers
-    if not layer_configs:
-        raise ValueError(
-            f"No layers selected. Got layers={layers!r}; valid: {[lc[0] for lc in all_layers]}"
-        )
-
-    trial_passes: dict[str, list[bool]] = {name: [] for name, _, _ in layer_configs}
-    first_reports: dict[str, Any] = {}
-
+    trial_results = []
     for trial_idx in range(num_trials):
-        label = f"trial {trial_idx + 1}/{num_trials}" if num_trials > 1 else ""
-        trial_cases = deepcopy(cases)
-        run_id = uuid.uuid4().hex
-        for case in trial_cases:
-            case.metadata = {**(case.metadata or {}), "evaluation_run_id": run_id}
-
-        layer_cases = {name: _cases_for_layer(trial_cases, name) for name, _, _ in layer_configs}
-        execution_names = {
-            case.name for selected_cases in layer_cases.values() for case in selected_cases
-        }
-        run_artifacts: dict[str, TaskFnResult] = {}
-        conversation_traces: dict[str, list[Any]] = {}
-
-        def cached_task_fn(case: Case[str, str]) -> TaskFnResult:
-            key = str(case.name)
-            if key not in run_artifacts:
-                artifact = deepcopy(task_fn(case))
-                conversation_id = (case.metadata or {}).get("conversation_id")
-                trajectory = artifact.get("trajectory")
-                if conversation_id and hasattr(trajectory, "traces"):
-                    traces = conversation_traces.setdefault(str(conversation_id), [])
-                    traces.extend(deepcopy(trajectory.traces))
-                    trajectory.traces = deepcopy(traces)
-                run_artifacts[key] = artifact
-            return deepcopy(run_artifacts[key])
-
-        # Prime once in case order. This both guarantees one execution per trial
-        # and preserves conversational turn order before any layer evaluates.
-        case_count = sum(case.name in execution_names for case in trial_cases)
-        case_index = 0
-        for case in trial_cases:
-            if case.name in execution_names:
-                case_index += 1
-                logger.info(
-                    "Executing evaluation case %d/%d: %s",
-                    case_index,
-                    case_count,
-                    case.name,
-                )
-                cached_task_fn(case)
-                logger.info(
-                    "Completed evaluation case %d/%d: %s",
-                    case_index,
-                    case_count,
-                    case.name,
-                )
-
-        for name, builder, threshold in layer_configs:
-            if label:
-                logger.info("[%s] ", label)
-            selected_cases = layer_cases[name]
-            if not selected_cases:
-                layer_result = {"reports": [], "passed": False}
-            else:
-                layer_result = _run_layer(
-                    name,
-                    builder,
-                    selected_cases,
-                    cached_task_fn,
-                    threshold,
-                )
-            trial_passes[name].append(layer_result["passed"])
-            if trial_idx == 0:
-                first_reports[name] = layer_result["reports"]
-
-    results: dict[str, Any] = {}
-    for name, _, _ in layer_configs:
-        passes = trial_passes[name]
-        results[name] = {
-            "reports": first_reports[name],
-            "passed": passes[-1],
-            "pass_rate": sum(passes) / num_trials,
-        }
         if num_trials > 1:
-            results[name]["pass_at_k"] = any(passes)
-            results[name]["pass_all_k"] = all(passes)
+            logger.info("Starting trial %d/%d", trial_idx + 1, num_trials)
+        trial_results.append(_run_trial(task_fn, cases, plans))
 
-    if num_trials == 1:
-        results["all_passed"] = all(results[name]["passed"] for name, _, _ in layer_configs)
-    else:
-        results["all_passed"] = all(results[name]["pass_all_k"] for name, _, _ in layer_configs)
-        results["num_trials"] = num_trials
-        logger.info("Multi-trial results:")
-        for name, _, _ in layer_configs:
-            rate = results[name]["pass_rate"]
-            all_k = results[name]["pass_all_k"]
-            logger.info(
-                f"  {name}: pass@{num_trials}="
-                f"{'PASS' if results[name]['pass_at_k'] else 'FAIL'}, "
-                f"pass^{num_trials}={'PASS' if all_k else 'FAIL'}, rate={rate:.0%}"
-            )
-
-    # Industry-standard aliases pointing at the same per-layer result objects.
-    # The canonical layer_1/2/3/domain keys remain the primary API (and match
-    # the blog post); these let callers use the vocabulary other eval tools
-    # use (DeepEval / Ragas / Anthropic). They share the underlying dict, so
-    # mutating one is reflected in the other.
-    for canonical, alias in _LAYER_ALIASES.items():
-        if canonical in results:
-            results[alias] = results[canonical]
-
-    return results
+    return _aggregate_trials(trial_results, plans)

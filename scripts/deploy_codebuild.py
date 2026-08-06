@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-"""Build the agent container in AWS CodeBuild and push it to Amazon Elastic Container Registry (Amazon ECR).
+r"""Build the agent container in AWS CodeBuild and push it to Amazon Elastic Container Registry (Amazon ECR).
 
 Avoids local docker entirely (per project policy). Idempotent:
 - Amazon ECR repo is created if missing.
@@ -62,11 +62,14 @@ import argparse
 import io
 import json
 import logging
+import shutil
 import subprocess
 import sys
 import time
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from botocore.exceptions import ClientError
 
@@ -85,15 +88,19 @@ def _git_sha() -> str | None:
     Used as the default immutable image tag so each build pushes a unique,
     reproducible tag the ECR repo (IMMUTABLE) will accept.
     """
+    git = shutil.which("git")
+    if git is None:
+        return None
     try:
-        # Fixed literal argv (git rev-parse), no shell, and no external input.
-        out = subprocess.run(  # nosec B603
-            ["git", "rev-parse", "--short", "HEAD"],
+        # Fixed literal argv (git rev-parse) with a resolved executable path,
+        # no shell, and no external input.
+        out = subprocess.run(  # nosec B603  # noqa: S603 - resolved path, fixed argv, no shell
+            [git, "rev-parse", "--short", "HEAD"],
             capture_output=True,
             text=True,
             check=True,
         )
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError:
         return None
     return out.stdout.strip() or None
 
@@ -170,7 +177,7 @@ def _agentcore_trust(account: str, region: str) -> dict:
     }
 
 
-def _ensure_role(iam, name: str, trust: dict, managed_policies: list[str]) -> str:
+def _ensure_role(iam: Any, name: str, trust: dict, managed_policies: list[str]) -> str:
     try:
         role = iam.get_role(RoleName=name)["Role"]
         logger.info("IAM role exists: %s — refreshing trust policy", name)
@@ -191,7 +198,7 @@ def _ensure_role(iam, name: str, trust: dict, managed_policies: list[str]) -> st
     return role["Arn"]
 
 
-def _ensure_inline_policy(iam, role_name: str, policy_name: str, doc: dict) -> None:
+def _ensure_inline_policy(iam: Any, role_name: str, policy_name: str, doc: dict) -> None:
     iam.put_role_policy(RoleName=role_name, PolicyName=policy_name, PolicyDocument=json.dumps(doc))
 
 
@@ -253,7 +260,7 @@ def _data_source_statements(runtime_env: dict[str, str], account: str, region: s
     return statements
 
 
-def _ensure_ecr_repo(ecr, name: str, region: str, account: str) -> str:
+def _ensure_ecr_repo(ecr: Any, name: str, region: str, account: str) -> str:
     try:
         repository = ecr.describe_repositories(repositoryNames=[name])["repositories"][0]
         logger.info("ECR repo exists: %s", name)
@@ -279,7 +286,7 @@ def _ensure_ecr_repo(ecr, name: str, region: str, account: str) -> str:
     return f"{account}.dkr.ecr.{region}.amazonaws.com/{name}"
 
 
-def _ensure_source_bucket_policy(s3, bucket: str) -> None:
+def _ensure_source_bucket_policy(s3: Any, bucket: str) -> None:
     try:
         policy = json.loads(s3.get_bucket_policy(Bucket=bucket)["Policy"])
     except ClientError as exc:
@@ -309,7 +316,7 @@ def _ensure_source_bucket_policy(s3, bucket: str) -> None:
     s3.put_bucket_policy(Bucket=bucket, Policy=json.dumps(policy))
 
 
-def _ensure_source_bucket(s3, bucket: str, region: str) -> None:
+def _ensure_source_bucket(s3: Any, bucket: str, region: str) -> None:
     try:
         s3.head_bucket(Bucket=bucket)
         logger.info("Source bucket exists: %s", bucket)
@@ -350,7 +357,15 @@ def _ensure_source_bucket(s3, bucket: str, region: str) -> None:
     _ensure_source_bucket_policy(s3, bucket)
 
 
-def _wait_for_image_scan(ecr, repository_name: str, image_tag: str) -> dict[str, int]:
+def _wait_for_image_scan(ecr: Any, repository_name: str, image_tag: str) -> dict[str, int]:
+    """Block until the scan-on-push result is in, failing on CRITICAL/HIGH.
+
+    Hand-rolled rather than ``ecr.get_waiter('image_scan_complete')``: that
+    waiter has no acceptor for ``ScanNotFoundException``, which ECR returns
+    for the seconds between the push and the scan record appearing, so it
+    would raise instead of retrying. The findings response is needed anyway
+    to read ``findingSeverityCounts``.
+    """
     deadline = time.monotonic() + IMAGE_SCAN_TIMEOUT_SECONDS
     while True:
         if time.monotonic() > deadline:
@@ -401,28 +416,43 @@ def _zip_agent_dir() -> bytes:
     return buf.getvalue()
 
 
-def _ensure_codebuild_project(
-    cb,
-    project_name: str,
-    service_role_arn: str,
-    source_bucket: str,
-    source_key: str,
-    region: str,
-    account: str,
-    repo_name: str,
-    image_tag: str,
-) -> None:
+@dataclass(frozen=True, slots=True)
+class ImageBuild:
+    """One CodeBuild image build: where its source is and what it produces.
+
+    Attributes:
+        project_name: CodeBuild project to create or update.
+        service_role_arn: Role CodeBuild assumes for the build.
+        source_bucket: Bucket holding the zipped agent source.
+        source_key: Key of the uploaded source zip.
+        region: Region of the target ECR repository.
+        account: Account of the target ECR repository.
+        repo_name: ECR repository the build pushes to.
+        image_tag: Immutable tag applied to the pushed image.
+    """
+
+    project_name: str
+    service_role_arn: str
+    source_bucket: str
+    source_key: str
+    region: str
+    account: str
+    repo_name: str
+    image_tag: str
+
+
+def _ensure_codebuild_project(cb: Any, build: ImageBuild) -> None:
     env_vars = [
-        {"name": "AWS_DEFAULT_REGION", "value": region},
-        {"name": "AWS_ACCOUNT_ID", "value": account},
-        {"name": "IMAGE_REPO_NAME", "value": repo_name},
-        {"name": "IMAGE_TAG", "value": image_tag},
+        {"name": "AWS_DEFAULT_REGION", "value": build.region},
+        {"name": "AWS_ACCOUNT_ID", "value": build.account},
+        {"name": "IMAGE_REPO_NAME", "value": build.repo_name},
+        {"name": "IMAGE_TAG", "value": build.image_tag},
     ]
     project_kwargs = {
-        "name": project_name,
+        "name": build.project_name,
         "source": {
             "type": "S3",
-            "location": f"{source_bucket}/{source_key}",
+            "location": f"{build.source_bucket}/{build.source_key}",
             "buildspec": "buildspec.yml",
         },
         "artifacts": {"type": "NO_ARTIFACTS"},
@@ -433,19 +463,19 @@ def _ensure_codebuild_project(
             "privilegedMode": True,
             "environmentVariables": env_vars,
         },
-        "serviceRole": service_role_arn,
+        "serviceRole": build.service_role_arn,
     }
     try:
         cb.create_project(**project_kwargs)
-        logger.info("Created CodeBuild project: %s", project_name)
+        logger.info("Created CodeBuild project: %s", build.project_name)
     except ClientError as exc:
         if exc.response["Error"]["Code"] != "ResourceAlreadyExistsException":
             raise
         cb.update_project(**project_kwargs)
-        logger.info("Updated CodeBuild project: %s", project_name)
+        logger.info("Updated CodeBuild project: %s", build.project_name)
 
 
-def _run_build(cb, project_name: str) -> str:
+def _run_build(cb: Any, project_name: str) -> str:
     logger.info("Starting build for %s", project_name)
     build_id = cb.start_build(projectName=project_name)["build"]["id"]
     logger.info("Build started: %s — polling for completion", build_id)
@@ -469,7 +499,7 @@ def _run_build(cb, project_name: str) -> str:
 
 
 def _ensure_runtime(
-    bac,
+    bac: Any,
     runtime_name: str,
     image_uri: str,
     execution_role_arn: str,
@@ -511,7 +541,7 @@ def _ensure_runtime(
     return resp["agentRuntimeArn"]
 
 
-def main() -> int:
+def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--runtime-name", default="agent_eval_runtime_dev")
     p.add_argument("--ecr-repo", default="agent-eval-runtime")
@@ -584,7 +614,12 @@ def main() -> int:
             "config can be flipped without rebuilding the image."
         ),
     )
-    args = p.parse_args()
+    return p.parse_args()
+
+
+def main() -> int:
+    """Build the agent image in CodeBuild, then print its immutable digest URI."""
+    args = _parse_args()
 
     if args.image_tag is None:
         args.image_tag = _git_sha()
@@ -815,14 +850,16 @@ def main() -> int:
     # 4. CodeBuild project
     _ensure_codebuild_project(
         cb,
-        args.codebuild_project,
-        cb_role_arn,
-        source_bucket,
-        source_key,
-        region,
-        account,
-        args.ecr_repo,
-        args.image_tag,
+        ImageBuild(
+            project_name=args.codebuild_project,
+            service_role_arn=cb_role_arn,
+            source_bucket=source_bucket,
+            source_key=source_key,
+            region=region,
+            account=account,
+            repo_name=args.ecr_repo,
+            image_tag=args.image_tag,
+        ),
     )
 
     # 5. Run the build

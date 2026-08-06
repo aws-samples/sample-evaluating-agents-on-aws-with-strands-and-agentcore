@@ -146,7 +146,14 @@ def _build_image(target: AwsTarget, *, ecr_repo: str, image_tag: str) -> str:
     return _digest_uri(target, ecr_repo=ecr_repo, image_tag=image_tag)
 
 
-def _cdk_command(target: AwsTarget, action: str, *, image_uri: str, env_name: str) -> None:
+def _cdk_command(
+    target: AwsTarget,
+    action: str,
+    *,
+    image_uri: str,
+    env_name: str,
+    alert_email: str | None,
+) -> None:
     if shutil.which("cdk") is None:
         raise RuntimeError("cdk CLI not found on PATH. Install with: npm install -g aws-cdk")
     env = {
@@ -167,6 +174,10 @@ def _cdk_command(target: AwsTarget, action: str, *, image_uri: str, env_name: st
         "-c",
         f"agent_image_uri={image_uri}",
     ]
+    if alert_email:
+        # Subscribes the address to the evaluation alert topic so the CloudWatch
+        # alarms reach a human. AWS emails a confirmation link to accept.
+        command.extend(["-c", f"alert_email={alert_email}"])
     if action == "deploy":
         # The repository confirmation above already verifies the exact account,
         # region, action, and cost. Forward that approval for non-interactive
@@ -188,6 +199,14 @@ def main() -> int:
     p.add_argument("--ecr-repo", default="agent-eval-runtime")
     p.add_argument("--image-tag", default=None, help="Immutable tag; defaults to the git SHA")
     p.add_argument("--environment", default="dev")
+    p.add_argument(
+        "--alert-email",
+        default=None,
+        help=(
+            "Subscribe this address to the evaluation alert topic so the CloudWatch "
+            "alarms reach a human. AWS emails a confirmation link to accept."
+        ),
+    )
     p.add_argument("--yes", action="store_true", help="Approve displayed AWS mutation and cost")
     p.add_argument(
         "--skip-build",
@@ -232,7 +251,13 @@ def main() -> int:
 
     target.reverify()
     logger.info("Reviewing CDK diff before deployment")
-    _cdk_command(target, "diff", image_uri=image_uri, env_name=args.environment)
+    _cdk_command(
+        target,
+        "diff",
+        image_uri=image_uri,
+        env_name=args.environment,
+        alert_email=args.alert_email,
+    )
     confirm_mutation(
         action="deploy-cdk-stacks",
         account=target.account,
@@ -245,7 +270,13 @@ def main() -> int:
         approved=args.yes,
     )
     target.reverify()
-    _cdk_command(target, "deploy", image_uri=image_uri, env_name=args.environment)
+    _cdk_command(
+        target,
+        "deploy",
+        image_uri=image_uri,
+        env_name=args.environment,
+        alert_email=args.alert_email,
+    )
     logger.info("Deploy complete.")
     return 0
 

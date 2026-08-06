@@ -285,6 +285,12 @@ This is the supported one-shot flow. It builds the agent container in AWS CodeBu
 > Later, to re-deploy CDK-only changes without rebuilding the image, add
 > `--skip-build --image-tag <existing-git-sha>`. The script resolves that tag
 > to an immutable ECR digest before `cdk diff` or deployment.
+>
+> Add `--alert-email <you@example.com>` to subscribe yourself to the evaluation
+> alert topic. Every CloudWatch alarm in the monitoring stack publishes there, so
+> without a subscription the alarms fire silently. AWS emails a confirmation link
+> you accept once. Omit the flag and the topic stays unsubscribed; with a bare
+> `cdk` invocation the equivalent is `-c alert_email=<you@example.com>`.
 
 ### 5. Run Build-Time Quality Checks
 

@@ -35,6 +35,9 @@ from aws_cdk import (
 from aws_cdk import (
     aws_sns as sns,
 )
+from aws_cdk import (
+    aws_sns_subscriptions as subscriptions,
+)
 from constructs import Construct
 
 from lib.security import (
@@ -88,6 +91,7 @@ class EvaluationStack(Stack):
             # CDK API requires this specific parameter name.
             master_key=evaluation_key,
         )
+        self._subscribe_alert_email()
 
         # CloudWatch Log Group for evaluation results
         evaluation_log_group_name = f"/aws/agent-evaluation/{env_name}"
@@ -252,3 +256,22 @@ class EvaluationStack(Stack):
             description="IAM role ARN for build-time evaluation",
             export_name=f"{env_name}-build-eval-role-arn",
         )
+
+    def _subscribe_alert_email(self) -> None:
+        """Subscribe an operator email to the alert topic, when one is configured.
+
+        Every alarm in ``MonitoringStack`` publishes to this topic, so without a
+        subscription the alarms fire silently. Pass ``-c alert_email=ops@example.com``
+        (or ``--alert-email`` on ``scripts/deploy_stack.py``) to receive them.
+        Omitting the context value leaves the topic unsubscribed, so the quickstart
+        deploy keeps working unchanged. AWS sends a confirmation link that the
+        recipient must accept before delivery starts.
+        """
+        alert_email = self.node.try_get_context("alert_email")
+        if not alert_email:
+            return
+        # Context comes from the CLI or cdk.json, so validate at this boundary
+        # rather than letting CloudFormation fail late in the deploy.
+        if not isinstance(alert_email, str) or "@" not in alert_email:
+            raise ValueError(f"alert_email context must be an email address, got {alert_email!r}")
+        self.alert_topic.add_subscription(subscriptions.EmailSubscription(alert_email))

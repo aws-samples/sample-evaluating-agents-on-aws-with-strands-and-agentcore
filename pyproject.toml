@@ -1,6 +1,6 @@
 [project]
 name = "agentic-evaluation"
-version = "0.3.0"
+version = "0.4.0"
 description = "Universal three-layer evaluation SDK for AI agents"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -73,6 +73,7 @@ dev = [
     # valid `except (A, B):` into invalid `except A, B:` (a SyntaxError). We
     # pin the latest verified-safe patch (whole 0.15.x line is affected).
     "ruff==0.14.14",
+    "pyright>=1.1.407",
     "lancedb==0.33.0",
     "pandas>=2.0.0",
 ]
@@ -101,20 +102,116 @@ constraint-dependencies = [
     "pillow>=12.3.0",
 ]
 
+[tool.pyright]
+# The type half of the quality gate; ruff owns the lint half. Both run in CI.
+# venvPath/venv are required: without them pyright resolves nothing from the
+# project environment and reports every third-party import as missing, which
+# buries the real diagnostics under ~40 false positives.
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+pythonVersion = "3.14"
+# Pinned rather than left to the default so a pyright release cannot silently
+# tighten or loosen the gate.
+typeCheckingMode = "standard"
+
 [tool.ruff]
 line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-# E: pycodestyle errors, F: pyflakes, C4: comprehensions, SIM: simplify
-# E501 (line-too-long) is enforced by line-length above; not in select to avoid
-# duplicating violations for lines that exceed the limit in non-owned files.
-select = ["E", "F", "C4", "SIM"]
-ignore = ["E501"]
+# Every rule family that encodes a project standard: typed public signatures
+# (ANN), Google docstrings on public APIs (D), absolute top-level imports
+# (TID/PLC0415), no dead code (F/ARG/ERA), arity and complexity ceilings (PL),
+# logging rather than print (T20/G/LOG), and current-version idioms (UP).
+# Deviations are enumerated in `ignore` with a reason; directory-level
+# relaxations live in per-file-ignores. Adding a rule family here is cheap;
+# silently dropping one is how a standard stops being enforced.
+select = [
+    "A",    # flake8-builtins          — no shadowing builtins
+    "ANN",  # flake8-annotations       — typed signatures
+    "ARG",  # flake8-unused-arguments  — no dead parameters
+    "B",    # flake8-bugbear           — likely bugs
+    "C4",   # flake8-comprehensions
+    "D",    # pydocstyle (google)      — documented public APIs
+    "DTZ",  # flake8-datetimez         — timezone-aware datetimes only
+    "E",    # pycodestyle errors
+    "ERA",  # eradicate                — no commented-out code
+    "F",    # pyflakes
+    "G",    # flake8-logging-format
+    "I",    # isort                    — deterministic import order
+    "LOG",  # flake8-logging
+    "N",    # pep8-naming
+    "PL",   # pylint                   — arity/complexity ceilings
+    "PT",   # flake8-pytest-style
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "RUF",  # ruff-specific
+    "S",    # flake8-bandit
+    "SIM",  # flake8-simplify
+    "T20",  # flake8-print             — logging, not print
+    "TID",  # flake8-tidy-imports      — absolute imports only
+    "TRY",  # tryceratops              — no blind/pointless error handling
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
+]
+ignore = [
+    # `ruff format` owns line breaking. What it leaves long is a URL, a literal,
+    # or a table it cannot legally split, so E501 would only ever re-flag lines
+    # the formatter already decided about.
+    "E501",
+    # Demands a bespoke exception subclass per message. Satisfying it would add
+    # ~96 single-use classes whose only content is a string, trading a specific
+    # message at the raise site for indirection — more code, less clarity.
+    "TRY003",
+    # `Any` is the honest annotation at genuinely dynamic boundaries: boto3
+    # response dicts, the Lambda `context` object, decoded JSON. ANN001/201/202
+    # stay on, so an annotation is still mandatory — this only permits `Any` to
+    # be the one written.
+    "ANN401",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports]
+# Project standard: absolute imports only, no `from ..x import y`.
+ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
-# S101: assert-used — asserts are idiomatic in pytest; suppress project-wide false-positives
-"tests/**" = ["S101"]
+# Tests are specifications, not a public API, and they are read top-to-bottom:
+# a docstring and `-> None` on every `test_*` adds ceremony without
+# information (D, ANN); importing inside a test is how import-time behaviour
+# and monkeypatched modules get exercised (PLC0415); pytest fixtures are
+# requested by name even when only their side effect is wanted (ARG); and
+# asserts, dummy credentials and literal expected values are the substance of
+# a test, not smells (S101/S105/S106, PLR2004).
+"tests/**" = [
+    "ANN",
+    "ARG",
+    "D",
+    "PLC0415",
+    "PLR2004",
+    "S101",
+    "S105",
+    "S106",
+]
+# The layer-by-layer score breakdown these tests print *is* their operator
+# output (read under `pytest -s` when judging a real deployment). Scoped to
+# integration only: a `print` under tests/unit or tests/sdk is debug cruft and
+# stays an error there.
+"tests/integration/**" = ["T201"]
+# For an operator CLI, stdout is the interface — `print` is the deliverable,
+# not a logging misuse. Status and diagnostics in these files still go through
+# `logging`; only the user-facing result is printed.
+"scripts/**" = ["T201"]
+"quickstart/**" = ["T201"]
+# T201 as above. TRY400 (`logger.exception` over `logger.error`) is deliberately
+# not followed for the caught, expected failures this module maps to exit code 2
+# — a bad config path or a typo'd task_fn is a user error, and the actionable
+# one-line message is the right output, not a stack trace. The genuinely
+# unexpected path (exit code 3) does use `logger.exception`.
+"src/agentic_evaluation/cli.py" = ["T201", "TRY400"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

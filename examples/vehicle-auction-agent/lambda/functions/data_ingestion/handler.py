@@ -36,7 +36,32 @@ EXPECTED_EMBEDDING_DIMENSION = int(os.environ.get("EXPECTED_EMBEDDING_DIMENSION"
 LANCEDB_MANIFEST_KEY = os.environ.get("LANCEDB_MANIFEST_KEY", "lancedb/manifest.json")
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def _validated_success_ratio(embedded_count: int, candidate_count: int) -> float:
+    """Return the embedding success ratio, rejecting a degraded batch.
+
+    Args:
+        embedded_count: Vehicles that received an embedding.
+        candidate_count: Vehicles submitted for embedding.
+
+    Returns:
+        The success ratio, ``0.0`` when nothing was submitted.
+
+    Raises:
+        ValueError: If the ratio is below ``MIN_EMBEDDING_SUCCESS_RATIO``.
+    """
+    ratio = embedded_count / candidate_count if candidate_count else 0.0
+    if ratio < MIN_EMBEDDING_SUCCESS_RATIO:
+        raise ValueError(
+            f"Embedding success ratio {ratio:.1%} "
+            f"is below required {MIN_EMBEDDING_SUCCESS_RATIO:.1%}"
+        )
+    return ratio
+
+
+def lambda_handler(
+    event: dict[str, Any],  # noqa: ARG001 - fixed Lambda signature; the schedule carries no input
+    context: Any,  # noqa: ARG001 - fixed Lambda signature
+) -> dict[str, Any]:
     """Main Lambda handler for data ingestion.
 
     Args:
@@ -49,14 +74,14 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     logger.info("Starting data ingestion for environment: %s", ENVIRONMENT)
     logger.info("Mock BigQuery mode: %s", MOCK_BIGQUERY)
 
+    if not MOCK_BIGQUERY:
+        # Real BigQuery integration would go here.
+        raise NotImplementedError("Real BigQuery integration not implemented")
+
     try:
         # Step 1: Fetch vehicle data (mocked BigQuery)
-        if MOCK_BIGQUERY:
-            logger.info("Fetching sample vehicle data from S3 (mocked BigQuery)")
-            vehicles = fetch_sample_data_from_s3()
-        else:
-            # Real BigQuery integration would go here
-            raise NotImplementedError("Real BigQuery integration not implemented")
+        logger.info("Fetching sample vehicle data from S3 (mocked BigQuery)")
+        vehicles = fetch_sample_data_from_s3()
 
         logger.info("Fetched %s vehicles", len(vehicles))
 
@@ -69,12 +94,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         vehicles_with_embeddings = generate_embeddings(vehicles_with_context)
         embedded_count = len(vehicles_with_embeddings)
         embedding_failures = len(vehicles_with_context) - embedded_count
-        success_ratio = embedded_count / len(vehicles_with_context) if vehicles_with_context else 0
-        if success_ratio < MIN_EMBEDDING_SUCCESS_RATIO:
-            raise ValueError(
-                "Embedding success ratio "
-                f"{success_ratio:.1%} is below required {MIN_EMBEDDING_SUCCESS_RATIO:.1%}"
-            )
+        success_ratio = _validated_success_ratio(embedded_count, len(vehicles_with_context))
         validate_lancedb_snapshot(
             vehicles_with_embeddings,
             expected_dimension=EXPECTED_EMBEDDING_DIMENSION,
@@ -118,8 +138,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             ),
         }
 
-    except (ClientError, json.JSONDecodeError, KeyError, ValueError, NotImplementedError) as e:
-        logger.error("Error in data ingestion: %s", e, exc_info=True)
+    except (ClientError, json.JSONDecodeError, KeyError, ValueError):
+        logger.exception("Error in data ingestion")
         raise
 
 
@@ -163,10 +183,8 @@ def load_field_mapping_config() -> dict[str, Any]:
     config_path = Path(__file__).parent / "config" / "field_mappings.json"
 
     try:
-        with open(config_path, "r") as f:
+        with config_path.open() as f:
             config = json.load(f)
-        logger.info("Loaded field mapping config version %s", config.get("version", "unknown"))
-        return config
     except FileNotFoundError:
         logger.warning("Field mapping config not found at %s, using defaults", config_path)
         # Return minimal default config
@@ -194,6 +212,8 @@ def load_field_mapping_config() -> dict[str, Any]:
                 "transmission": "unknown",
             },
         }
+    logger.info("Loaded field mapping config version %s", config.get("version", "unknown"))
+    return config
 
 
 def resolve_field(vehicle: dict[str, Any], field_name: str, config: dict) -> Any:
@@ -304,12 +324,11 @@ def fetch_sample_data_from_s3() -> list[dict[str, Any]]:
 
         # Parse DynamoDB format if present
         logger.info("Parsing %s vehicles from DynamoDB format", len(vehicles))
-        parsed_vehicles = [parse_dynamodb_format(v) for v in vehicles]
-
-        return parsed_vehicles
     except s3_client.exceptions.NoSuchKey:
         logger.warning("Sample data not found at %s, creating default dataset", SAMPLE_DATA_KEY)
         return create_default_vehicle_data()
+    else:
+        return [parse_dynamodb_format(v) for v in vehicles]
 
 
 def create_default_vehicle_data() -> list[dict[str, Any]]:
@@ -318,7 +337,7 @@ def create_default_vehicle_data() -> list[dict[str, Any]]:
     Returns:
         List of sample vehicle dictionaries
     """
-    vehicles = [
+    return [
         {
             "id": "v001",
             "make": "BMW",
@@ -363,7 +382,6 @@ def create_default_vehicle_data() -> list[dict[str, Any]]:
             "auction_id": f"auction_{datetime.now(tz=UTC).strftime('%Y_%m_%d')}",
         },
     ]
-    return vehicles
 
 
 def contextualize_vehicles(vehicles: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -459,8 +477,8 @@ def generate_embeddings(vehicles: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 len(embedding),
             )
 
-        except (ClientError, json.JSONDecodeError, KeyError) as e:
-            logger.error("Error generating embedding for vehicle %s: %s", vehicle["id"], e)
+        except (ClientError, json.JSONDecodeError, KeyError):
+            logger.exception("Error generating embedding for vehicle %s", vehicle["id"])
             # Skip vehicle — zero vectors poison semantic search results
             logger.warning("Skipping vehicle %s due to embedding failure", vehicle["id"])
             continue
@@ -519,6 +537,8 @@ def write_lancedb_source_to_s3(
 
     Args:
         vehicles: List of vehicles with embeddings
+        expected_dimension: Vector width every embedding must have; ``0``
+            skips the width assertion.
 
     Returns:
         Publication metadata including the immutable data key and version

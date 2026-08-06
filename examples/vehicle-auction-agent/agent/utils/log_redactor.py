@@ -28,6 +28,16 @@ class SensitiveFieldFilter(logging.Filter):
     """Redacts dealer/session identifiers from log records."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Redact identifiers in place, always keeping the record.
+
+        Args:
+            record: The record about to be emitted. Its message is rewritten in
+                place; lazy ``%``-style args are interpolated first so patterns
+                can match values the caller passed separately.
+
+        Returns:
+            Always ``True`` — this filter rewrites records, it never drops them.
+        """
         if not REDACTION_ENABLED:
             return True
         if record.args:
@@ -35,6 +45,9 @@ class SensitiveFieldFilter(logging.Filter):
                 record.msg = record.msg % record.args
                 record.args = None
             except (TypeError, ValueError):
+                # A caller's args do not match its format string. Leave both
+                # alone: the stdlib handler will surface the same error, and
+                # logging from inside a filter would recurse.
                 pass
         msg = str(record.msg)
         msg = _ACTOR_ID_PATTERN.sub(r"\g<1>" + _REDACTED, msg)

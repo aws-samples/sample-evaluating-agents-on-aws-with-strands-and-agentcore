@@ -35,11 +35,11 @@ def validate_s3_bucket(session: boto3.Session, bucket_name: str, region: str) ->
         # Check versioning
         versioning = s3.get_bucket_versioning(Bucket=bucket_name)
         print(f"[OK] S3 bucket versioning: {versioning.get('Status', 'Disabled')}")
-
-        return True
     except Exception as e:
         print(f"[FAIL] S3 bucket validation failed: {e}")
         return False
+    else:
+        return True
 
 
 def validate_lambda_function(session: boto3.Session, function_name: str, region: str) -> bool:
@@ -53,11 +53,11 @@ def validate_lambda_function(session: boto3.Session, function_name: str, region:
         print(f"   Runtime: {config['Runtime']}")
         print(f"   Memory: {config['MemorySize']} MB")
         print(f"   Timeout: {config['Timeout']} seconds")
-
-        return True
     except Exception as e:
         print(f"[FAIL] Lambda function validation failed: {e}")
         return False
+    else:
+        return True
 
 
 def _source_arns(statement: dict[str, Any]) -> list[str]:
@@ -73,6 +73,39 @@ def _source_arns(statement: dict[str, Any]) -> list[str]:
     return sources
 
 
+def _invoke_grant_violation(
+    statement: dict[str, Any],
+    allowed_service_principal: str,
+    allowed_source_arn_patterns: tuple[str, ...],
+) -> str | None:
+    """Describe why an Allow statement is not a scoped service invoke grant."""
+    actions = statement.get("Action", [])
+    action_list = actions if isinstance(actions, list) else [actions]
+    if action_list != ["lambda:InvokeFunction"]:
+        return f"has a non-standard resource-policy action: {action_list}"
+
+    principal = statement.get("Principal")
+    if principal != {"Service": allowed_service_principal}:
+        return f"has an unexpected resource-policy principal: {principal}"
+
+    condition_keys = {
+        key.lower()
+        for values in statement.get("Condition", {}).values()
+        if isinstance(values, dict)
+        for key in values
+    }
+    if {"lambda:functionurlauthtype", "lambda:invokedviafunctionurl"} & condition_keys:
+        return "has Function URL permissions"
+
+    sources = _source_arns(statement)
+    if not sources or any(
+        not any(re.fullmatch(pattern, source) for pattern in allowed_source_arn_patterns)
+        for source in sources
+    ):
+        return f"has an unexpected or unscoped SourceArn: {sources}"
+    return None
+
+
 def validate_lambda_exposure(
     session: boto3.Session,
     function_name: str,
@@ -85,17 +118,13 @@ def validate_lambda_exposure(
     try:
         lambda_client = session.client("lambda", region_name=region)
 
-        function_urls: list[dict[str, Any]] = []
-        marker: str | None = None
-        while True:
-            request = {"FunctionName": function_name}
-            if marker:
-                request["Marker"] = marker
-            response = lambda_client.list_function_url_configs(**request)
-            function_urls.extend(response.get("FunctionUrlConfigs", []))
-            marker = response.get("NextMarker")
-            if not marker:
-                break
+        function_urls = [
+            config
+            for page in lambda_client.get_paginator("list_function_url_configs").paginate(
+                FunctionName=function_name
+            )
+            for config in page.get("FunctionUrlConfigs", [])
+        ]
         if function_urls:
             print(f"[FAIL] Lambda '{function_name}' has a Function URL")
             return False
@@ -105,62 +134,26 @@ def validate_lambda_exposure(
         for statement in policy.get("Statement", []):
             if statement.get("Effect") != "Allow":
                 continue
-
-            actions = statement.get("Action", [])
-            action_list = actions if isinstance(actions, list) else [actions]
-            if action_list != ["lambda:InvokeFunction"]:
-                print(
-                    f"[FAIL] Lambda '{function_name}' has a non-standard "
-                    f"resource-policy action: {action_list}"
-                )
-                return False
-
-            principal = statement.get("Principal")
-            if principal != {"Service": allowed_service_principal}:
-                print(
-                    f"[FAIL] Lambda '{function_name}' has an unexpected "
-                    f"resource-policy principal: {principal}"
-                )
-                return False
-
-            condition = statement.get("Condition", {})
-            condition_keys = {
-                key.lower()
-                for values in condition.values()
-                if isinstance(values, dict)
-                for key in values
-            }
-            if {
-                "lambda:functionurlauthtype",
-                "lambda:invokedviafunctionurl",
-            } & condition_keys:
-                print(f"[FAIL] Lambda '{function_name}' has Function URL permissions")
-                return False
-
-            sources = _source_arns(statement)
-            if not sources or any(
-                not any(re.fullmatch(pattern, source) for pattern in allowed_source_arn_patterns)
-                for source in sources
-            ):
-                print(
-                    f"[FAIL] Lambda '{function_name}' has an unexpected or "
-                    f"unscoped SourceArn: {sources}"
-                )
+            violation = _invoke_grant_violation(
+                statement, allowed_service_principal, allowed_source_arn_patterns
+            )
+            if violation:
+                print(f"[FAIL] Lambda '{function_name}' {violation}")
                 return False
             invoke_statement_count += 1
 
         if invoke_statement_count == 0:
             print(f"[FAIL] Lambda '{function_name}' has no approved invocation policy")
             return False
-
+    except Exception as e:
+        print(f"[FAIL] Lambda '{function_name}' exposure validation failed: {e}")
+        return False
+    else:
         print(
             f"[OK] Lambda '{function_name}' has no Function URL and only "
             f"scoped {allowed_service_principal} invocation"
         )
         return True
-    except Exception as e:
-        print(f"[FAIL] Lambda '{function_name}' exposure validation failed: {e}")
-        return False
 
 
 def find_rest_api_id(session: boto3.Session, api_name: str, region: str) -> str:
@@ -183,10 +176,11 @@ def validate_cloudwatch_dashboard(session: boto3.Session, dashboard_name: str, r
         cw = session.client("cloudwatch", region_name=region)
         cw.get_dashboard(DashboardName=dashboard_name)
         print(f"[OK] CloudWatch dashboard '{dashboard_name}' exists")
-        return True
     except Exception as e:
         print(f"[FAIL] CloudWatch dashboard validation failed: {e}")
         return False
+    else:
+        return True
 
 
 def validate_eventbridge_rule(session: boto3.Session, rule_name: str, region: str) -> bool:
@@ -197,10 +191,11 @@ def validate_eventbridge_rule(session: boto3.Session, rule_name: str, region: st
         print(f"[OK] EventBridge rule '{rule_name}' exists")
         print(f"   State: {response['State']}")
         print(f"   Schedule: {response.get('ScheduleExpression', 'N/A')}")
-        return True
     except Exception as e:
         print(f"[FAIL] EventBridge rule validation failed: {e}")
         return False
+    else:
+        return True
 
 
 def validate_sns_topic(
@@ -214,15 +209,20 @@ def validate_sns_topic(
         sns.get_topic_attributes(TopicArn=topic_arn)
         print(f"[OK] SNS topic '{topic_name}' exists")
 
-        # Check subscriptions
-        subscriptions = sns.list_subscriptions_by_topic(TopicArn=topic_arn)
-        sub_count = len(subscriptions["Subscriptions"])
+        # Check subscriptions. Paginated: a single call caps at 100 and would
+        # under-report the count this check reports on.
+        sub_count = sum(
+            len(page["Subscriptions"])
+            for page in sns.get_paginator("list_subscriptions_by_topic").paginate(
+                TopicArn=topic_arn
+            )
+        )
         print(f"   Subscriptions: {sub_count}")
-
-        return True
     except Exception as e:
         print(f"[FAIL] SNS topic validation failed: {e}")
         return False
+    else:
+        return True
 
 
 def main() -> int:
@@ -315,10 +315,9 @@ def main() -> int:
         print(f"[OK] All {total} validation checks passed!")
         print(f"{'=' * 60}\n")
         return 0
-    else:
-        print(f"[FAIL] {total - passed}/{total} validation checks failed!")
-        print(f"{'=' * 60}\n")
-        return 1
+    print(f"[FAIL] {total - passed}/{total} validation checks failed!")
+    print(f"{'=' * 60}\n")
+    return 1
 
 
 if __name__ == "__main__":

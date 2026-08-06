@@ -6,13 +6,20 @@ import logging
 from collections import Counter
 from typing import Any
 
+import pytest
 from strands_evals import Case
 
 from agentic_evaluation.run_experiment import build_cases_from_registry, run_all_layers
 from agentic_evaluation.test_cases import (
     EvaluationLayer,
+)
+from agentic_evaluation.test_cases import (
     TestCase as EvaluationTestCase,
+)
+from agentic_evaluation.test_cases import (
     TestCaseRegistry as EvaluationTestCaseRegistry,
+)
+from agentic_evaluation.test_cases import (
     TestCategory as EvaluationTestCategory,
 )
 
@@ -110,7 +117,7 @@ def test_each_trial_gets_one_fresh_execution_per_case() -> None:
     )
     calls = 0
 
-    def task_fn(case: Case) -> dict[str, Any]:  # noqa: ARG001
+    def task_fn(case: Case) -> dict[str, Any]:
         nonlocal calls
         calls += 1
         return {"output": "ok", "trajectory": ["search_vehicles"]}
@@ -126,12 +133,51 @@ def test_each_trial_gets_one_fresh_execution_per_case() -> None:
     assert calls == 3
 
 
+def test_multi_trial_aggregation_gates_on_every_trial() -> None:
+    """A run whose *last* trial passes must still fail the gate if an earlier one failed."""
+    registry = EvaluationTestCaseRegistry.from_config(
+        [_case("flaky", [EvaluationLayer.LAYER_1_TOOL_USAGE])]
+    )
+    trial = 0
+
+    def task_fn(case: Case) -> dict[str, Any]:
+        # One case, so one call per trial: trial 1 picks the wrong tool.
+        nonlocal trial
+        trial += 1
+        tool = "get_schema" if trial == 1 else "search_vehicles"
+        return {"output": "ok", "trajectory": [tool]}
+
+    results = run_all_layers(
+        task_fn,
+        registry=registry,
+        judge_backend="noop",
+        layers=["layer_1"],
+        num_trials=3,
+    )
+
+    layer_1 = results["layer_1"]
+    assert layer_1["passed"] is True  # the final trial
+    assert layer_1["pass_at_k"] is True  # at least one trial
+    assert layer_1["pass_all_k"] is False  # not every trial
+    assert layer_1["pass_rate"] == 2 / 3
+    assert results["num_trials"] == 3
+    # pass^k, not the last trial, is the CI gate.
+    assert results["all_passed"] is False
+    # Reports sample the first trial, which is the one that picked the wrong tool.
+    assert 0.0 in layer_1["reports"][0].scores
+
+
+def test_num_trials_below_one_is_rejected() -> None:
+    with pytest.raises(ValueError, match="num_trials must be at least 1"):
+        run_all_layers(lambda case: {"output": "", "trajectory": []}, num_trials=0)
+
+
 def test_run_reports_case_and_layer_progress(caplog) -> None:
     registry = EvaluationTestCaseRegistry.from_config(
         [_case("progress", [EvaluationLayer.LAYER_1_TOOL_USAGE])]
     )
 
-    def task_fn(case: Case) -> dict[str, Any]:  # noqa: ARG001
+    def task_fn(case: Case) -> dict[str, Any]:
         return {"output": "ok", "trajectory": ["search_vehicles"]}
 
     with caplog.at_level(logging.INFO, logger="agentic_evaluation.run_experiment"):

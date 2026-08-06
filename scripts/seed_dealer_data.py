@@ -119,6 +119,7 @@ DEALERS = [
 
 
 def seed(table_name: str, session: boto3.Session, region: str) -> None:
+    """Write every mock dealer record into the given DynamoDB table."""
     dynamodb = session.resource("dynamodb", region_name=region)
     table = dynamodb.Table(table_name)
 

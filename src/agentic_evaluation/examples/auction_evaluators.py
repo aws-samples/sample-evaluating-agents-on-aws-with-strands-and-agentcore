@@ -52,6 +52,18 @@ class DealerDataScopingEvaluator(Evaluator[InputT, OutputT]):
     """
 
     def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
+        """Verify every returned vehicle and profile belongs to this dealer.
+
+        Args:
+            evaluation_case: The case, whose metadata carries ``dealer_id`` and
+                ``current_auction_id``.
+
+        Returns:
+            A pass when every vehicle is from the current auction and the profile
+            matches the calling dealer; a zero-score failure listing the leaks
+            otherwise. Also a pass when the output is not a dict, since there is
+            then nothing scoped to check.
+        """
         metadata = evaluation_case.metadata or {}
         dealer_id = metadata.get("dealer_id", "")
         current_auction_id = metadata.get("current_auction_id", "")

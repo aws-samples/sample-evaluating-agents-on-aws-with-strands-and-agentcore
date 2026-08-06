@@ -4,6 +4,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 from strands_evals import Case
 
 from agentic_evaluation.adapters.strands_local import make_task_fn
@@ -81,9 +82,5 @@ def test_agent_factory_creates_one_agent_per_case() -> None:
 
 
 def test_requires_exactly_one_agent_source() -> None:
-    try:
+    with pytest.raises(ValueError, match="exactly one"):
         make_task_fn()
-    except ValueError as exc:
-        assert "exactly one" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("Expected ValueError")

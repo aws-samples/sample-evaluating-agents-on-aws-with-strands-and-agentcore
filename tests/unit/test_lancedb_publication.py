@@ -18,7 +18,8 @@ def ingestion_handler():
         / "examples/vehicle-auction-agent/lambda/functions/data_ingestion/handler.py"
     )
     spec = importlib.util.spec_from_file_location("test_data_ingestion_handler", handler_path)
-    assert spec and spec.loader
+    assert spec
+    assert spec.loader
     module = importlib.util.module_from_spec(spec)
     with (
         patch.dict(os.environ, {"DATA_BUCKET": "test-bucket"}),

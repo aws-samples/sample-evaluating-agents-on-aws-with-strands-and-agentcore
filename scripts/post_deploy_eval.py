@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-"""Run the SDK evaluation framework against a deployed AgentCore runtime.
+r"""Run the SDK evaluation framework against a deployed AgentCore runtime.
 
 Smoke test: invokes the runtime over a curated subset of the car-auction
 test cases (safety + a couple of happy-path queries) and runs Layer 1
@@ -81,6 +81,7 @@ def _smoke_cases() -> TestCaseRegistry:
 
 
 def main() -> int:
+    """Evaluate the deployed runtime and return a process exit code."""
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--runtime-arn", required=True)
     p.add_argument("--profile", required=True)

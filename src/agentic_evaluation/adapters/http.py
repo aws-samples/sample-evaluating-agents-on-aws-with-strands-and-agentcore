@@ -21,7 +21,8 @@ Usage::
 from __future__ import annotations
 
 import time
-from typing import Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import requests
 from strands_evals import Case
@@ -31,13 +32,37 @@ from agentic_evaluation.exceptions import TaskFnError
 from agentic_evaluation.types import TaskFnResult
 
 
+@dataclass(frozen=True, slots=True)
+class JsonKeys:
+    """The JSON field names an endpoint uses, mapped to the ``task_fn`` contract.
+
+    Defaults match the shape this SDK's own examples serve. Override only the
+    fields your endpoint spells differently::
+
+        make_task_fn(url, keys=JsonKeys(input="question", output="answer"))
+
+    Attributes:
+        input: Request key carrying the prompt.
+        output: Response key carrying the output text.
+        trajectory: Response key carrying the tool-name list.
+
+    .. versionadded:: 0.4.0
+    """
+
+    input: str = "prompt"
+    output: str = "output"
+    trajectory: str = "trajectory"
+
+
+DEFAULT_KEYS = JsonKeys()
+
+
 def make_task_fn(
     endpoint_url: str,
     headers: dict[str, str] | None = None,
     timeout_seconds: int = 30,
-    input_key: str = "prompt",
-    output_key: str = "output",
-    trajectory_key: str = "trajectory",
+    *,
+    keys: JsonKeys = DEFAULT_KEYS,
 ) -> Callable[[Case], TaskFnResult]:
     """Wrap a JSON HTTP endpoint as a ``task_fn``.
 
@@ -45,9 +70,15 @@ def make_task_fn(
         endpoint_url: Full URL of the agent endpoint.
         headers: Optional HTTP headers (e.g. auth).
         timeout_seconds: Request timeout.
-        input_key: Request JSON key for the prompt.
-        output_key: Response JSON key for the output text.
-        trajectory_key: Response JSON key for the tool-name list.
+        keys: The endpoint's JSON field names. See :class:`JsonKeys`.
+
+    Returns:
+        A ``task_fn`` that POSTs each case to the endpoint.
+
+    .. versionchanged:: 0.4.0
+        ``input_key`` / ``output_key`` / ``trajectory_key`` are replaced by the
+        ``keys`` value object, so mapping a new field extends :class:`JsonKeys`
+        instead of growing this signature.
     """
     session = requests.Session()
     session.headers.update({"Content-Type": "application/json"})
@@ -59,7 +90,7 @@ def make_task_fn(
 
         resp = session.post(
             endpoint_url,
-            json={input_key: case.input},
+            json={keys.input: case.input},
             timeout=timeout_seconds,
         )
         try:
@@ -71,8 +102,8 @@ def make_task_fn(
         data = resp.json()
 
         return {
-            "output": data.get(output_key, ""),
-            "trajectory": data.get(trajectory_key, []),
+            "output": data.get(keys.output, ""),
+            "trajectory": data.get(keys.trajectory, []),
             "environment_state": [
                 EnvironmentState(
                     name="metrics",

@@ -21,6 +21,12 @@ class PluginNotFoundError(EvaluationError):
     """Raised when a YAML config references an entry-point name that isn't installed."""
 
     def __init__(self, name: str, available: list[str] | None = None) -> None:
+        """Build the error, listing what *is* installed to make the typo obvious.
+
+        Args:
+            name: The plugin name the config asked for.
+            available: Names actually registered under the entry-point group.
+        """
         self.name = name
         self.available = available or []
         msg = f"Evaluator plugin {name!r} not found"
@@ -35,6 +41,12 @@ class PluginLoadError(EvaluationError):
     """Raised when an entry-point is registered but importing it fails."""
 
     def __init__(self, name: str, original: BaseException) -> None:
+        """Wrap the underlying import failure, preserving it for the traceback.
+
+        Args:
+            name: The plugin name whose import failed.
+            original: The exception raised while loading the entry point.
+        """
         self.name = name
         self.original = original
         super().__init__(f"Failed to load plugin {name!r}: {type(original).__name__}: {original}")

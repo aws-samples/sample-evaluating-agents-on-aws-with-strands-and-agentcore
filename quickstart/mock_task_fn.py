@@ -11,7 +11,7 @@ you've confirmed the pipeline works end-to-end.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from strands_evals.types.evaluation import EnvironmentState
@@ -49,7 +49,7 @@ def task_fn(case: Any) -> dict[str, Any]:
         "latency_ms": 12,
         "total_tokens": 0,
         "estimated_cost_usd": 0.0,
-        "last_refresh_time": datetime.now(timezone.utc).isoformat(),
+        "last_refresh_time": datetime.now(UTC).isoformat(),
     }
     return {
         "output": output,

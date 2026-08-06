@@ -29,7 +29,8 @@ def test_noop_returns_passing_layer2():
     assert len(evaluators) == 1
     ev = evaluators[0]
     out = ev.evaluate(None)[0]
-    assert out.test_pass and "noop" in out.reason
+    assert out.test_pass
+    assert "noop" in out.reason
     # Must be runnable through the strands_evals async path.
     assert ev.get_type_name() == "NoOpJudge_layer_2"
 

@@ -119,13 +119,7 @@ def _load_test_cases(raw: dict[str, Any], config_path: Path | None) -> list[Test
         tc_path = (base / path_ref).resolve()
         if not tc_path.exists():
             raise ConfigError(f"test_cases_path not found: {tc_path}")
-        try:
-            with open(tc_path) as f:
-                tc_raw = yaml.safe_load(f)
-        except yaml.MarkedYAMLError as exc:
-            mark = exc.problem_mark
-            loc = f"{tc_path}:{mark.line + 1}:{mark.column + 1}" if mark else str(tc_path)
-            raise ConfigError(f"YAML parse error in {loc}: {exc.problem}") from exc
+        tc_raw = _load_yaml(tc_path)
 
         if isinstance(tc_raw, list):
             cases_raw = tc_raw
@@ -140,29 +134,77 @@ def _load_test_cases(raw: dict[str, Any], config_path: Path | None) -> list[Test
     return [_parse_test_case(tc) for tc in (inline or [])]
 
 
-def load_config(config_path: str | Path | None = None) -> EvalConfig:
-    """Load evaluation config from YAML file.
+def _load_yaml(path: Path) -> Any:
+    """Parse a YAML file, reporting a parse error with its exact location.
+
+    Args:
+        path: File to read.
+
+    Returns:
+        The parsed document; None for an empty file.
+
+    Raises:
+        ConfigError: The file is not valid YAML. The message carries
+            ``file:line:column`` so the author can go straight to it.
+    """
+    try:
+        return yaml.safe_load(path.read_text())
+    except yaml.MarkedYAMLError as exc:
+        mark = exc.problem_mark
+        loc = f"{path}:{mark.line + 1}:{mark.column + 1}" if mark else str(path)
+        raise ConfigError(f"YAML parse error in {loc}: {exc.problem}") from exc
+
+
+def _resolve_config_path(config_path: str | Path | None) -> Path | None:
+    """Find which eval_config.yaml to load.
 
     Resolution order:
       1. Explicit path argument
       2. EVAL_CONFIG_PATH environment variable
       3. eval_config.yaml in the current working directory
       4. eval_config.yaml in the repo root (relative to this file)
+
+    An explicitly requested path (1, 2) is returned without an existence check,
+    so a typo surfaces as a FileNotFoundError naming the path the caller asked
+    for. The implicit fallbacks (3, 4) are checked, since "not there" is the
+    normal case for those.
+
+    Args:
+        config_path: The caller's explicit path, if any.
+
+    Returns:
+        The config path to load, or None when no config is available.
     """
-    if config_path is None:
-        config_path = os.environ.get("EVAL_CONFIG_PATH")
+    if config_path is not None:
+        return Path(config_path)
+    env_path = os.environ.get("EVAL_CONFIG_PATH")
+    if env_path:
+        return Path(env_path)
+    for candidate in (
+        Path.cwd() / "eval_config.yaml",
+        Path(__file__).parent.parent / "eval_config.yaml",
+    ):
+        if candidate.exists():
+            return candidate
+    return None
 
-    if config_path is None:
-        cwd_path = Path.cwd() / "eval_config.yaml"
-        if cwd_path.exists():
-            config_path = cwd_path
 
-    if config_path is None:
-        repo_path = Path(__file__).parent.parent / "eval_config.yaml"
-        if repo_path.exists():
-            config_path = repo_path
+def load_config(config_path: str | Path | None = None) -> EvalConfig:
+    """Load evaluation config from YAML file.
 
-    if config_path is None:
+    Args:
+        config_path: Explicit path to an eval_config.yaml. When omitted, the
+            file is located per :func:`_resolve_config_path`.
+
+    Returns:
+        The parsed config, or one of built-in defaults when no file is found.
+
+    Raises:
+        ConfigError: The file is not valid YAML, or its top level is not a
+            mapping.
+    """
+    resolved = _resolve_config_path(config_path)
+    if resolved is None:
         logger.warning(
             "No eval_config.yaml found (checked the EVAL_CONFIG_PATH env var, the "
             "current working directory, and the package root). Falling back to "
@@ -171,14 +213,8 @@ def load_config(config_path: str | Path | None = None) -> EvalConfig:
         )
         return EvalConfig()
 
-    config_path = Path(config_path)
-    try:
-        with open(config_path) as f:
-            raw = yaml.safe_load(f)
-    except yaml.MarkedYAMLError as exc:
-        mark = exc.problem_mark
-        loc = f"{config_path}:{mark.line + 1}:{mark.column + 1}" if mark else str(config_path)
-        raise ConfigError(f"YAML parse error in {loc}: {exc.problem}") from exc
+    config_path = resolved
+    raw = _load_yaml(config_path)
 
     if not raw:
         return EvalConfig()

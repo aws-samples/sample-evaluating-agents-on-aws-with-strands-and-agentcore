@@ -102,6 +102,8 @@ _QUERY_KEYWORDS = frozenset({"and", "or", "not", "in", "True", "False", "None"})
 _ACTOR_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _VEHICLE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _RUNTIME_USER_ID_HEADER = "x-amzn-bedrock-agentcore-runtime-user-id"
+# header.payload.signature — a compact JWS always has exactly three segments.
+_JWT_SEGMENT_COUNT = 3
 _SNAPSHOT_VERSION_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 _SNAPSHOT_KEY_PATTERN = re.compile(
     r"^lancedb/snapshots/vehicles_[A-Za-z0-9_.-]+_[a-f0-9]{12}\.json$"
@@ -147,7 +149,7 @@ _UNSAFE_TOKEN_RE = re.compile(
 )
 
 
-def _is_safe_query(where_clause: str) -> bool:
+def _is_safe_query(where_clause: str) -> bool:  # noqa: PLR0911 - one guard per rejected construct
     """Validate a pandas query string against injection attacks.
 
     Rejects queries containing:
@@ -288,7 +290,7 @@ def _jwt_claim(context: RequestContext, claim_name: str) -> Any:
         raise IdentityError("Authenticated bearer token is required")
 
     parts = token.split(".")
-    if len(parts) != 3:
+    if len(parts) != _JWT_SEGMENT_COUNT:
         raise IdentityError("Malformed authenticated bearer token")
     try:
         payload_segment = parts[1] + ("=" * (-len(parts[1]) % 4))
@@ -319,26 +321,36 @@ def _resolve_actor_id(payload: dict[str, Any], context: RequestContext) -> str:
     raise IdentityError(f"Unsupported IDENTITY_MODE: {IDENTITY_MODE!r}")
 
 
+def _read_evaluation_trace_secret() -> str:
+    """Fetch the evaluation trace token from Secrets Manager.
+
+    Returns:
+        The secret string.
+
+    Raises:
+        ValueError: If the secret holds no string value.
+    """
+    response = boto3.client("secretsmanager", region_name=AWS_REGION).get_secret_value(
+        SecretId=EVALUATION_TRACE_SECRET_ID
+    )
+    token = response.get("SecretString")
+    if not isinstance(token, str) or not token:
+        raise ValueError("Evaluation trace secret has no SecretString")
+    return token
+
+
 def _get_evaluation_trace_token() -> str | None:
     """Load and cache the privileged evaluation token from Secrets Manager."""
-    global _evaluation_trace_token
+    global _evaluation_trace_token  # noqa: PLW0603 - process-wide warm-start cache
     if not EVALUATION_TRACE_SECRET_ID:
         return None
     if _evaluation_trace_token is None:
         with _evaluation_trace_token_lock:
             if _evaluation_trace_token is None:
                 try:
-                    response = boto3.client(
-                        "secretsmanager", region_name=AWS_REGION
-                    ).get_secret_value(SecretId=EVALUATION_TRACE_SECRET_ID)
-                    token = response.get("SecretString")
-                    if not isinstance(token, str) or not token:
-                        raise ValueError("Evaluation trace secret has no SecretString")
-                    _evaluation_trace_token = token
-                except (botocore.exceptions.ClientError, ValueError) as exc:
-                    logger.error(
-                        "Evaluation trace authorization unavailable: %s", type(exc).__name__
-                    )
+                    _evaluation_trace_token = _read_evaluation_trace_secret()
+                except (botocore.exceptions.ClientError, ValueError):
+                    logger.exception("Evaluation trace authorization unavailable")
                     return None
     return _evaluation_trace_token
 
@@ -548,7 +560,7 @@ def _validated_manifest(value: Any) -> dict[str, Any]:
         raise ValueError("Invalid LanceDB manifest version")
     if not isinstance(data_key, str) or not _SNAPSHOT_KEY_PATTERN.fullmatch(data_key):
         raise ValueError("Invalid LanceDB snapshot key")
-    if not isinstance(generated_at, str):
+    if not isinstance(generated_at, str) or not generated_at.strip():
         raise ValueError("Invalid LanceDB generation time")
     generated = datetime.fromisoformat(generated_at)
     if generated.tzinfo is None:
@@ -617,8 +629,10 @@ def _prune_lancedb_cache(current_version: str) -> None:
 
 
 def _refresh_lancedb_locked() -> None:
-    global _lancedb, _lancedb_frame, _lancedb_frame_version
-    global _lancedb_generated_at, _lancedb_version
+    # The snapshot cache is process-wide by design: AgentCore reuses a warm
+    # container across invocations, and every write here holds _lancedb_lock.
+    global _lancedb, _lancedb_frame, _lancedb_frame_version  # noqa: PLW0603
+    global _lancedb_generated_at, _lancedb_version  # noqa: PLW0603
 
     s3 = boto3.client("s3", region_name=AWS_REGION)
     manifest_value, _ = _read_s3_json(s3, LANCEDB_KEY)
@@ -642,7 +656,7 @@ def _refresh_lancedb_locked() -> None:
 
 
 def _get_lancedb() -> Any:
-    global _lancedb_last_refresh_check
+    global _lancedb_last_refresh_check  # noqa: PLW0603 - warm-start cache, see above
     now = time.monotonic()
     refresh_due = (
         _lancedb is None or now - _lancedb_last_refresh_check >= LANCEDB_REFRESH_INTERVAL_SECONDS
@@ -670,7 +684,6 @@ def _get_lancedb() -> Any:
                 ValueError,
             ) as exc:
                 if _lancedb is None:
-                    logger.error("Initial LanceDB load failed: %s", type(exc).__name__)
                     raise RuntimeError(
                         f"Cannot load vehicle data from s3://{S3_BUCKET}/{LANCEDB_KEY}"
                     ) from exc
@@ -684,7 +697,7 @@ def _get_lancedb() -> Any:
 
 def _get_vehicle_frame() -> pd.DataFrame:
     """Return a cached DataFrame view for deterministic structured tools."""
-    global _lancedb_frame, _lancedb_frame_version
+    global _lancedb_frame, _lancedb_frame_version  # noqa: PLW0603 - warm-start cache
     table = _get_lancedb()
     # Tests and local callers may inject a DataFrame directly.
     if isinstance(table, pd.DataFrame):
@@ -719,7 +732,7 @@ def _sql_literal(value: Any) -> str:
     raise ValueError("Unsupported query literal")
 
 
-def _compile_lance_node(node: ast.AST) -> str:
+def _compile_lance_node(node: ast.AST) -> str:  # noqa: PLR0911, PLR0912 - one arm per AST node kind
     if isinstance(node, ast.Name) and node.id in _VALID_COLUMNS:
         return node.id
     if isinstance(node, ast.Constant):
@@ -727,9 +740,8 @@ def _compile_lance_node(node: ast.AST) -> str:
     if isinstance(node, (ast.List, ast.Tuple)) and node.elts:
         return "(" + ", ".join(_compile_lance_node(item) for item in node.elts) + ")"
     if isinstance(node, ast.BoolOp):
+        # ast.BoolOp.op is And or Or by grammar, so no third case can occur.
         operator = "AND" if isinstance(node.op, ast.And) else "OR"
-        if not isinstance(node.op, (ast.And, ast.Or)):
-            raise ValueError("Unsupported boolean operator")
         return "(" + f" {operator} ".join(_compile_lance_node(item) for item in node.values) + ")"
     if isinstance(node, ast.BinOp):
         operators = {
@@ -835,8 +847,8 @@ def _generate_embedding(text: str) -> list[float]:
             body=json.dumps({"inputText": text}),
         )
         return json.loads(resp["body"].read()).get("embedding", [])
-    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError) as e:
-        logger.error("Embedding failed: %s", e)
+    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError):
+        logger.exception("Embedding failed")
         return []
 
 
@@ -857,7 +869,7 @@ def get_schema() -> str:
     return f"Vehicle schema ({count} vehicles): {schema}"
 
 
-def _apply_filters(
+def _apply_filters(  # noqa: PLR0913 - mirrors the search_vehicles tool schema
     df: Any,
     make: str = "",
     model: str = "",
@@ -896,7 +908,7 @@ def _apply_filters(
 
 
 @tool
-def search_vehicles(
+def search_vehicles(  # noqa: PLR0913 - the flat signature is the tool schema the model sees
     make: str = "",
     model: str = "",
     min_price: float = 0,
@@ -995,8 +1007,8 @@ def run_sql(where_clause: str, limit: int = 10) -> dict[str, Any]:
                 .to_list()
             )
         return {"count": total_count, "returned": len(vehicles), "vehicles": vehicles}
-    except (ValueError, KeyError, SyntaxError, NameError) as e:
-        logger.error("Query validation failed: %s", e)
+    except (ValueError, KeyError, SyntaxError, NameError) as exc:
+        logger.warning("Query validation failed: %s", type(exc).__name__)
         return {
             "error": "Invalid query syntax",
             "hint": "Use pandas query syntax: make == 'BMW' and price < 25000",
@@ -1004,7 +1016,9 @@ def run_sql(where_clause: str, limit: int = 10) -> dict[str, Any]:
 
 
 @tool
-def hybrid_search(query_text: str, where_clause: str = "", limit: int = 10) -> dict[str, Any]:
+def hybrid_search(  # noqa: PLR0911 - one early return per rejected input shape
+    query_text: str, where_clause: str = "", limit: int = 10
+) -> dict[str, Any]:
     """Semantic search for natural language queries, optionally combined with filters.
 
     Args:
@@ -1153,8 +1167,8 @@ def get_bids(min_bid_count: int = 1) -> dict[str, Any]:
         bids = data.get("bids", [])
         filtered = [b for b in bids if b.get("bid_count", 0) >= min_bid_count]
         return {"count": len(filtered), "bids": filtered[:20]}
-    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError) as e:
-        logger.error("get_bids failed: %s", e)
+    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError):
+        logger.exception("get_bids failed")
         return {"error": "Unable to fetch bids data"}
 
 

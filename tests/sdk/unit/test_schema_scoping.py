@@ -5,7 +5,7 @@
 import pytest
 from strands_evals.types.evaluation import EvaluationData
 
-from agentic_evaluation import SchemaScopingEvaluator
+from agentic_evaluation import SchemaScopingEvaluator, SecondaryScope
 
 
 def _case(output, metadata):
@@ -68,9 +68,7 @@ def test_secondary_object_scoping():
         list_field="items",
         scope_field="t",
         metadata_key="t",
-        secondary_field="profile",
-        secondary_scope="user_id",
-        secondary_metadata_key="user_id",
+        secondary=SecondaryScope(field="profile", scope_field="user_id", metadata_key="user_id"),
     )
     result = ev.evaluate(
         _case(

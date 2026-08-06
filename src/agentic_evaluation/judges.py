@@ -64,8 +64,23 @@ class StrandsJudgeBackend:
         read_timeout_seconds: int = 120,
         max_attempts: int = 3,
     ) -> None:
+        """Verify the optional extra is present and bound the Bedrock client.
+
+        Args:
+            connect_timeout_seconds: Bedrock connection timeout.
+            read_timeout_seconds: Bedrock read timeout; judge calls are slow, so
+                this is generously larger than the connect timeout.
+            max_attempts: Total botocore attempts, standard retry mode.
+
+        Raises:
+            JudgeUnavailableError: The ``[strands]`` extra is not installed.
+            ValueError: Any timeout or attempt count is not a positive integer.
+        """
         try:
-            from strands_evals.evaluators import (  # noqa: F401
+            # Local import: probes for the optional `[strands]` extra so the
+            # failure surfaces here as JudgeUnavailableError rather than at
+            # module import, letting the SDK core install without it.
+            from strands_evals.evaluators import (  # noqa: F401, PLC0415
                 GoalSuccessRateEvaluator,
                 HelpfulnessEvaluator,
                 OutputEvaluator,
@@ -91,7 +106,9 @@ class StrandsJudgeBackend:
 
     def _configured_model(self, model_id: str) -> Any:
         """Build one bounded Bedrock model client for an evaluator group."""
-        from strands.models import BedrockModel
+        # Local import: part of the optional `[strands]` extra, verified in
+        # __init__. See the class docstring.
+        from strands.models import BedrockModel  # noqa: PLC0415
 
         return BedrockModel(
             model_id=model_id,
@@ -101,7 +118,23 @@ class StrandsJudgeBackend:
     def layer2_evaluators(
         self, *, model: str, rubric: str, tool_descriptions: dict[str, str]
     ) -> list[Any]:
-        from strands_evals.evaluators import HelpfulnessEvaluator, TrajectoryEvaluator
+        """Build the Layer 2 (reasoning quality) LLM evaluators.
+
+        Args:
+            model: Bedrock model ID for the judge.
+            rubric: Trajectory rubric describing good tool selection.
+            tool_descriptions: Tool name to description, given to the judge as
+                the vocabulary for reasoning about the trajectory.
+
+        Returns:
+            A helpfulness evaluator and a trajectory evaluator, both bound to
+            the same bounded Bedrock client.
+        """
+        # Local import: optional `[strands]` extra. See the class docstring.
+        from strands_evals.evaluators import (  # noqa: PLC0415
+            HelpfulnessEvaluator,
+            TrajectoryEvaluator,
+        )
 
         configured_model = self._configured_model(model)
         return [
@@ -114,7 +147,21 @@ class StrandsJudgeBackend:
         ]
 
     def layer3_evaluators(self, *, model: str, rubric: str) -> list[Any]:
-        from strands_evals.evaluators import GoalSuccessRateEvaluator, OutputEvaluator
+        """Build the Layer 3 (output quality) LLM evaluators.
+
+        Args:
+            model: Bedrock model ID for the judge.
+            rubric: Output-quality rubric describing a good final answer.
+
+        Returns:
+            An output evaluator and a goal-success-rate evaluator, both bound to
+            the same bounded Bedrock client.
+        """
+        # Local import: optional `[strands]` extra. See the class docstring.
+        from strands_evals.evaluators import (  # noqa: PLC0415
+            GoalSuccessRateEvaluator,
+            OutputEvaluator,
+        )
 
         configured_model = self._configured_model(model)
         return [
@@ -130,8 +177,10 @@ def _make_pass_through(label: str) -> Any:
     same async runner the LLM judges use. Used by NoOpJudgeBackend for
     quickstart demos and CI smoke tests.
     """
-    from strands_evals.evaluators import Evaluator
-    from strands_evals.types.evaluation import EvaluationOutput
+    # Local imports: the base class and output type come from the optional
+    # `[strands]` extra, and the subclass cannot be declared without them.
+    from strands_evals.evaluators import Evaluator  # noqa: PLC0415
+    from strands_evals.types.evaluation import EvaluationOutput  # noqa: PLC0415
 
     class _PassThroughEvaluator(Evaluator):  # type: ignore[misc]
         def __init__(self) -> None:
@@ -170,6 +219,16 @@ class NoOpJudgeBackend:
         rubric: str,  # noqa: ARG002
         tool_descriptions: dict[str, str],  # noqa: ARG002
     ) -> list[Any]:
+        """Return a single always-pass evaluator standing in for Layer 2.
+
+        Args:
+            model: Ignored; kept to satisfy the JudgeBackend protocol.
+            rubric: Ignored; kept to satisfy the JudgeBackend protocol.
+            tool_descriptions: Ignored; kept to satisfy the JudgeBackend protocol.
+
+        Returns:
+            One pass-through evaluator labelled ``layer_2``.
+        """
         return [_make_pass_through("layer_2")]
 
     def layer3_evaluators(
@@ -178,6 +237,15 @@ class NoOpJudgeBackend:
         model: str,  # noqa: ARG002
         rubric: str,  # noqa: ARG002
     ) -> list[Any]:
+        """Return a single always-pass evaluator standing in for Layer 3.
+
+        Args:
+            model: Ignored; kept to satisfy the JudgeBackend protocol.
+            rubric: Ignored; kept to satisfy the JudgeBackend protocol.
+
+        Returns:
+            One pass-through evaluator labelled ``layer_3``.
+        """
         return [_make_pass_through("layer_3")]
 
 
@@ -208,6 +276,6 @@ def build_judge(name: str | JudgeBackend | None = None) -> JudgeBackend:
         raise PluginNotFoundError(name, available=sorted(eps))
     try:
         cls = eps[name].load()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise PluginLoadError(name, exc) from exc
     return cls()

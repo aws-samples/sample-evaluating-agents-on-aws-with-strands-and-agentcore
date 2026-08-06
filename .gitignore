@@ -42,11 +42,15 @@ cdk.context.json
 # ASH (Automated Security Helper) — do not commit any ASH files
 .ash/
 
-# Internal-only security tooling artifacts — never publish to the public repo
+# Internal-only security tooling artifacts — never publish to the public repo.
+# .gitlab-ci.yml is the one exception that stays tracked: GitLab reads it from
+# the repository to run the pipeline, so untracking it would disable CI. It is
+# listed here so the public release branch strips it deliberately.
 .holmes/
 .holmesignore
 .threatmodel/
 threatforest-output/
+SECURITY_SCAN_RESULTS.md
 .gitlab-ci.yml
 
 # Blog post staging/review material — never publish to the public repo

@@ -7,38 +7,30 @@ import json
 import os
 import sys
 from decimal import Decimal
+from pathlib import Path
 
 try:
     from scripts.aws_safety import confirm_mutation, reverify_identity, verified_session
 except ModuleNotFoundError:
     from aws_safety import confirm_mutation, reverify_identity, verified_session
 
-
-def decimal_converter(obj):
-    """Convert floats to Decimals for DynamoDB."""
-    if isinstance(obj, float):
-        return Decimal(str(obj))
-    elif isinstance(obj, dict):
-        return {k: decimal_converter(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [decimal_converter(item) for item in obj]
-    return obj
+_SAMPLE_DEALERS = (
+    Path(__file__).resolve().parents[1]
+    / "examples"
+    / "vehicle-auction-agent"
+    / "lambda"
+    / "functions"
+    / "data_ingestion"
+    / "sample_dealerships.json"
+)
 
 
 def main() -> None:
+    """Load dealer records from a JSON file into the DynamoDB dealers table."""
     parser = argparse.ArgumentParser(description="Load dealer data into DynamoDB")
     parser.add_argument(
         "--file",
-        default=os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "examples",
-            "vehicle-auction-agent",
-            "lambda",
-            "functions",
-            "data_ingestion",
-            "sample_dealerships.json",
-        ),
+        default=str(_SAMPLE_DEALERS),
         help="Path to the dealerships JSON file",
     )
     parser.add_argument(
@@ -58,7 +50,9 @@ def main() -> None:
 
     try:
         print(f"Loading dealer data from {args.file}...")
-        with open(args.file, "r") as f:
+        # parse_float=Decimal converts every JSON float on the way in, which is
+        # what DynamoDB requires; no second conversion pass is needed.
+        with Path(args.file).open() as f:
             data = json.load(f, parse_float=Decimal)
     except FileNotFoundError:
         print(f"Error: File not found: {args.file}", file=sys.stderr)
@@ -94,7 +88,6 @@ def main() -> None:
 
         print(f"Loading into DynamoDB table '{args.table}' in {args.region}...")
         for dealer in dealers:
-            dealer = decimal_converter(dealer)
             if "dealer_id" in dealer:
                 dealer["dealer_id"] = str(dealer["dealer_id"])
             table.put_item(Item=dealer)

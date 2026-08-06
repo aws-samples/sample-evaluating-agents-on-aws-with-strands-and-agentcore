@@ -10,7 +10,14 @@ so this test exercises the exact code path a real deploy uses.
 
 Usage:
     AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:... \\
+    EVALUATION_TRACE_SECRET_ID=arn:aws:secretsmanager:... \\
         pytest tests/integration/test_real_agent_eval.py -v -s
+
+Both variables are required. The runtime only returns the privileged trajectory,
+tool inventory and token usage to a caller that presents the evaluation token, so
+without ``EVALUATION_TRACE_SECRET_ID`` the adapter raises ``TaskFnError`` rather
+than scoring a degraded trace. Take the ARN from the ``EvaluationTraceSecretArn``
+output of the ``agent-eval-<env>-agent-runtime`` stack.
 """
 
 from __future__ import annotations
@@ -31,6 +38,7 @@ from agentic_evaluation.run_experiment import (
     run_all_layers,
 )
 from agentic_evaluation.thresholds import EVALUATION_THRESHOLDS
+from agentic_evaluation.types import TaskFnResult
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -79,7 +87,7 @@ def _real_task_fn():
     )
 
 
-def _invoke_once(prompt: str) -> dict[str, Any]:
+def _invoke_once(prompt: str) -> TaskFnResult:
     """Invoke the deployed runtime once via the production adapter.
 
     Returns the adapter's :class:`~agentic_evaluation.types.TaskFnResult` so callers
@@ -93,7 +101,7 @@ def _invoke_once(prompt: str) -> dict[str, Any]:
 def _print_case_scores(report) -> None:
     """Print enough case-level evidence to diagnose a live quality failure."""
     for index, (score, passed, reason) in enumerate(
-        zip(report.scores, report.test_passes, report.reasons)
+        zip(report.scores, report.test_passes, report.reasons, strict=True)
     ):
         case = report.cases[index]
         case_name = case.get("name", f"case_{index}") if isinstance(case, dict) else f"case_{index}"
@@ -130,14 +138,15 @@ class TestRealAgentInvocation:
     def test_agent_responds(self) -> None:
         """Validity check: agent returns a non-empty response with real metrics."""
         result = _invoke_once("Find me diesel SUVs under 25k")
-        assert result["output"], "Agent returned empty response"
+        output = result.get("output", "")
+        assert output, "Agent returned empty response"
 
         metrics = _metrics_state(result)
         assert metrics.get("latency_ms", 0) > 0, "Adapter did not record latency"
         assert metrics.get("total_tokens", 0) > 0, "Agent reported zero tokens"
         print(
             f"\nAgent response ({metrics['latency_ms']:.0f}ms, "
-            f"{metrics['total_tokens']} tokens): {result['output'][:200]}"
+            f"{metrics['total_tokens']} tokens): {output[:200]}"
         )
 
 
@@ -280,7 +289,7 @@ class TestRealFullPipeline:
         )
 
 
-def _metrics_state(task_result: dict[str, Any]) -> dict[str, Any]:
+def _metrics_state(task_result: TaskFnResult) -> dict[str, Any]:
     """Pull the ``metrics`` environment-state dict out of a TaskFnResult."""
     for env in task_result.get("environment_state", []):
         if getattr(env, "name", None) == "metrics":

@@ -42,6 +42,8 @@ from agentic_evaluation.evaluators import (
     LatencyEvaluator,
     SafetyGuardrailEvaluator,
     SchemaScopingEvaluator,
+    SecondaryScope,
+    ToolParameterGrader,
     ToolSelectionGrader,
     TrajectoryOrderGrader,
 )
@@ -72,9 +74,12 @@ from agentic_evaluation.test_cases import TestCaseRegistry
 from agentic_evaluation.thresholds import EVALUATION_THRESHOLDS, EvaluationThresholds
 from agentic_evaluation.types import TaskFnResult
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
-__all__ = [
+# The section comments group this by role, which is what a reader of a public
+# API surface wants; RUF022 would flatten it to one alphabetical run and lose
+# that. Names stay sorted within each section.
+__all__ = [  # noqa: RUF022
     "__version__",
     # Config
     "EvalConfig",
@@ -82,11 +87,13 @@ __all__ = [
     "EvaluationThresholds",
     "EVALUATION_THRESHOLDS",
     # Generic evaluators
+    "CostEvaluator",
     "DataFreshnessEvaluator",
+    "LatencyEvaluator",
     "SafetyGuardrailEvaluator",
     "SchemaScopingEvaluator",
-    "LatencyEvaluator",
-    "CostEvaluator",
+    "SecondaryScope",
+    "ToolParameterGrader",
     "ToolSelectionGrader",
     "TrajectoryOrderGrader",
     # Judges

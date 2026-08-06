@@ -25,11 +25,10 @@ propagates onto ``EvaluationData`` (task-result ``metadata`` is dropped).
 from __future__ import annotations
 
 import json
-import threading
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import boto3
@@ -37,15 +36,27 @@ from botocore.config import Config as BotocoreConfig
 from strands_evals import Case
 from strands_evals.types.evaluation import EnvironmentState
 
+from agentic_evaluation.adapters._conversation import ConversationScope, conversation_key
 from agentic_evaluation.adapters._session import build_session
+from agentic_evaluation.adapters.metrics import (
+    DEFAULT_PRICING,
+    TokenPricing,
+    TokenUsage,
+    base_metrics,
+)
 from agentic_evaluation.exceptions import TaskFnError
 from agentic_evaluation.types import TaskFnResult
 
-# Per-token USD pricing for the deployed agent's model. Defaults match Anthropic
-# Claude Sonnet 4.x list pricing ($3 / 1M input, $15 / 1M output) — override via
-# ``make_task_fn`` if you deploy a different model or have negotiated rates.
-_DEFAULT_INPUT_COST_PER_1K = 0.003
-_DEFAULT_OUTPUT_COST_PER_1K = 0.015
+# Telemetry the runtime must return for the evaluators to have anything real to
+# score. Absent fields mean the caller was not authorized for it, so the adapter
+# fails loudly rather than silently evaluating a degraded trace.
+_REQUIRED_TRACE_FIELDS = frozenset({"trajectory", "available_tools", "usage"})
+
+# Identity must travel through AgentCore's dedicated ``runtimeUserId`` channel,
+# never the caller-controlled JSON body.
+_IDENTITY_FIELDS = frozenset({"actor_id", "dealer_id"})
+
+_ClientFactory = Callable[..., Any]
 
 
 def _extract_text(result: Any) -> str:
@@ -97,7 +108,121 @@ def _normalize_trajectory(raw: Any) -> list[dict[str, Any]]:
     return calls
 
 
-def make_task_fn(
+def _resolve_evaluation_token(
+    token: str | None,
+    secret_id: str | None,
+    client_factory: _ClientFactory,
+    region: str,
+    config: BotocoreConfig,
+) -> str | None:
+    """Resolve the privileged evaluation token from its literal or secret form.
+
+    Args:
+        token: A literal token, or None.
+        secret_id: A Secrets Manager secret id, or None.
+        client_factory: Builds the Secrets Manager client.
+        region: Region holding the secret.
+        config: Botocore config for the secrets client.
+
+    Returns:
+        The token, or None when neither form was supplied.
+
+    Raises:
+        ValueError: Both forms were supplied, or the secret has no
+            ``SecretString``.
+    """
+    if token and secret_id:
+        raise ValueError("Pass only one of evaluation_token or evaluation_secret_id")
+    if not secret_id:
+        return token
+    secret = client_factory(
+        "secretsmanager",
+        region_name=region,
+        config=config,
+    ).get_secret_value(SecretId=secret_id)
+    resolved = secret.get("SecretString")
+    if not isinstance(resolved, str) or not resolved:
+        raise ValueError("Evaluation secret has no SecretString")
+    return resolved
+
+
+def _validate_payload_extra(payload_extra: dict[str, Any] | None) -> dict[str, Any]:
+    """Copy the caller's extra payload fields after rejecting identity claims.
+
+    Args:
+        payload_extra: Extra fields to merge into every request.
+
+    Returns:
+        A copy safe to use as the base payload.
+
+    Raises:
+        ValueError: The extras carry an identity field, which would let the
+            caller impersonate a user through the JSON body.
+    """
+    base = dict(payload_extra or {})
+    forbidden = _IDENTITY_FIELDS & base.keys()
+    if forbidden:
+        fields = ", ".join(sorted(forbidden))
+        raise ValueError(f"Identity fields must use runtime_user_id, not payload_extra: {fields}")
+    return base
+
+
+def _read_telemetry(body: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str], TokenUsage]:
+    """Extract the evaluation telemetry from a runtime response body.
+
+    Args:
+        body: The decoded response payload.
+
+    Returns:
+        The normalised tool calls, the tool names the agent could call, and the
+        turn's token usage.
+
+    Raises:
+        TaskFnError: The runtime withheld telemetry, so there is no genuine
+            trajectory to evaluate.
+    """
+    missing_fields = _REQUIRED_TRACE_FIELDS - body.keys()
+    if missing_fields:
+        missing = ", ".join(sorted(missing_fields))
+        raise TaskFnError(
+            f"Runtime did not return authorized evaluation telemetry; missing fields: {missing}"
+        )
+    usage = body.get("usage", {}) or {}
+    return (
+        _normalize_trajectory(body.get("trajectory", [])),
+        [tool for tool in body.get("available_tools", []) if isinstance(tool, str)],
+        TokenUsage.from_counts(
+            usage.get("input_tokens"),
+            usage.get("output_tokens"),
+            usage.get("total_tokens"),
+        ),
+    )
+
+
+def _data_freshness(body: dict[str, Any]) -> dict[str, str]:
+    """Pull the optional data-freshness fields the domain evaluators can use.
+
+    Args:
+        body: The decoded response payload.
+
+    Returns:
+        Only the freshness keys the runtime actually reported, so
+        :class:`~agentic_evaluation.evaluators.DataFreshnessEvaluator` can tell
+        "not reported" from "reported as stale".
+    """
+    reported = {
+        "last_refresh_time": body.get("last_refresh_time"),
+        "lancedb_version": body.get("lancedb_version"),
+    }
+    return {key: value for key, value in reported.items() if isinstance(value, str) and value}
+
+
+# PLR0913 (10 > 5 args): all but ``runtime_arn`` are independent, documented
+# deployment knobs, and every one past ``session_prefix`` is keyword-only — the
+# argument-transposition bug the rule guards against cannot occur. Bundling them
+# into a config object would relocate the same ten values behind one more
+# indirection without removing any of them.
+def make_task_fn(  # noqa: PLR0913
     runtime_arn: str,
     region: str = "us-east-1",
     session_prefix: str = "eval",
@@ -106,8 +231,7 @@ def make_task_fn(
     evaluation_token: str | None = None,
     evaluation_secret_id: str | None = None,
     payload_extra: dict[str, Any] | None = None,
-    input_cost_per_1k: float = _DEFAULT_INPUT_COST_PER_1K,
-    output_cost_per_1k: float = _DEFAULT_OUTPUT_COST_PER_1K,
+    pricing: TokenPricing = DEFAULT_PRICING,
     boto3_session: boto3.Session | None = None,
     boto_client_config: BotocoreConfig | None = None,
 ) -> Callable[[Case], TaskFnResult]:
@@ -140,13 +264,20 @@ def make_task_fn(
         payload_extra: Extra fields merged into every request payload alongside
             ``prompt``. Identity fields are rejected; ``prompt`` always wins on
             key collision so a case input can never be overridden.
-        input_cost_per_1k: USD per 1K input tokens (for CostEvaluator).
-        output_cost_per_1k: USD per 1K output tokens (for CostEvaluator).
+        pricing: Per-1K-token rates used to estimate cost for
+            :class:`~agentic_evaluation.evaluators.CostEvaluator`.
         boto3_session: Optional explicit AWS session used for runtime and secret
             clients.
         boto_client_config: Optional botocore client configuration. The default
             bounds connection/read time and retries so a stalled invocation
             fails instead of blocking an evaluation indefinitely.
+
+    Returns:
+        A ``task_fn`` that invokes the runtime once per case.
+
+    .. versionchanged:: 0.4.0
+        ``input_cost_per_1k`` / ``output_cost_per_1k`` are replaced by the
+        ``pricing`` value object.
     """
     client_factory = boto3_session.client if boto3_session is not None else boto3.client
     client_config = boto_client_config or BotocoreConfig(
@@ -155,44 +286,19 @@ def make_task_fn(
         retries={"max_attempts": 3, "mode": "standard"},
     )
     client = client_factory("bedrock-agentcore", region_name=region, config=client_config)
-    if evaluation_token and evaluation_secret_id:
-        raise ValueError("Pass only one of evaluation_token or evaluation_secret_id")
-    if evaluation_secret_id:
-        secret_response = client_factory(
-            "secretsmanager",
-            region_name=region,
-            config=client_config,
-        ).get_secret_value(SecretId=evaluation_secret_id)
-        evaluation_token = secret_response.get("SecretString")
-        if not isinstance(evaluation_token, str) or not evaluation_token:
-            raise ValueError("Evaluation secret has no SecretString")
-    base_payload = dict(payload_extra or {})
-    forbidden_identity_fields = {"actor_id", "dealer_id"} & base_payload.keys()
-    if forbidden_identity_fields:
-        fields = ", ".join(sorted(forbidden_identity_fields))
-        raise ValueError(f"Identity fields must use runtime_user_id, not payload_extra: {fields}")
-    conversation_sessions: dict[str, str] = {}
-    conversation_lock = threading.Lock()
+    token = _resolve_evaluation_token(
+        evaluation_token, evaluation_secret_id, client_factory, region, client_config
+    )
+    base_payload = _validate_payload_extra(payload_extra)
+    sessions: ConversationScope[str] = ConversationScope(
+        lambda: f"{session_prefix}-{uuid.uuid4().hex}"
+    )
 
-    def task_fn(case: Case) -> TaskFnResult:
-        start_dt = datetime.now(timezone.utc)
-        start = time.perf_counter()
-        metadata = case.metadata or {}
-        conversation_id = metadata.get("conversation_id")
-        run_id = metadata.get("evaluation_run_id", "default")
-        if conversation_id:
-            conversation_key = f"{run_id}:{conversation_id}"
-            with conversation_lock:
-                session_id = conversation_sessions.setdefault(
-                    conversation_key, f"{session_prefix}-{uuid.uuid4().hex}"
-                )
-        else:
-            conversation_key = None
-            session_id = f"{session_prefix}-{uuid.uuid4().hex}"
-
+    def build_invocation(case: Case, session_id: str) -> dict[str, Any]:
+        """Build the ``invoke_agent_runtime`` kwargs for one case."""
         request_payload = {**base_payload, "prompt": case.input}
-        if evaluation_token:
-            request_payload["evaluation_token"] = evaluation_token
+        if token:
+            request_payload["evaluation_token"] = token
         invocation: dict[str, Any] = {
             "agentRuntimeArn": runtime_arn,
             "runtimeSessionId": session_id,
@@ -201,33 +307,22 @@ def make_task_fn(
         }
         if runtime_user_id:
             invocation["runtimeUserId"] = runtime_user_id
+        return invocation
 
-        response = client.invoke_agent_runtime(
-            **invocation,
-        )
+    def task_fn(case: Case) -> TaskFnResult:
+        metadata = case.metadata or {}
+        key = conversation_key(metadata)
+        session_id = sessions.acquire(key)
 
+        start_dt = datetime.now(UTC)
+        start = time.perf_counter()
+        response = client.invoke_agent_runtime(**build_invocation(case, session_id))
         elapsed_ms = (time.perf_counter() - start) * 1000
-        end_dt = datetime.now(timezone.utc)
+        end_dt = datetime.now(UTC)
+
         body = json.loads(response["response"].read())
-        required_trace_fields = {"trajectory", "available_tools", "usage"}
-        missing_trace_fields = required_trace_fields - body.keys()
-        if missing_trace_fields:
-            missing = ", ".join(sorted(missing_trace_fields))
-            raise TaskFnError(
-                f"Runtime did not return authorized evaluation telemetry; missing fields: {missing}"
-            )
-
+        tool_calls, available_tools, usage = _read_telemetry(body)
         output_text = _extract_text(body.get("result"))
-        tool_calls = _normalize_trajectory(body.get("trajectory", []))
-        available_tools = [t for t in body.get("available_tools", []) if isinstance(t, str)]
-
-        usage = body.get("usage", {}) or {}
-        input_tokens = int(usage.get("input_tokens", 0))
-        output_tokens = int(usage.get("output_tokens", 0))
-        total_tokens = int(usage.get("total_tokens", input_tokens + output_tokens))
-        estimated_cost = (
-            input_tokens / 1000 * input_cost_per_1k + output_tokens / 1000 * output_cost_per_1k
-        )
 
         session = build_session(
             session_id=session_id,
@@ -243,23 +338,12 @@ def make_task_fn(
         # task-result metadata is dropped by strands_evals. LatencyEvaluator and
         # CostEvaluator read these keys from actual_environment_state.
         metrics_state = {
-            "latency_ms": elapsed_ms,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "total_tokens": total_tokens,
-            "estimated_cost_usd": estimated_cost,
+            **base_metrics(elapsed_ms, usage, pricing),
+            **_data_freshness(body),
             "runtime_arn": runtime_arn,
             "session_id": session_id,
         }
-        last_refresh_time = body.get("last_refresh_time")
-        if isinstance(last_refresh_time, str) and last_refresh_time:
-            metrics_state["last_refresh_time"] = last_refresh_time
-        lancedb_version = body.get("lancedb_version")
-        if isinstance(lancedb_version, str) and lancedb_version:
-            metrics_state["lancedb_version"] = lancedb_version
-        if conversation_key and metadata.get("turn_index") == metadata.get("turn_count"):
-            with conversation_lock:
-                conversation_sessions.pop(conversation_key, None)
+        sessions.release(key, metadata)
 
         return {
             "output": output_text,

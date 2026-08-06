@@ -16,9 +16,12 @@ Security hardening:
 - IAM execution role is pre-created with ``aws:SourceAccount`` and
   ``aws:SourceArn`` confused-deputy guards in the trust policy.
 - Optional Cognito JWT authorizer when a ``user_pool`` is supplied;
-  otherwise IAM auth is used.
+  otherwise IAM auth is used (see ``lib.runtime_integrations``).
 - Least-privilege resource ARNs for Amazon Bedrock / S3 / ECR, scoped
   AgentCore Memory grants, and a Gateway-scoped invoke grant.
+- A Bedrock Guardrail on every model call (see ``lib.runtime_guardrail``) and
+  bounded retention on the service-created log groups (see
+  ``lib.log_retention_hardening``).
 
 Cleanup requires the repository retention manifest, explicit profile/account/
 region verification, a reviewed destroy change, and approval for the exact
@@ -26,77 +29,51 @@ stack and retained-data deletion sets. Agent memory, identity data, the
 evaluation secret, and its KMS key are retained after stack deletion.
 """
 
-import hashlib
-import json
-from typing import Any, Optional
+from typing import Any
 
-from aws_cdk import ArnFormat, CfnOutput, CfnResource, RemovalPolicy, Stack
-from aws_cdk import aws_bedrock as bedrock
+from aws_cdk import CfnOutput, CfnResource, RemovalPolicy, Stack
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_ecr as ecr
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_kms as kms
-from aws_cdk import aws_logs as logs
 from aws_cdk import aws_s3 as s3
 from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk.aws_bedrockagentcore import (
     AgentRuntimeArtifact,
-    IGateway,
     Memory,
     MemoryStrategy,
     ProtocolType,
     Runtime,
-    RuntimeAuthorizerConfiguration,
+    RuntimeEndpoint,
     RuntimeNetworkConfiguration,
 )
 from constructs import Construct
 
-from .security import (
-    explicit_kms_key_policy,
-    finalize_explicit_kms_actions,
-    grant_cloudwatch_logs_encryption,
+from lib.log_retention_hardening import configure_runtime_log_retention
+from lib.runtime_guardrail import GuardrailRefs, create_agent_guardrail
+from lib.runtime_integrations import (
+    NO_INTEGRATIONS,
+    InboundAuth,
+    RuntimeIntegrations,
+    inbound_auth,
 )
-
-_GUARDRAIL_POLICY_SPEC = {
-    "blocked_input_message": (
-        "This request was blocked by content safety policy. "
-        "I'm a vehicle search assistant; please rephrase your request."
-    ),
-    "blocked_output_message": "The response was blocked by content safety policy.",
-    "content_filters": [
-        {"type": "PROMPT_ATTACK", "input": "HIGH", "output": "NONE"},
-        {"type": "MISCONDUCT", "input": "HIGH", "output": "HIGH"},
-    ],
-    "pii_entities": [
-        {"type": "EMAIL", "action": "ANONYMIZE"},
-        {"type": "PHONE", "action": "ANONYMIZE"},
-    ],
-    "denied_topics": [],
-}
-_GUARDRAIL_POLICY_REVISION = hashlib.sha256(
-    json.dumps(_GUARDRAIL_POLICY_SPEC, separators=(",", ":"), sort_keys=True).encode()
-).hexdigest()[:12]
+from lib.security import explicit_kms_key_policy, finalize_explicit_kms_actions
 
 
 class AgentRuntimeStack(Stack):
-    """Deploys the vehicle search agent to Amazon Bedrock AgentCore Runtime.
+    """Deploys the vehicle search agent to Amazon Bedrock AgentCore Runtime."""
 
-    Constructor params
-    ------------------
-    image_uri : str
-        Full ECR image URI built by CodeBuild, e.g.
-        ``123456789012.dkr.ecr.eu-west-1.amazonaws.com/agent-eval-runtime@sha256:<digest>``.
-    data_bucket : s3.IBucket
-        S3 bucket holding LanceDB / vehicle data.
-    dealer_gateway : optional IGateway
-        AgentCore Gateway (from the dealer-api stack) that fronts the Dealer
-        API as an MCP tool. When supplied, the runtime role is granted invoke
-        access to it.
-    gateway_url : optional str
-        The Gateway MCP endpoint, passed to the agent as ``GATEWAY_URL``.
-    user_pool / user_pool_client : optional Cognito resources for JWT auth.
-        If omitted, the runtime falls back to IAM authorization.
-    """
+    # Cross-stack surface: the monitoring stack alarms on the runtime and memory
+    # ARNs, and the evaluation harness reads the trace secret.
+    guardrail: GuardrailRefs
+    memory: Memory
+    memory_id: str
+    memory_arn: str
+    evaluation_trace_secret: secretsmanager.Secret
+    runtime: Runtime
+    endpoint: RuntimeEndpoint
+    runtime_arn: str
+    runtime_id: str
 
     def __init__(
         self,
@@ -105,56 +82,142 @@ class AgentRuntimeStack(Stack):
         *,
         image_uri: str,
         data_bucket: s3.IBucket,
-        dealer_gateway: Optional[IGateway] = None,
-        gateway_url: Optional[str] = None,
-        user_pool: Optional[cognito.IUserPool] = None,
-        user_pool_client: Optional[cognito.IUserPoolClient] = None,
-        enable_cognito: bool = False,
+        integrations: RuntimeIntegrations = NO_INTEGRATIONS,
         **kwargs: Any,
     ) -> None:
+        """Register the agent runtime and everything it needs to run.
+
+        Args:
+            scope: The parent construct, normally the CDK ``App``.
+            construct_id: Logical id of the stack.
+            image_uri: Full ECR image URI built by CodeBuild, in the form
+                ``<account>.dkr.ecr.<region>.amazonaws.com/<repo>@sha256:<digest>``.
+            data_bucket: Bucket holding the LanceDB vehicle data the agent reads.
+            integrations: Optional Gateway and Cognito collaborators. Defaults to
+                none, which yields a runtime with IAM inbound auth and no
+                dealer-profile tool.
+            **kwargs: Passed through to ``Stack``, notably ``env``. The target
+                environment is read from the ``environment`` context value.
+        """
         super().__init__(scope, construct_id, **kwargs)
 
+        # Get environment from context
         env_name = self.node.try_get_context("environment") or "dev"
 
-        # ── Optional Cognito JWT inbound auth ───────────────────────────────
-        # AgentCore Runtime is invoked via the InvokeAgentRuntime data-plane API;
-        # its inbound control is the authorizer (IAM SigV4 by default). When
-        # enable_cognito is set and no external pool was supplied, provision a
-        # User Pool + app client for JWT auth. Authorization-code grant only
-        # (no implicit grant), self sign-up disabled, strong password policy.
-        if enable_cognito and user_pool is None:
-            user_pool = cognito.UserPool(
-                self,
-                "AgentUserPool",
-                user_pool_name=f"agent-eval-runtime-{env_name}",
-                self_sign_up_enabled=False,
-                password_policy=cognito.PasswordPolicy(
-                    min_length=12,
-                    require_lowercase=True,
-                    require_uppercase=True,
-                    require_digits=True,
-                    require_symbols=True,
-                ),
-                custom_attributes={
-                    "dealer_id": cognito.StringAttribute(min_len=1, max_len=64, mutable=True)
-                },
-                removal_policy=RemovalPolicy.RETAIN,
-            )
-            user_pool_client = user_pool.add_client(
-                "AgentUserPoolClient",
-                user_pool_client_name=f"agent-eval-runtime-{env_name}",
-                auth_flows=cognito.AuthFlow(admin_user_password=True, user_srp=True),
-                o_auth=cognito.OAuthSettings(
-                    flows=cognito.OAuthFlows(
-                        authorization_code_grant=True, implicit_code_grant=False
-                    ),
-                    scopes=[cognito.OAuthScope.OPENID],
-                ),
-                generate_secret=False,
-            )
+        user_pool, user_pool_client = self._resolve_user_pool(env_name, integrations)
+        execution_role = self._create_execution_role(env_name)
+        self.guardrail = create_agent_guardrail(self, env_name)
+        self._create_memory(env_name)
 
-        # ── Pre-create execution role with confused-deputy guards ───────────
-        execution_role = iam.Role(
+        evaluation_secret_key_policy = explicit_kms_key_policy()
+        evaluation_secret_key = self._create_evaluation_secret(
+            env_name, execution_role, evaluation_secret_key_policy
+        )
+
+        auth = inbound_auth(user_pool, user_pool_client)
+        self.runtime = self._create_runtime(
+            env_name,
+            execution_role,
+            auth,
+            image_uri,
+            self._runtime_environment(
+                env_name, data_bucket, integrations.gateway_url, auth.identity_mode
+            ),
+        )
+        self._grant_runtime_access(execution_role, image_uri, data_bucket, integrations)
+
+        # ── HTTP endpoint ───────────────────────────────────────────────────
+        self.endpoint = self.runtime.add_endpoint(
+            f"agent_eval_endpoint_{env_name}",
+            description=f"HTTP endpoint for vehicle search agent ({env_name})",
+        )
+
+        configure_runtime_log_retention(
+            self,
+            env_name,
+            evaluation_secret_key,
+            {
+                "DefaultRuntimeLogRetention": self.runtime.application_log_group.log_group_name,
+                "NamedEndpointLogRetention": (
+                    f"/aws/bedrock-agentcore/runtimes/{self.runtime.agent_runtime_id}-"
+                    f"agent_eval_endpoint_{env_name}"
+                ),
+            },
+        )
+
+        # Expose for cross-stack references
+        self.runtime_arn = self.runtime.agent_runtime_arn
+        self.runtime_id = self.runtime.agent_runtime_id
+        finalize_explicit_kms_actions(evaluation_secret_key, evaluation_secret_key_policy)
+        CfnOutput(
+            self,
+            "EvaluationTraceSecretArn",
+            value=self.evaluation_trace_secret.secret_arn,
+            description="Secrets Manager ARN for authorized evaluation callers",
+        )
+
+    def _resolve_user_pool(
+        self, env_name: str, integrations: RuntimeIntegrations
+    ) -> tuple[cognito.IUserPool | None, cognito.IUserPoolClient | None]:
+        """Return the user pool to authorize with, provisioning one if asked.
+
+        AgentCore Runtime is invoked through the InvokeAgentRuntime data-plane
+        API, so its inbound control is the authorizer (IAM SigV4 by default).
+        When ``enable_cognito`` is set and no external pool was supplied,
+        provision a User Pool and app client for JWT auth: authorization-code
+        grant only (no implicit grant), self sign-up disabled, and a strong
+        password policy.
+
+        Args:
+            env_name: Environment suffix in the pool and client names.
+            integrations: The stack's optional collaborators.
+
+        Returns:
+            The pool and app client to validate inbound JWTs against, or
+            ``(None, None)`` when the runtime should fall back to IAM auth.
+        """
+        if not (integrations.enable_cognito and integrations.user_pool is None):
+            return integrations.user_pool, integrations.user_pool_client
+
+        user_pool = cognito.UserPool(
+            self,
+            "AgentUserPool",
+            user_pool_name=f"agent-eval-runtime-{env_name}",
+            self_sign_up_enabled=False,
+            password_policy=cognito.PasswordPolicy(
+                min_length=12,
+                require_lowercase=True,
+                require_uppercase=True,
+                require_digits=True,
+                require_symbols=True,
+            ),
+            custom_attributes={
+                "dealer_id": cognito.StringAttribute(min_len=1, max_len=64, mutable=True)
+            },
+            removal_policy=RemovalPolicy.RETAIN,
+        )
+        user_pool_client = user_pool.add_client(
+            "AgentUserPoolClient",
+            user_pool_client_name=f"agent-eval-runtime-{env_name}",
+            auth_flows=cognito.AuthFlow(admin_user_password=True, user_srp=True),
+            o_auth=cognito.OAuthSettings(
+                flows=cognito.OAuthFlows(authorization_code_grant=True, implicit_code_grant=False),
+                scopes=[cognito.OAuthScope.OPENID],
+            ),
+            generate_secret=False,
+        )
+        return user_pool, user_pool_client
+
+    def _create_execution_role(self, env_name: str) -> iam.Role:
+        """Pre-create the runtime's execution role with confused-deputy guards.
+
+        Args:
+            env_name: Environment suffix in the role name.
+
+        Returns:
+            The role AgentCore assumes to run the agent.
+        """
+        return iam.Role(
             self,
             "AgentRuntimeRole",
             role_name=f"agent-eval-runtime-role-{env_name}",
@@ -173,65 +236,22 @@ class AgentRuntimeStack(Stack):
             description=f"AgentCore Runtime execution role ({env_name})",
         )
 
-        # ── Amazon Bedrock Guardrail ────────────────────────────────────────
-        # Defence-in-depth for the agent's model calls. Encodes the same intent
-        # as the SYSTEM_PROMPT "Safety guardrails" section as an enforced policy:
-        #   - block prompt-injection attempts on input
-        #   - block misconduct on input and output
-        #   - anonymise dealer PII (email/phone) in model output
-        # Bid placement remains structurally unavailable because the runtime has
-        # no write/bid tool. Let benign capability questions reach the model so
-        # it can provide the explicit refusal defined in the system prompt.
-        guardrail = bedrock.CfnGuardrail(
-            self,
-            "AgentGuardrail",
-            name=f"agent-eval-guardrail-{env_name}",
-            blocked_input_messaging=_GUARDRAIL_POLICY_SPEC["blocked_input_message"],
-            blocked_outputs_messaging=_GUARDRAIL_POLICY_SPEC["blocked_output_message"],
-            description=f"Vehicle search agent guardrail ({env_name})",
-            content_policy_config=bedrock.CfnGuardrail.ContentPolicyConfigProperty(
-                filters_config=[
-                    bedrock.CfnGuardrail.ContentFilterConfigProperty(
-                        type=config["type"],
-                        input_strength=config["input"],
-                        output_strength=config["output"],
-                    )
-                    for config in _GUARDRAIL_POLICY_SPEC["content_filters"]
-                ]
-            ),
-            sensitive_information_policy_config=(
-                bedrock.CfnGuardrail.SensitiveInformationPolicyConfigProperty(
-                    pii_entities_config=[
-                        bedrock.CfnGuardrail.PiiEntityConfigProperty(
-                            type=config["type"],
-                            action=config["action"],
-                        )
-                        for config in _GUARDRAIL_POLICY_SPEC["pii_entities"]
-                    ]
-                )
-            ),
-        )
-        guardrail_version = bedrock.CfnGuardrailVersion(
-            self,
-            "AgentGuardrailVersion",
-            guardrail_identifier=guardrail.attr_guardrail_id,
-            # Description is create-only. Including the deterministic policy
-            # fingerprint forces a new immutable version whenever the policy
-            # specification changes, so the runtime never remains on a stale
-            # version after the Guardrail draft is updated.
-            description=f"Pinned {env_name} policy {_GUARDRAIL_POLICY_REVISION}",
-        )
-        self.guardrail_id = guardrail.attr_guardrail_id
-        self.guardrail_arn = guardrail.attr_guardrail_arn
-        self.guardrail_version = guardrail_version.attr_version
+    def _create_memory(self, env_name: str) -> None:
+        """Create the long-term memory store the agent recalls dealers from.
 
-        # ── Amazon Bedrock AgentCore Memory ─────────────────────────────────
-        # Long-term memory so the agent recalls dealer preferences and facts
-        # across sessions. The built-in user-preference and semantic strategies
-        # extract structured memory from raw conversation events; the agent's
-        # session manager retrieves from the /preferences/{actorId}/ and
-        # /facts/{actorId}/ namespaces (see agent/app.py). Short-term (session)
-        # transcript persistence is included by default.
+        The built-in user-preference and semantic strategies extract structured
+        memory from raw conversation events; the agent's session manager
+        retrieves from the ``/preferences/{actorId}/`` and ``/facts/{actorId}/``
+        namespaces (see ``agent/app.py``). Short-term (session) transcript
+        persistence is included by default.
+
+        Args:
+            env_name: Environment suffix in the memory name.
+
+        Raises:
+            TypeError: The L2 construct did not create the CloudFormation
+                resource the retention policy has to be applied to.
+        """
         self.memory = Memory(
             self,
             "AgentMemory",
@@ -250,6 +270,10 @@ class AgentRuntimeStack(Stack):
                 ),
             ],
         )
+        # Memory.apply_removal_policy() raises CannotApplyRemovalPolicy: the L2
+        # names its child "Memory" instead of the "Resource"/"Default" id that
+        # Resource.applyRemovalPolicy looks for, so there is no default child.
+        # CDK's own error directs you to the CfnResource, as done here.
         memory_resource = self.memory.node.find_child("Memory")
         if not isinstance(memory_resource, CfnResource):
             raise TypeError("AgentCore Memory did not create the expected CloudFormation resource")
@@ -257,16 +281,31 @@ class AgentRuntimeStack(Stack):
         self.memory_id = self.memory.memory_id
         self.memory_arn = self.memory.memory_arn
 
-        # Privileged evaluation telemetry can contain dealer profile data and
-        # tool arguments. A generated token gates that response path; only the
-        # runtime and explicitly authorized evaluators may read it.
-        evaluation_secret_key_policy = explicit_kms_key_policy()
+    def _create_evaluation_secret(
+        self, env_name: str, execution_role: iam.Role, key_policy: iam.PolicyDocument
+    ) -> kms.Key:
+        """Create the token that gates privileged evaluation telemetry.
+
+        Privileged evaluation telemetry can contain dealer profile data and tool
+        arguments. A generated token gates that response path, so only the
+        runtime and explicitly authorized evaluators may read it.
+
+        Args:
+            env_name: Environment suffix in the secret and key names.
+            execution_role: Role granted read access to the secret.
+            key_policy: Explicit-action policy for the encryption key. The caller
+                keeps it to expand wildcard actions after every grant is added.
+
+        Returns:
+            The key the secret is encrypted with, reused for the control-plane
+            log group created later in this stack.
+        """
         evaluation_secret_key = kms.Key(
             self,
             "EvaluationSecretKey",
             description=f"Encrypts privileged evaluation authorization ({env_name})",
             enable_key_rotation=True,
-            policy=evaluation_secret_key_policy,
+            policy=key_policy,
             removal_policy=RemovalPolicy.RETAIN,
         )
         self.evaluation_trace_secret = secretsmanager.Secret(
@@ -282,52 +321,101 @@ class AgentRuntimeStack(Stack):
             removal_policy=RemovalPolicy.RETAIN,
         )
         self.evaluation_trace_secret.grant_read(execution_role)
+        return evaluation_secret_key
 
-        # ── Reference the existing ECR image (no local Docker) ──────────────
-        agent_artifact = AgentRuntimeArtifact.from_image_uri(image_uri)
+    def _runtime_environment(
+        self,
+        env_name: str,
+        data_bucket: s3.IBucket,
+        gateway_url: str | None,
+        identity_mode: str,
+    ) -> dict[str, str]:
+        """Build the environment the agent container reads its configuration from.
 
-        # ── Authorizer: Cognito JWT if pool provided, else IAM ──────────────
-        if user_pool and user_pool_client:
-            authorizer = RuntimeAuthorizerConfiguration.using_cognito(user_pool, [user_pool_client])
-        else:
-            authorizer = RuntimeAuthorizerConfiguration.using_iam()
+        Args:
+            env_name: Environment name, also the ``ENVIRONMENT`` value.
+            data_bucket: Bucket the agent loads LanceDB artifacts from.
+            gateway_url: MCP endpoint of the dealer-profile Gateway, if deployed.
+            identity_mode: How the agent derives the actor id for memory.
 
-        # ── L2 Runtime construct ────────────────────────────────────────────
-        # Cost control: AgentCore Harness supports maxTokens, maxIterations, and
-        # timeoutSeconds as per-invocation limits. Configure via:
-        #   aws bedrock-agentcore-control update-harness --max-tokens 8192
-        # These are service-managed knobs — no application-level token tracking needed.
-        self.runtime = Runtime(
+        Returns:
+            The runtime's environment variables.
+        """
+        return {
+            "DATA_BUCKET": data_bucket.bucket_name,
+            "ENVIRONMENT": env_name,
+            "LANCEDB_PATH": "lancedb/manifest.json",
+            "LANCEDB_REFRESH_INTERVAL_SECONDS": "60",
+            "LANCEDB_CACHE_GENERATIONS": "3",
+            "EXPECTED_EMBEDDING_DIMENSION": "1024",
+            "GUARDRAIL_ID": self.guardrail.identifier,
+            "GUARDRAIL_VERSION": self.guardrail.version,
+            # AgentCore Memory (cross-session dealer memory) and Gateway
+            # (dealer-profile tool). The agent reads dealer profiles through
+            # the Gateway, not DynamoDB, so no DEALERS_TABLE var is needed.
+            "MEMORY_ID": self.memory_id,
+            "GATEWAY_URL": gateway_url or "",
+            "IDENTITY_MODE": identity_mode,
+            "DEFAULT_ACTOR_ID": (self.node.try_get_context("default_actor_id") or "default"),
+            "ACTOR_ID_CLAIM": "custom:dealer_id",
+            "EVALUATION_TRACE_SECRET_ID": self.evaluation_trace_secret.secret_arn,
+        }
+
+    def _create_runtime(
+        self,
+        env_name: str,
+        execution_role: iam.Role,
+        auth: InboundAuth,
+        image_uri: str,
+        environment: dict[str, str],
+    ) -> Runtime:
+        """Register the runtime against an image CodeBuild already published.
+
+        Cost control: AgentCore Harness supports maxTokens, maxIterations, and
+        timeoutSeconds as per-invocation limits. Configure them with
+        ``aws bedrock-agentcore-control update-harness --max-tokens 8192``.
+        These are service-managed knobs — no application-level token tracking is
+        needed.
+
+        Args:
+            env_name: Environment suffix in the runtime name.
+            execution_role: Role the runtime assumes.
+            auth: Inbound authorization, Cognito JWT or IAM.
+            image_uri: ECR image the runtime runs, referenced rather than built
+                so no local Docker is involved.
+            environment: Environment variables for the agent container.
+
+        Returns:
+            The registered runtime.
+        """
+        return Runtime(
             self,
             "AgentRuntime",
             runtime_name=f"agent_eval_runtime_{env_name}",
-            agent_runtime_artifact=agent_artifact,
+            agent_runtime_artifact=AgentRuntimeArtifact.from_image_uri(image_uri),
             execution_role=execution_role,
-            environment_variables={
-                "DATA_BUCKET": data_bucket.bucket_name,
-                "ENVIRONMENT": env_name,
-                "LANCEDB_PATH": "lancedb/manifest.json",
-                "LANCEDB_REFRESH_INTERVAL_SECONDS": "60",
-                "LANCEDB_CACHE_GENERATIONS": "3",
-                "EXPECTED_EMBEDDING_DIMENSION": "1024",
-                "GUARDRAIL_ID": self.guardrail_id,
-                "GUARDRAIL_VERSION": self.guardrail_version,
-                # AgentCore Memory (cross-session dealer memory) and Gateway
-                # (dealer-profile tool). The agent reads dealer profiles through
-                # the Gateway, not DynamoDB, so no DEALERS_TABLE var is needed.
-                "MEMORY_ID": self.memory_id,
-                "GATEWAY_URL": gateway_url or "",
-                "IDENTITY_MODE": "jwt_claim" if user_pool and user_pool_client else "single_tenant",
-                "DEFAULT_ACTOR_ID": (self.node.try_get_context("default_actor_id") or "default"),
-                "ACTOR_ID_CLAIM": "custom:dealer_id",
-                "EVALUATION_TRACE_SECRET_ID": self.evaluation_trace_secret.secret_arn,
-            },
-            authorizer_configuration=authorizer,
+            environment_variables=environment,
+            authorizer_configuration=auth.configuration,
             network_configuration=RuntimeNetworkConfiguration.using_public_network(),
             protocol_configuration=ProtocolType.HTTP,
             description=f"Vehicle search agent ({env_name})",
         )
 
+    def _grant_runtime_access(
+        self,
+        execution_role: iam.Role,
+        image_uri: str,
+        data_bucket: s3.IBucket,
+        integrations: RuntimeIntegrations,
+    ) -> None:
+        """Grant the runtime exactly the access the agent exercises.
+
+        Args:
+            execution_role: Role every grant is attached to.
+            image_uri: ECR image URI, parsed for the repository to pull from.
+            data_bucket: Bucket holding the LanceDB artifacts.
+            integrations: Supplies the Gateway to grant invoke access to, if any.
+        """
         # ── ECR pull permissions (from_image_uri does not auto-grant) ───────
         # URI shape: {account}.dkr.ecr.{region}.amazonaws.com/{repo}[:{tag}|@{digest}]
         # Split on the registry host so namespaced repos (foo/bar) survive, then
@@ -379,7 +467,7 @@ class AgentRuntimeStack(Stack):
         self.runtime.add_to_role_policy(
             iam.PolicyStatement(
                 actions=["bedrock:ApplyGuardrail"],
-                resources=[self.guardrail_arn],
+                resources=[self.guardrail.arn],
             )
         )
 
@@ -396,162 +484,5 @@ class AgentRuntimeStack(Stack):
         # The runtime signs its MCP calls to the Gateway with SigV4. Use the
         # Gateway L2's own grant so the exact IAM action stays owned by the
         # construct (least-privilege, scoped to this Gateway ARN).
-        if dealer_gateway is not None:
-            dealer_gateway.grant_invoke(execution_role)
-
-        # ── HTTP endpoint ───────────────────────────────────────────────────
-        self.endpoint = self.runtime.add_endpoint(
-            f"agent_eval_endpoint_{env_name}",
-            description=f"HTTP endpoint for vehicle search agent ({env_name})",
-        )
-
-        # AgentCore creates these groups on first invocation. LogRetention safely
-        # creates or adopts them and prevents unbounded service-log accumulation.
-        runtime_log_groups = {
-            "DefaultRuntimeLogRetention": self.runtime.application_log_group.log_group_name,
-            "NamedEndpointLogRetention": (
-                f"/aws/bedrock-agentcore/runtimes/{self.runtime.agent_runtime_id}-"
-                f"agent_eval_endpoint_{env_name}"
-            ),
-        }
-        retention_constructs: list[logs.LogRetention] = []
-        for construct_name, log_group_name in runtime_log_groups.items():
-            retention_constructs.append(
-                logs.LogRetention(
-                    self,
-                    construct_name,
-                    log_group_name=log_group_name,
-                    retention=logs.RetentionDays.ONE_WEEK,
-                    removal_policy=RemovalPolicy.RETAIN,
-                )
-            )
-
-        # LogRetention uses a singleton Lambda. Harden that generated provider:
-        # scope its IAM resources, bound concurrency, and pre-create its own
-        # encrypted log group so the control does not introduce a logging gap.
-        retention_provider_functions = [
-            node
-            for node in self.node.find_all()
-            if isinstance(node, CfnResource)
-            and node.cfn_resource_type == "AWS::Lambda::Function"
-            and "/LogRetention" in node.node.path
-        ]
-        retention_provider_policies = [
-            node
-            for node in self.node.find_all()
-            if isinstance(node, iam.CfnPolicy) and "/LogRetention" in node.node.path
-        ]
-        retention_provider_roles = [
-            node
-            for node in self.node.find_all()
-            if isinstance(node, iam.CfnRole) and "/LogRetention" in node.node.path
-        ]
-        if (
-            len(retention_provider_functions) != 1
-            or len(retention_provider_policies) != 1
-            or len(retention_provider_roles) != 1
-        ):
-            raise RuntimeError("Expected one CDK LogRetention provider, role, and policy")
-
-        retention_provider = retention_provider_functions[0]
-        retention_provider_log_group_name = f"/agent-eval/control-plane/log-retention/{env_name}"
-        retention_provider_log_group = logs.LogGroup(
-            self,
-            "LogRetentionProviderLogGroup",
-            log_group_name=retention_provider_log_group_name,
-            retention=logs.RetentionDays.ONE_WEEK,
-            encryption_key=evaluation_secret_key,
-            # This group belongs only to the deployment helper. Deleting it on
-            # rollback prevents a retained fixed name from blocking a retry.
-            removal_policy=RemovalPolicy.DESTROY,
-        )
-        grant_cloudwatch_logs_encryption(
-            evaluation_secret_key,
-            [retention_provider_log_group_name],
-        )
-
-        retention_provider.add_property_override(
-            "FunctionName", f"agent-eval-log-retention-{env_name}"
-        )
-        retention_provider.add_property_override("ReservedConcurrentExecutions", 2)
-        retention_provider.add_property_override(
-            "LoggingConfig",
-            {
-                "LogFormat": "JSON",
-                "LogGroup": retention_provider_log_group.log_group_name,
-            },
-        )
-
-        # The generated AWSLambdaBasicExecutionRole policy writes to every log
-        # group. The managed group exists before the function, so replace it
-        # with stream-write access scoped to that group.
-        retention_provider_roles[0].add_deletion_override("Properties.ManagedPolicyArns")
-        retention_provider_policies[0].add_property_override(
-            "PolicyDocument.Statement.0.Action",
-            [
-                "logs:CreateLogGroup",
-                "logs:DeleteRetentionPolicy",
-                "logs:PutRetentionPolicy",
-            ],
-        )
-        retention_provider_policies[0].add_property_override(
-            "PolicyDocument.Statement.0.Resource",
-            [
-                Stack.of(self).format_arn(
-                    service="logs",
-                    resource="log-group",
-                    # CloudWatch Logs authorizes PutRetentionPolicy against a
-                    # generated ``:log-stream:`` child ARN. The group-scoped
-                    # ``:*`` suffix is therefore required by the service.
-                    resource_name=f"{log_group_name}:*",
-                    arn_format=ArnFormat.COLON_RESOURCE_NAME,
-                )
-                for log_group_name in runtime_log_groups.values()
-            ],
-        )
-        retention_provider_policies[0].add_property_override(
-            "PolicyDocument.Statement.1",
-            {
-                # CDK's provider always creates its conventional Lambda group
-                # and sets one-day retention, even when LoggingConfig routes
-                # function output to the managed group below.
-                "Action": [
-                    "logs:CreateLogGroup",
-                    "logs:PutRetentionPolicy",
-                ],
-                "Effect": "Allow",
-                "Resource": Stack.of(self).format_arn(
-                    service="logs",
-                    resource="log-group",
-                    resource_name=f"/aws/lambda/agent-eval-log-retention-{env_name}:*",
-                    arn_format=ArnFormat.COLON_RESOURCE_NAME,
-                ),
-            },
-        )
-        retention_provider_policies[0].add_property_override(
-            "PolicyDocument.Statement.2",
-            {
-                "Action": [
-                    "logs:CreateLogStream",
-                    "logs:PutLogEvents",
-                ],
-                "Effect": "Allow",
-                "Resource": f"{retention_provider_log_group.log_group_arn}:*",
-            },
-        )
-        for retention_construct in retention_constructs:
-            retention_resource = retention_construct.node.default_child
-            if not isinstance(retention_resource, CfnResource):
-                raise TypeError("Expected LogRetention to create a custom resource")
-            retention_resource.add_dependency(retention_provider_log_group.node.default_child)
-
-        # Expose for cross-stack references
-        self.runtime_arn = self.runtime.agent_runtime_arn
-        self.runtime_id = self.runtime.agent_runtime_id
-        finalize_explicit_kms_actions(evaluation_secret_key, evaluation_secret_key_policy)
-        CfnOutput(
-            self,
-            "EvaluationTraceSecretArn",
-            value=self.evaluation_trace_secret.secret_arn,
-            description="Secrets Manager ARN for authorized evaluation callers",
-        )
+        if integrations.dealer_gateway is not None:
+            integrations.dealer_gateway.grant_invoke(execution_role)

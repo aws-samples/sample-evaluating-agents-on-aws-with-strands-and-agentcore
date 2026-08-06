@@ -37,7 +37,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from .security import (
+from lib.security import (
     explicit_kms_key_policy,
     finalize_explicit_kms_actions,
     grant_cloudwatch_logs_encryption,
@@ -54,6 +54,16 @@ class EvaluationStack(Stack):
         data_bucket: s3.IBucket,
         **kwargs: Any,
     ) -> None:
+        """Provision the evaluation alert topic, log group, and alarms.
+
+        Args:
+            scope: The parent construct, normally the CDK ``App``.
+            construct_id: Logical id of the stack.
+            data_bucket: Bucket holding evaluation results, granted to the
+                resources created here rather than recreated.
+            **kwargs: Passed through to ``Stack``, notably ``env``. The target
+                environment is read from the ``environment`` context value.
+        """
         super().__init__(scope, construct_id, **kwargs)
 
         # Get environment from context

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from strands_evals.types.trace import (
@@ -28,7 +28,11 @@ from strands_evals.types.trace import (
 )
 
 
-def build_session(
+# PLR0913 (7 > 5 args): every argument is keyword-only, so the transposed-
+# argument bug the rule guards against cannot occur, and a Session genuinely
+# needs all seven facts about the turn. Wrapping them in a value object would
+# make both callers name the same seven fields one level down.
+def build_session(  # noqa: PLR0913
     *,
     session_id: str,
     user_prompt: str,
@@ -56,9 +60,12 @@ def build_session(
         ``ToolExecutionSpan`` per call in invocation order (so the deterministic
         order-graders see the real sequence).
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
+    # Held in a local because the trace and its spans must agree on it, and
+    # ``SpanInfo.trace_id`` is declared optional upstream.
+    trace_id = uuid.uuid4().hex
     span_info = SpanInfo(
-        trace_id=uuid.uuid4().hex,
+        trace_id=trace_id,
         span_id=uuid.uuid4().hex[:16],
         session_id=session_id,
         start_time=start or now,
@@ -91,5 +98,5 @@ def build_session(
             )
         )
 
-    trace = Trace(spans=spans, trace_id=span_info.trace_id, session_id=session_id)
+    trace = Trace(spans=spans, trace_id=trace_id, session_id=session_id)
     return Session(traces=[trace], session_id=session_id)

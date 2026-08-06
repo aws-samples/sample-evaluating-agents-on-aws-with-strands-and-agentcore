@@ -47,6 +47,7 @@ from aws_cdk.aws_bedrockagentcore import (
 )
 from constructs import Construct
 
+from lib.lambda_assets import function_code
 from lib.security import (
     explicit_kms_key_policy,
     finalize_explicit_kms_actions,
@@ -134,7 +135,7 @@ class DealerApiStack(Stack):
             "DealerApiFunction",
             function_name=f"agent-eval-dealer-api-{env_name}",
             runtime=lambda_.Runtime.PYTHON_3_14,
-            code=lambda_.Code.from_asset("../lambda/functions/dealer_api"),
+            code=function_code("dealer_api"),
             handler="handler.lambda_handler",
             timeout=Duration.seconds(30),
             memory_size=512,

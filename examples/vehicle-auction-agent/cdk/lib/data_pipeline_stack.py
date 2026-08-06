@@ -12,7 +12,6 @@ logs, and KMS key are retained in every environment and continue to incur
 storage/key charges.
 """
 
-from pathlib import Path
 from typing import Any
 
 import aws_cdk as cdk
@@ -47,6 +46,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from lib.lambda_assets import function_code
 from lib.security import (
     explicit_kms_key_policy,
     finalize_explicit_kms_actions,
@@ -67,9 +67,6 @@ _TLS_S3_ACTIONS = [
     "s3:ListMultipartUploadParts",
     "s3:PutObject",
 ]
-_INGESTION_FUNCTION_DIR = (
-    Path(__file__).resolve().parents[2] / "lambda" / "functions" / "data_ingestion"
-)
 
 
 def _deny_insecure_s3_transport(bucket: s3.Bucket) -> None:
@@ -260,7 +257,7 @@ class DataPipelineStack(Stack):
             function_name=f"agent-eval-data-ingestion-{env_name}",
             runtime=lambda_.Runtime.PYTHON_3_14,
             handler="handler.lambda_handler",
-            code=lambda_.Code.from_asset(str(_INGESTION_FUNCTION_DIR)),
+            code=function_code("data_ingestion"),
             role=lambda_role,
             timeout=Duration.minutes(10),
             memory_size=2048,

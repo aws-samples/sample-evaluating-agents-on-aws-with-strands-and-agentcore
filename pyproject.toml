@@ -22,7 +22,7 @@ agentcore = [
     # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
     # (argument injection in Code Interpreter install_packages()).
     "bedrock-agentcore[strands-agents]>=1.18.1",
-    "lancedb==0.33.0",
+    "lancedb==0.36.0",
     # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
     # (the WebSocket server transport does not validate Host/Origin). This
     # project only consumes MCP as a client, but keep the floor.
@@ -41,7 +41,7 @@ all = [
     # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
     # (argument injection in Code Interpreter install_packages()).
     "bedrock-agentcore[strands-agents]>=1.18.1",
-    "lancedb==0.33.0",
+    "lancedb==0.36.0",
     # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
     # (the WebSocket server transport does not validate Host/Origin). This
     # project only consumes MCP as a client, but keep the floor.
@@ -74,7 +74,7 @@ dev = [
     # pin the latest verified-safe patch (whole 0.15.x line is affected).
     "ruff==0.14.14",
     "pyright>=1.1.407",
-    "lancedb==0.33.0",
+    "lancedb==0.36.0",
     "pandas>=2.0.0",
 ]
 

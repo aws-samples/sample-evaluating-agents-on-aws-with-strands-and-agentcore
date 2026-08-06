@@ -19,6 +19,13 @@ updates:
     # bump it; version changes go through a reviewed PR that runs the formatter.
     ignore:
       - dependency-name: "ruff"
+      # An mcp major bump is unsatisfiable here: every bedrock-agentcore release
+      # requires `mcp>=1.23.0,<2.0.0`, so proposing `mcp>=2.0.0` alongside it
+      # cannot resolve. Only the major is ignored — 1.x minor and patch updates
+      # still come through, which is what carries the CVE-2026-59950 fix and any
+      # future one. Drop this entry once bedrock-agentcore supports mcp 2.
+      - dependency-name: "mcp"
+        update-types: ["version-update:semver-major"]
     # Batch routine version bumps into a few PRs instead of one-per-package.
     # Security updates always open as their own PRs regardless of grouping.
     groups:

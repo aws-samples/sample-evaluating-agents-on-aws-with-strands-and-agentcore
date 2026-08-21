@@ -52,7 +52,7 @@ cdk bootstrap \
   aws://<expected-account>/eu-west-1
 
 # Then use the guarded build, diff, cost, approval, and deployment path.
-python scripts/deploy_stack.py \
+uv run python scripts/deploy_stack.py \
   --profile <profile> \
   --region eu-west-1 \
   --expected-account <expected-account>
@@ -167,12 +167,12 @@ Task timed out after 600.00 seconds
 1. **Increase timeout**:
 ```python
 # In examples/vehicle-auction-agent/cdk/lib/data_pipeline_stack.py
-timeout=Duration.minutes(15),  # Increase from 10 to 15
+timeout = (Duration.minutes(15),)  # Increase from 10 to 15
 ```
 
 2. **Increase memory** (more memory = more CPU):
 ```python
-memory_size=4096,  # Increase from 2048
+memory_size = (4096,)  # Increase from 2048
 ```
 
 3. **Optimize code**:
@@ -387,7 +387,7 @@ exec /usr/local/bin/python: exec format error
 Use the guarded deployment script instead of local Docker. It verifies STS,
 shows cost, invokes CodeBuild, resolves the ECR digest, and reviews the CDK diff:
 ```bash
-python scripts/deploy_stack.py \
+uv run python scripts/deploy_stack.py \
   --profile <profile> \
   --region eu-west-1 \
   --expected-account <expected-account>
@@ -472,6 +472,7 @@ aws cloudwatch get-metric-statistics \
 
 ```python
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 ```
@@ -491,7 +492,7 @@ cd examples/vehicle-auction-agent/agent
 DATA_BUCKET=<your-data-bucket> \
   ENVIRONMENT=dev \
   AWS_REGION=eu-west-1 \
-  python app.py
+  uv run python app.py
 ```
 
 ### Check Stack Outputs
@@ -551,7 +552,7 @@ uv run cdk diff --all --profile <profile> -c environment=dev \
 **Deploy**: use the guarded deployment path. It verifies STS identity, resolves
 the image to a digest, runs `cdk diff`, shows cost, and requires approval:
 ```bash
-python scripts/deploy_stack.py \
+uv run python scripts/deploy_stack.py \
   --profile <profile> \
   --region eu-west-1 \
   --expected-account <expected-account>
@@ -575,7 +576,7 @@ aws lambda get-function-configuration \
 # Update the AGENT RUNTIME image (the agent runs on AgentCore Runtime, not
 # Lambda). Rebuild + redeploy through the project's deploy script, which builds
 # the image in CodeBuild and points the runtime at the new immutable tag:
-python scripts/deploy_stack.py \
+uv run python scripts/deploy_stack.py \
   --profile <profile> \
   --region eu-west-1 \
   --expected-account <expected-account> \

@@ -22,6 +22,7 @@ from functools import cache
 from typing import Any
 
 from strands_evals import Case, Experiment
+from strands_evals.types.evaluation_report import EvaluationReport
 from strands_evals.types.trace import Session
 
 from agentic_evaluation.config import EvalConfig, load_config
@@ -355,8 +356,85 @@ def build_domain_experiment(
     return Experiment[str, str](cases=cases, evaluators=evaluators)
 
 
+def _rows_at(values: list[Any], indices: list[int]) -> list[Any]:
+    """Select ``indices`` from ``values``, tolerating the model's empty defaults.
+
+    ``reasons``, ``detailed_results``, ``diagnoses`` and ``recommendations``
+    default to ``[]`` on ``EvaluationReport``, so a report built by hand rather
+    than by an ``Experiment`` can carry fewer of those rows than it has scores.
+    """
+    return [values[index] for index in indices] if values else []
+
+
+def evaluator_name(report: EvaluationReport) -> str:
+    """Name the evaluator that produced ``report``.
+
+    The evaluator is tagged on each row rather than on the report -- there is no
+    ``report.evaluator_name`` -- so the name is read off the rows. Every row of a
+    report from :func:`reports_by_evaluator` carries the same tag, because that
+    tag is exactly what it grouped by.
+
+    Args:
+        report: A single-evaluator report from :func:`reports_by_evaluator`.
+
+    Returns:
+        The evaluator's instance name, as ``Evaluator.get_name()`` reports it.
+
+    Raises:
+        IndexError: ``report`` has no rows, so no evaluator produced it.
+        KeyError: A row carries no evaluator tag, so ``report`` did not come
+            from an ``Experiment`` or from :func:`reports_by_evaluator`.
+    """
+    return str(report.cases[0]["evaluator"])
+
+
+def reports_by_evaluator(report: EvaluationReport) -> list[EvaluationReport]:
+    """Split one flat evaluation report into a report per evaluator.
+
+    ``Experiment.run_evaluations()`` returns a single report whose rows are the
+    cross product of evaluators and cases, each row tagged with the evaluator
+    that produced it. Gating is per evaluator, though: :func:`_layer_passed`
+    applies one threshold per evaluator and treats each evaluator's per-case
+    ``test_pass`` as authoritative, so a single failing evaluator cannot be
+    averaged away by the others. This regroups the flat report into that shape.
+
+    Args:
+        report: The flat report returned by ``Experiment.run_evaluations()``.
+
+    Returns:
+        One report per evaluator, ordered by first appearance in ``report``.
+        Empty when the report has no rows, which keeps an empty layer from
+        gating green (see :func:`_layer_passed`).
+    """
+    grouped: dict[str, list[int]] = {}
+    for index, case in enumerate(report.cases):
+        grouped.setdefault(case["evaluator"], []).append(index)
+
+    per_evaluator = []
+    for indices in grouped.values():
+        scores = _rows_at(report.scores, indices)
+        detailed_results = _rows_at(report.detailed_results, indices)
+        per_evaluator.append(
+            EvaluationReport(
+                # The library's own aggregation, so rows an evaluator declined
+                # to judge are dropped from this mean exactly as they are from
+                # the flat report's -- reimplementing it as a plain mean would
+                # silently score a not-applicable case as a real zero.
+                overall_score=EvaluationReport.calculate_overall_score(scores, detailed_results),
+                scores=scores,
+                cases=_rows_at(report.cases, indices),
+                test_passes=_rows_at(report.test_passes, indices),
+                reasons=_rows_at(report.reasons, indices),
+                detailed_results=detailed_results,
+                diagnoses=_rows_at(report.diagnoses, indices),
+                recommendations=_rows_at(report.recommendations, indices),
+            )
+        )
+    return per_evaluator
+
+
 def _layer_passed(
-    reports: list[Any], threshold: float | list[float], *, strict_case_pass: bool
+    reports: list[EvaluationReport], threshold: float | list[float], *, strict_case_pass: bool
 ) -> bool:
     """Decide whether an evaluation layer passes.
 
@@ -421,7 +499,7 @@ def _run_layer(
     """Run a single evaluation layer and return results."""
     logger.info("Running %s evaluation", name)
     experiment = experiment_builder(cases)
-    reports = experiment.run_evaluations(task_fn)
+    reports = reports_by_evaluator(experiment.run_evaluations(task_fn))
     passed = _layer_passed(reports, threshold, strict_case_pass=name in _DETERMINISTIC_LAYERS)
     logger.info(
         "Completed %s evaluation: passed=%s scores=%s",
@@ -705,12 +783,16 @@ def _aggregate_trials(
     return results
 
 
-# PLR0913 (6 > 5 args): the SDK's primary entry point, and every argument is an
-# independent, documented knob that callers pass by name. Grouping them into a
-# config object would move the same six values behind one more indirection and
-# break every caller and code sample.
-def run_all_layers(  # noqa: PLR0913
+# The SDK's primary entry point, and every argument is an independent,
+# documented knob. Grouping them into a config object would move the same six
+# values behind one more indirection and break every caller and code sample, so
+# the knobs stay flat -- but keyword-only past `task_fn`, which is how every
+# call site and code sample already spells them. `custom_evaluators` and
+# `layers` are both `list | None`, so a positional call could swap them and be
+# silently accepted rather than raising.
+def run_all_layers(  # noqa: PLR0913 - counts keyword-only args; PLR0917 is satisfied
     task_fn: Callable[[Case[str, str]], TaskFnResult],
+    *,
     registry: TestCaseRegistry | None = None,
     num_trials: int = 1,
     custom_evaluators: list | None = None,

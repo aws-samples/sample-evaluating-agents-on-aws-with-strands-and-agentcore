@@ -1,6 +1,6 @@
 [project]
 name = "agentic-evaluation"
-version = "0.4.0"
+version = "0.6.0"
 description = "Universal three-layer evaluation SDK for AI agents"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -8,7 +8,13 @@ license = "MIT-0"
 dependencies = [
     "boto3>=1.43.46",
     "pyyaml>=6.0",
-    "strands-agents-evals>=0.1.9",
+    # 1.x changed run_evaluations() to return one flat report across
+    # evaluators x cases instead of a list of per-evaluator reports;
+    # agentic_evaluation.reports_by_evaluator() regroups it. Bounded on both
+    # sides deliberately: an unbounded floor let a fresh `pip install` resolve
+    # 1.2.0 against code written for the 0.x shape, which raised
+    # AttributeError at run time for every consumer.
+    "strands-agents-evals>=1.2.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -16,18 +22,22 @@ strands = [
     "strands-agents>=1.29.0",
 ]
 agentcore = [
-    # [strands-agents] pulls in the AgentCore Memory session-manager integration
-    # used by the reference agent; mcp-proxy-for-aws provides the SigV4 MCP
-    # transport for the AgentCore Gateway dealer-profile tool.
-    # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
-    # (argument injection in Code Interpreter install_packages()).
-    "bedrock-agentcore[strands-agents]>=1.18.1",
-    "lancedb==0.36.0",
-    # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
-    # (the WebSocket server transport does not validate Host/Origin). This
-    # project only consumes MCP as a client, but keep the floor.
-    "mcp>=1.28.1",
-    "mcp-proxy-for-aws>=1.6.2",
+    # Intentionally empty, and kept as a name so documented install lines
+    # (`pip install "agentic-evaluation[agentcore]"`) keep resolving.
+    #
+    # `agentic_evaluation.adapters.agentcore` reaches a deployed runtime through
+    # the boto3 *service* client for "bedrock-agentcore" -- not the
+    # bedrock-agentcore *package* -- and boto3 is already a core dependency, so
+    # this adapter needs no extra packages to import or run.
+    #
+    # bedrock-agentcore, mcp, mcp-proxy-for-aws and lancedb used to live here.
+    # Nothing under src/ imports any of them: their only consumer is the
+    # reference agent under examples/, which the wheel does not ship
+    # ([tool.hatch.build.targets.wheel] packages = ["src/agentic_evaluation"]).
+    # Declaring them here forced every consumer to install four packages the
+    # library never uses -- including an exact `lancedb==` pin that would
+    # deadlock any consumer needing a different lancedb. They now live in the
+    # `dev` dependency group, which PEP 735 keeps out of wheel metadata.
 ]
 http = [
     "requests>=2.31.0",
@@ -37,16 +47,10 @@ aws = [
     "constructs>=10.0.0",
 ]
 all = [
+    # Union of the extras that carry packages: strands + http. The agentcore
+    # extra is empty (see above) and aws is deployment-only tooling, kept out of
+    # `all` so `pip install "agentic-evaluation[all]"` does not drag in the CDK.
     "strands-agents>=1.29.0",
-    # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
-    # (argument injection in Code Interpreter install_packages()).
-    "bedrock-agentcore[strands-agents]>=1.18.1",
-    "lancedb==0.36.0",
-    # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
-    # (the WebSocket server transport does not validate Host/Origin). This
-    # project only consumes MCP as a client, but keep the floor.
-    "mcp>=1.28.1",
-    "mcp-proxy-for-aws>=1.6.2",
     "requests>=2.31.0",
 ]
 
@@ -68,14 +72,40 @@ packages = ["src/agentic_evaluation"]
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
-    # Pinned exactly and kept in lockstep with .pre-commit-config.yaml. An
-    # unbounded range let CI float to ruff 0.15.x, whose formatter rewrote
-    # valid `except (A, B):` into invalid `except A, B:` (a SyntaxError). We
-    # pin the latest verified-safe patch (whole 0.15.x line is affected).
-    "ruff==0.14.14",
+    # Pinned exactly and kept in lockstep with .pre-commit-config.yaml, so the
+    # local hook and CI format identically -- an unpinned formatter reformats
+    # the tree on whichever machine upgrades first.
+    #
+    # This was previously held at 0.14.14 on the belief that 0.15.x rewrote
+    # valid `except (A, B):` into a SyntaxError. It does not: PEP 758 makes the
+    # unparenthesized form valid from Python 3.14, and `target-version = "py314"`
+    # (correct -- see below) is what asks the formatter to apply it. So this tree
+    # now contains `except A, B:`, which will not parse on 3.13 or older. That is
+    # already true of the SDK for a second reason: test_cases.py annotates its own
+    # class by bare name, which needs PEP 649. Documented invocations therefore go
+    # through `uv run`, so the pinned 3.14 interpreter is the one that runs.
+    "ruff==0.16.4",
     "pyright>=1.1.407",
-    "lancedb==0.36.0",
-    "pandas>=2.0.0",
+    # Reference-agent dependencies, not library dependencies. tests/conftest.py
+    # puts examples/vehicle-auction-agent on sys.path so the unit suite can
+    # `import agent.app`, which imports lancedb, numpy, pandas and pyarrow
+    # directly and reaches mcp + mcp-proxy-for-aws through utils.gateway.
+    # A dependency group is the right home: PEP 735 keeps it entirely out of
+    # wheel metadata, so these never reach a consumer of the published package.
+    #
+    # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
+    # (argument injection in Code Interpreter install_packages()).
+    "bedrock-agentcore[strands-agents]>=1.21.0",
+    # Exact pin kept in lockstep with the reference agent's requirements.txt so
+    # the tested and deployed LanceDB readers cannot diverge.
+    "lancedb==0.37.1",
+    # Floor is a security minimum: < 1.28.1 is vulnerable to CVE-2026-59950
+    # (the WebSocket server transport does not validate Host/Origin). The agent
+    # consumes MCP only as a client, but keep the floor.
+    "mcp>=1.29.0",
+    "mcp-proxy-for-aws>=1.6.4",
+    "numpy>=2.5.2",
+    "pandas>=3.0.5",
 ]
 
 [tool.uv]

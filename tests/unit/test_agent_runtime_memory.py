@@ -12,6 +12,7 @@ from aws_cdk.assertions import Template
 CDK_DIR = Path(__file__).resolve().parents[2] / "examples" / "vehicle-auction-agent" / "cdk"
 sys.path.insert(0, str(CDK_DIR))
 
+from agent.app import _MEMORY_NAMESPACES  # noqa: E402
 from lib.agent_runtime_stack import AgentRuntimeStack  # noqa: E402
 
 
@@ -33,27 +34,36 @@ def _template() -> Template:
 
 
 def test_memory_strategy_namespaces_match_runtime_retrieval_config() -> None:
-    _template().has_resource_properties(
-        "AWS::BedrockAgentCore::Memory",
-        {
-            "MemoryStrategies": [
-                {
-                    "UserPreferenceMemoryStrategy": {
-                        "Name": "dealer_preferences",
-                        "Namespaces": ["/preferences/{actorId}/"],
-                        "Type": "USER_PREFERENCE",
-                    }
-                },
-                {
-                    "SemanticMemoryStrategy": {
-                        "Name": "dealer_facts",
-                        "Namespaces": ["/facts/{actorId}/"],
-                        "Type": "SEMANTIC",
-                    }
-                },
-            ]
-        },
-    )
+    """The write side and the read side of memory must name the same namespaces.
+
+    AgentCore Memory writes extracted records to the namespaces declared in the
+    CDK strategies; the runtime reads them back through the namespaces in its
+    ``RetrievalConfig``. Rename one side only and retrieval silently returns
+    nothing -- no error, just an agent that has forgotten everything. So this
+    compares against the runtime's own declaration rather than a copy of it.
+    """
+    memories = _template().find_resources("AWS::BedrockAgentCore::Memory")
+    assert len(memories) == 1
+    strategies = next(iter(memories.values()))["Properties"]["MemoryStrategies"]
+
+    # The strategy kind is asserted through the wrapper key. The `Type` field
+    # inside it is optional in the CloudFormation schema and says the same thing
+    # twice; aws-cdk-lib stopped emitting it in 2.266.0, so pinning it here was
+    # pinning a synthesis detail rather than this stack's contract.
+    assert [
+        (kind, body["Name"], tuple(body["Namespaces"]))
+        for strategy in strategies
+        for kind, body in strategy.items()
+    ] == [
+        ("UserPreferenceMemoryStrategy", "dealer_preferences", ("/preferences/{actorId}/",)),
+        ("SemanticMemoryStrategy", "dealer_facts", ("/facts/{actorId}/",)),
+    ]
+    assert {
+        namespace
+        for strategy in strategies
+        for body in strategy.values()
+        for namespace in body["Namespaces"]
+    } == set(_MEMORY_NAMESPACES)
 
 
 def test_agentcore_runtime_log_groups_have_bounded_retention() -> None:

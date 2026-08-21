@@ -23,7 +23,7 @@ jobs:
           path: repo
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -67,7 +67,7 @@ jobs:
           path: repo
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
       - name: Set up Python 3.14
         run: uv python install 3.14
@@ -108,6 +108,36 @@ jobs:
             echo "::endgroup::"
           done
 
+      # requirements.lock is what the runtime image installs (see the agent
+      # Dockerfile: `pip install --require-hashes -r requirements.lock`), but
+      # Dependabot can only edit requirements.txt -- it does not parse a
+      # `.lock` filename, and the floor-only requirements.txt resolves to no
+      # concrete version, so that tree produces no alerts either. Nothing tied
+      # the two files together, which let a floor bump merge while the pin that
+      # actually deploys stayed behind. Recompiling and diffing turns that
+      # silent drift into a failed build.
+      #
+      # Deterministic on purpose: `uv pip compile` prefers the versions already
+      # in --output-file and only moves one when requirements.txt or
+      # constraints.txt stops permitting it. A new upstream release therefore
+      # does not turn this red; a stale lock does.
+      - name: Verify agent requirements.lock is in sync
+        working-directory: repo/examples/vehicle-auction-agent/agent
+        run: |
+          cp requirements.lock requirements.lock.committed
+          uv pip compile requirements.txt \
+            --constraint constraints.txt \
+            --python-platform aarch64-manylinux_2_28 \
+            --python-version 3.14 \
+            --generate-hashes --only-binary :all: \
+            --output-file requirements.lock --quiet
+          if ! diff -u requirements.lock.committed requirements.lock; then
+            echo "::error::requirements.lock does not match requirements.txt. Regenerate it with the command in the lock header and commit the result."
+            exit 1
+          fi
+          rm requirements.lock.committed
+          echo "in sync: $(grep -cE '^[a-zA-Z0-9][^ ]*==' requirements.lock) pinned packages"
+
       - name: Audit deployable agent dependencies
         working-directory: repo
         run: |
@@ -135,7 +165,7 @@ jobs:
         working-directory: repo/examples/vehicle-auction-agent/cdk
         run: |
           uv sync --frozen
-          npm install --global aws-cdk@2.1131.0
+          npm install --global aws-cdk@2.1138.0
 
       - name: Synthesize all CDK stacks
         working-directory: repo/examples/vehicle-auction-agent/cdk
@@ -151,7 +181,7 @@ jobs:
         working-directory: repo
         run: |
           while IFS= read -r template; do
-            uvx --from cfn-lint==1.53.0 cfn-lint \
+            uvx --from cfn-lint==1.55.1 cfn-lint \
               -t "$template" --ignore-checks W3005
           done < <(find "$RUNNER_TEMP/cdk.out" -maxdepth 1 \
             -name '*.template.json' -print)
@@ -174,7 +204,7 @@ jobs:
       - name: Checkov
         working-directory: repo
         run: |
-          uvx --from checkov==3.2.533 checkov \
+          uvx --from checkov==3.3.13 checkov \
             -d "$RUNNER_TEMP/cdk.out" \
             --framework cloudformation \
             --config-file .checkov.yaml \
@@ -187,7 +217,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: repo
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Build sdist + wheel
         working-directory: repo
         run: uv build

@@ -349,7 +349,7 @@ def _get_evaluation_trace_token() -> str | None:
             if _evaluation_trace_token is None:
                 try:
                     _evaluation_trace_token = _read_evaluation_trace_secret()
-                except (botocore.exceptions.ClientError, ValueError):
+                except botocore.exceptions.ClientError, ValueError:
                     logger.exception("Evaluation trace authorization unavailable")
                     return None
     return _evaluation_trace_token
@@ -433,7 +433,7 @@ def _as_float(value: Any) -> float | None:
         return None
     try:
         return float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -442,7 +442,7 @@ def _as_int(value: Any) -> int | None:
         return None
     try:
         number = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return int(number) if number.is_integer() else None
 
@@ -715,7 +715,7 @@ def _get_vehicle_frame() -> pd.DataFrame:
 def _bounded_limit(value: Any, *, default: int) -> int:
     try:
         limit = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         limit = default
     return min(MAX_TOOL_RESULTS, max(1, limit))
 
@@ -847,7 +847,7 @@ def _generate_embedding(text: str) -> list[float]:
             body=json.dumps({"inputText": text}),
         )
         return json.loads(resp["body"].read()).get("embedding", [])
-    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError):
+    except boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError:
         logger.exception("Embedding failed")
         return []
 
@@ -871,6 +871,7 @@ def get_schema() -> str:
 
 def _apply_filters(  # noqa: PLR0913 - mirrors the search_vehicles tool schema
     df: Any,
+    *,
     make: str = "",
     model: str = "",
     min_price: float = 0,
@@ -909,6 +910,7 @@ def _apply_filters(  # noqa: PLR0913 - mirrors the search_vehicles tool schema
 
 @tool
 def search_vehicles(  # noqa: PLR0913 - the flat signature is the tool schema the model sees
+    *,
     make: str = "",
     model: str = "",
     min_price: float = 0,
@@ -1167,7 +1169,7 @@ def get_bids(min_bid_count: int = 1) -> dict[str, Any]:
         bids = data.get("bids", [])
         filtered = [b for b in bids if b.get("bid_count", 0) >= min_bid_count]
         return {"count": len(filtered), "bids": filtered[:20]}
-    except (boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError):
+    except boto3.exceptions.Boto3Error, json.JSONDecodeError, KeyError:
         logger.exception("get_bids failed")
         return {"error": "Unable to fetch bids data"}
 

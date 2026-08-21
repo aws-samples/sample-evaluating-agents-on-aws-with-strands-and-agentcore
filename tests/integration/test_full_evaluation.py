@@ -30,6 +30,7 @@ from strands_evals.types.trace import (
     Trace,
 )
 
+from agentic_evaluation import reports_by_evaluator
 from agentic_evaluation.evaluators import (
     CostEvaluator,
     LatencyEvaluator,
@@ -334,7 +335,7 @@ class TestLayer1ToolUsage:
         """Run Layer 1 with mock agent. Blog threshold: >95% tool selection."""
         cases = build_cases_from_registry()
         exp = build_layer1_experiment(cases)
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         assert len(reports) == 3
 
@@ -356,7 +357,7 @@ class TestLayer1ToolUsage:
         cases = build_cases_from_registry()
         grader = ToolSelectionGrader(threshold=0.95)
         exp = Experiment(cases=cases, evaluators=[grader])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         report = reports[0]
         for score, case_data in zip(report.scores, report.cases, strict=True):
@@ -368,7 +369,7 @@ class TestLayer1ToolUsage:
         cases = build_cases_from_registry()
         grader = TrajectoryOrderGrader(threshold=0.85)
         exp = Experiment(cases=cases, evaluators=[grader])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         assert reports[0].overall_score >= 0.70, (
             f"Trajectory order score {reports[0].overall_score:.2f} below 0.70"
@@ -395,7 +396,7 @@ class TestLayer2Reasoning:
     def test_layer2_run_evaluations(self) -> None:
         cases = build_cases_from_registry()
         exp = build_layer2_experiment(cases)
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         assert len(reports) == 2
 
@@ -429,7 +430,7 @@ class TestLayer3OutputQuality:
     def test_layer3_run_evaluations(self) -> None:
         cases = build_cases_from_registry()
         exp = build_layer3_experiment(cases)
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         assert len(reports) == 2
 
@@ -466,7 +467,7 @@ class TestDomainEvaluators:
     def test_domain_run_evaluations(self) -> None:
         cases = build_cases_from_registry()
         exp = build_domain_experiment(cases)
-        reports = exp.run_evaluations(mock_agent_task_with_metadata)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task_with_metadata))
 
         # 4 deterministic evaluators (schema_scoping is opt-in / disabled here).
         assert len(reports) == 4
@@ -481,7 +482,7 @@ class TestDomainEvaluators:
         # (v0.3.0 defaults are empty, which would otherwise pass vacuously).
         safety = SafetyGuardrailEvaluator(forbidden_actions={"place_bid"})
         exp = Experiment(cases=cases, evaluators=[safety])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
 
         for i, passed in enumerate(reports[0].test_passes):
             assert passed is True, f"Safety case {i} should pass: {reports[0].reasons[i]}"
@@ -497,7 +498,7 @@ class TestDomainEvaluators:
         def malicious_task(case: Case) -> dict[str, Any]:
             return {"output": "Placing that bid now!", "trajectory": ["place_bid"]}
 
-        reports = exp.run_evaluations(malicious_task)
+        reports = reports_by_evaluator(exp.run_evaluations(malicious_task))
 
         for i, passed in enumerate(reports[0].test_passes):
             assert passed is False, f"Safety case {i} should FAIL for malicious agent"
@@ -514,7 +515,7 @@ class TestDomainEvaluators:
             metadata={"latency_ms": 1500},
         )
         exp = Experiment(cases=[fast_case], evaluators=[latency])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
         assert reports[0].overall_score == 1.0
 
         # Slow: over P99
@@ -525,7 +526,7 @@ class TestDomainEvaluators:
             metadata={"latency_ms": 15000},
         )
         exp = Experiment(cases=[slow_case], evaluators=[latency])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
         assert reports[0].test_passes[0] is False
 
     def test_cost_evaluator_budget(self) -> None:
@@ -540,7 +541,7 @@ class TestDomainEvaluators:
             metadata={"total_tokens": 4000, "estimated_cost_usd": 0.20},
         )
         exp = Experiment(cases=[under_case], evaluators=[cost])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
         assert reports[0].test_passes[0] is True
 
         # Over budget
@@ -551,7 +552,7 @@ class TestDomainEvaluators:
             metadata={"total_tokens": 15000, "estimated_cost_usd": 0.80},
         )
         exp = Experiment(cases=[over_case], evaluators=[cost])
-        reports = exp.run_evaluations(mock_agent_task)
+        reports = reports_by_evaluator(exp.run_evaluations(mock_agent_task))
         assert reports[0].test_passes[0] is False
 
 

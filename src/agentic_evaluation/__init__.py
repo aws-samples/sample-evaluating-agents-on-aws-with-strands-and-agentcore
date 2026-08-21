@@ -35,6 +35,8 @@ adapters that build a ``task_fn`` for you live under
 ``from agentic_evaluation.adapters.agentcore import make_task_fn``.
 """
 
+from importlib.metadata import version
+
 from agentic_evaluation.config import EvalConfig, load_config
 from agentic_evaluation.evaluators import (
     CostEvaluator,
@@ -68,13 +70,18 @@ from agentic_evaluation.run_experiment import (
     build_layer1_experiment,
     build_layer2_experiment,
     build_layer3_experiment,
+    evaluator_name,
+    reports_by_evaluator,
     run_all_layers,
 )
 from agentic_evaluation.test_cases import TestCaseRegistry
 from agentic_evaluation.thresholds import EVALUATION_THRESHOLDS, EvaluationThresholds
 from agentic_evaluation.types import TaskFnResult
 
-__version__ = "0.4.0"
+# Read from installed package metadata rather than repeated here: a second
+# literal is a second thing to bump, and it had already drifted a release
+# behind [project] version in pyproject.toml.
+__version__ = version("agentic-evaluation")
 
 # The section comments group this by role, which is what a reader of a public
 # API surface wants; RUF022 would flatten it to one alphabetical run and lose
@@ -118,6 +125,8 @@ __all__ = [  # noqa: RUF022
     "build_layer3_experiment",
     "build_domain_experiment",
     "run_all_layers",
+    "reports_by_evaluator",
+    "evaluator_name",
     # Test infrastructure
     "TestCaseRegistry",
     # Typing contracts

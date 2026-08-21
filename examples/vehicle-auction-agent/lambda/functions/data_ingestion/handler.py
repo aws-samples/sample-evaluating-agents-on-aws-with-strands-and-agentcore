@@ -138,7 +138,7 @@ def lambda_handler(
             ),
         }
 
-    except (ClientError, json.JSONDecodeError, KeyError, ValueError):
+    except ClientError, json.JSONDecodeError, KeyError, ValueError:
         logger.exception("Error in data ingestion")
         raise
 
@@ -477,7 +477,7 @@ def generate_embeddings(vehicles: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 len(embedding),
             )
 
-        except (ClientError, json.JSONDecodeError, KeyError):
+        except ClientError, json.JSONDecodeError, KeyError:
             logger.exception("Error generating embedding for vehicle %s", vehicle["id"])
             # Skip vehicle — zero vectors poison semantic search results
             logger.warning("Skipping vehicle %s due to embedding failure", vehicle["id"])

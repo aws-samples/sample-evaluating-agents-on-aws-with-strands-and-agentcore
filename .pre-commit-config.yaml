@@ -12,17 +12,16 @@ repos:
         types: [text]
 
   # Pinned to match the ruff version in pyproject.toml (dev group) and CI, so
-  # the local hook and CI format/lint identically. 0.15.x is intentionally
-  # avoided (its formatter rewrites valid `except (A, B):` into a SyntaxError).
+  # the local hook and CI format/lint identically.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.16.4
     hooks:
       - id: ruff
         args: [--fix, --ignore, E501]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer

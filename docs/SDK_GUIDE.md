@@ -31,6 +31,7 @@ Every adapter ultimately produces a `task_fn` with this shape:
 from agentic_evaluation import TaskFnResult
 from strands_evals.types.evaluation import EnvironmentState
 
+
 def task_fn(case) -> TaskFnResult:
     metrics = {
         "latency_ms": 420,
@@ -74,14 +75,22 @@ pip install agentic-evaluation
 # With Strands LLM-as-judge:
 pip install "agentic-evaluation[strands]"
 
-# With AgentCore runtime adapter:
+# With the AgentCore runtime adapter (no extra needed -- see the note below):
 pip install "agentic-evaluation[agentcore]"
 
 # Everything:
 pip install "agentic-evaluation[all]"
 ```
 
-> `agentcore` here is the package extra identifier for Amazon Bedrock AgentCore integration. A Python "extra" is an optional dependency group installed via `pip install pkg[extra]`.
+> A Python "extra" is an optional dependency group installed via `pip install pkg[extra]`.
+>
+> The `agentcore` extra is **empty**, and installing it is optional. The AgentCore
+> adapter reaches a deployed runtime through the boto3 *service* client for
+> `bedrock-agentcore`, and boto3 ships with the core package -- so
+> `agentic_evaluation.adapters.agentcore` imports and runs after a plain
+> `pip install agentic-evaluation`. The extra is kept as a no-op alias so the
+> install line above stays valid. It does **not** pull in the `bedrock-agentcore`
+> Python SDK, which this package does not use.
 
 Verify the installation:
 ```bash
@@ -108,6 +117,44 @@ agentic-eval run --config eval_config.yaml --task-fn my_pkg.tasks:run
 agentic-eval run --config eval_config.yaml --task-fn my_pkg.tasks:run \
   --layers layer_1,domain --output results.json
 ```
+
+## Reading results
+
+`run_all_layers()` returns a dict keyed by layer (and by the standard aliases
+above). Gate on `all_passed`; read `reports` when you want the detail:
+
+```python
+from agentic_evaluation import evaluator_name, run_all_layers
+
+results = run_all_layers(task_fn, layers=["layer_1", "domain"])
+for layer in ("layer_1", "domain"):
+    for report in results[layer]["reports"]:
+        print(layer, evaluator_name(report), round(report.overall_score, 2))
+
+raise SystemExit(0 if results["all_passed"] else 1)
+```
+
+Each entry in `reports` is one evaluator's `strands_evals.EvaluationReport`. The
+evaluator's name is a per-row tag rather than a field on the report, which is why
+`evaluator_name()` exists — see
+[EvaluationReport fields](EVALUATION_GUIDE.md#evaluationreport-fields) for the
+full shape, and for `reports_by_evaluator()`, which you need only when driving an
+`Experiment` yourself instead of going through `run_all_layers()`.
+
+Every `run_all_layers()` argument past `task_fn` is keyword-only (`registry=`,
+`num_trials=`, `custom_evaluators=`, `judge_backend=`, `layers=`) — six
+same-shaped optional arguments is exactly the signature where a positional call
+silently swaps two of them.
+
+### strands-agents-evals compatibility
+
+The dependency is bounded on both sides: `strands-agents-evals>=1.2.0,<2.0.0`.
+1.x changed `Experiment.run_evaluations()` from returning a list of per-evaluator
+reports to returning one flat report across evaluators × cases, and removed
+`report.evaluator_name`. The upper bound is deliberate: with only a floor, a
+fresh `pip install` resolves the newest release against code written for the
+older shape, and the mismatch surfaces as an `AttributeError` in the consumer's
+run rather than as a resolution error at install time.
 
 ## Strands Agents
 
@@ -147,6 +194,7 @@ from openai import OpenAI
 from strands_evals.types.evaluation import EnvironmentState
 
 client = OpenAI()
+
 
 def task_fn(case):
     t0 = time.time()
@@ -211,6 +259,7 @@ Use `NoOpJudgeBackend` to skip Layer 2/3 entirely, or implement your own
 ```python
 from agentic_evaluation import JudgeBackend, build_judge
 
+
 class MyJudge:
     def layer2_evaluators(self, *, model, rubric, tool_descriptions): ...
     def layer3_evaluators(self, *, model, rubric): ...
@@ -223,7 +272,7 @@ YAML (`judge_backend: my_judge`).
 
 **Installation verification fails**: verify that Python 3.14+ is installed and pip is current with `pip install --upgrade pip`.
 
-**Framework adapter import errors**: install the matching extra, for example `pip install "agentic-evaluation[strands]"` for Strands or `pip install "agentic-evaluation[agentcore]"` for Amazon Bedrock AgentCore.
+**Framework adapter import errors**: install the matching extra — `pip install "agentic-evaluation[strands]"` for the Strands adapter. The AgentCore adapter needs no extra: it uses boto3, which the core package already installs, so an import error there points at the install itself rather than a missing extra.
 
 **Task function returns the wrong format**: return a dict with `output` (str), `trajectory` (list[str]), and `metadata` (dict).
 

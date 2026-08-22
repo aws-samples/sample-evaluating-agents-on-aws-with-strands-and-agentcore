@@ -56,7 +56,7 @@ aws logs filter-log-events \
 2. Right-size based on usage:
 ```python
 # If max memory used < 1500 MB, reduce to 1536 MB
-memory_size=1536,
+memory_size = (1536,)
 ```
 
 ---
@@ -76,7 +76,7 @@ memory_size=1536,
 # In CDK
 self.ingestion_function.add_alias(
     "live",
-    provisioned_concurrent_executions=2  # Always warm
+    provisioned_concurrent_executions=2,  # Always warm
 )
 ```
 
@@ -92,8 +92,9 @@ zip -r function.zip . -x "*.pyc" "**/__pycache__/*" "tests/*"
 4. **Keep connections warm**:
 ```python
 # Reuse boto3 clients outside handler
-s3_client = boto3.client('s3')
-bedrock_client = boto3.client('bedrock-runtime')
+s3_client = boto3.client("s3")
+bedrock_client = boto3.client("bedrock-runtime")
+
 
 def lambda_handler(event, context):
     # Use existing clients
@@ -109,14 +110,14 @@ Process multiple items per invocation:
 **Before** (1 item per invocation):
 ```python
 def lambda_handler(event, context):
-    vehicle = event['vehicle']
+    vehicle = event["vehicle"]
     process_vehicle(vehicle)
 ```
 
 **After** (batch of items):
 ```python
 def lambda_handler(event, context):
-    vehicles = event['vehicles']  # Batch of 10-100
+    vehicles = event["vehicles"]  # Batch of 10-100
     results = [process_vehicle(v) for v in vehicles]
     return results
 ```
@@ -135,7 +136,7 @@ def lambda_handler(event, context):
 **Current**: Sequential API calls
 ```python
 for vehicle in vehicles:
-    embedding = get_embedding(vehicle['description'])
+    embedding = get_embedding(vehicle["description"])
 ```
 
 **Optimized**: Batch requests
@@ -143,8 +144,8 @@ for vehicle in vehicles:
 # Batch embeddings (Amazon Titan supports up to 128KB input)
 batch_size = 10
 for i in range(0, len(vehicles), batch_size):
-    batch = vehicles[i:i+batch_size]
-    texts = [v['description'] for v in batch]
+    batch = vehicles[i : i + batch_size]
+    texts = [v["description"] for v in batch]
     embeddings = get_embeddings_batch(texts)
 ```
 
@@ -174,11 +175,7 @@ for i in range(0, len(vehicles), batch_size):
 1. **Create indexes**:
 ```python
 # Create IVF-PQ index (Inverted File with Product Quantization) for large datasets
-table.create_index(
-    metric="cosine",
-    num_partitions=256,
-    num_sub_vectors=96
-)
+table.create_index(metric="cosine", num_partitions=256, num_sub_vectors=96)
 ```
 
 2. **Limit result sets**:
@@ -201,13 +198,12 @@ results = table.search(query_vector).select(["id", "make", "model"]).limit(10)
 ```python
 # Use multipart upload for files >5MB
 s3_client.upload_file(
-    'large_file.json',
-    'amzn-s3-demo-bucket',
-    'key',
+    "large_file.json",
+    "amzn-s3-demo-bucket",
+    "key",
     Config=boto3.s3.transfer.TransferConfig(
-        multipart_threshold=5 * 1024 * 1024,
-        multipart_chunksize=5 * 1024 * 1024
-    )
+        multipart_threshold=5 * 1024 * 1024, multipart_chunksize=5 * 1024 * 1024
+    ),
 )
 ```
 
@@ -215,12 +211,12 @@ s3_client.upload_file(
 ```python
 # Query JSON without downloading entire file
 response = s3_client.select_object_content(
-    Bucket='amzn-s3-demo-bucket',
-    Key='data.json',
+    Bucket="amzn-s3-demo-bucket",
+    Key="data.json",
     Expression='SELECT * FROM S3Object[*] WHERE make = "Toyota"',
-    ExpressionType='SQL',
-    InputSerialization={'JSON': {'Type': 'DOCUMENT'}},
-    OutputSerialization={'JSON': {}}
+    ExpressionType="SQL",
+    InputSerialization={"JSON": {"Type": "DOCUMENT"}},
+    OutputSerialization={"JSON": {}},
 )
 ```
 
@@ -246,12 +242,12 @@ response = s3_client.select_object_content(
 
 **Current**: Daily refresh (1 AM UTC)
 ```python
-schedule=events.Schedule.cron(minute="0", hour="1")
+schedule = events.Schedule.cron(minute="0", hour="1")
 ```
 
 **Optimized**: Weekly refresh (for stable datasets)
 ```python
-schedule=events.Schedule.cron(minute="0", hour="1", week_day="SUN")
+schedule = events.Schedule.cron(minute="0", hour="1", week_day="SUN")
 ```
 
 **Estimated savings**: Actual results vary by workload and configuration; the following figure is an illustrative benchmark. In some scenarios, this may reduce Lambda invocations by up to 85% compared to daily refresh, depending on your refresh schedule and workload patterns.
@@ -264,13 +260,12 @@ s3.LifecycleRule(
     transitions=[
         s3.Transition(
             storage_class=s3.StorageClass.GLACIER_INSTANT_RETRIEVAL,
-            transition_after=Duration.days(30)
+            transition_after=Duration.days(30),
         ),
         s3.Transition(
-            storage_class=s3.StorageClass.GLACIER_DEEP_ARCHIVE,
-            transition_after=Duration.days(90)
-        )
-    ]
+            storage_class=s3.StorageClass.GLACIER_DEEP_ARCHIVE, transition_after=Duration.days(90)
+        ),
+    ],
 )
 ```
 
@@ -320,17 +315,14 @@ Enable Lambda Insights for detailed metrics:
 
 ```python
 # In CDK
-self.ingestion_function.add_environment(
-    "AWS_LAMBDA_EXEC_WRAPPER",
-    "/opt/otel-instrument"
-)
+self.ingestion_function.add_environment("AWS_LAMBDA_EXEC_WRAPPER", "/opt/otel-instrument")
 
 # Add Lambda Insights layer
 lambda_insights_layer = lambda_.LayerVersion.from_layer_version_arn(
     self,
     "LambdaInsightsLayer",
     # Documentation example. Replace this with the actual AWS-provided Lambda Insights layer Amazon Resource Name (ARN) for your region.
-    f"arn:aws:lambda:{self.region}:123456789012:layer:LambdaInsightsExtension:21"
+    f"arn:aws:lambda:{self.region}:123456789012:layer:LambdaInsightsExtension:21",
 )
 self.ingestion_function.add_layers(lambda_insights_layer)
 ```
@@ -366,19 +358,11 @@ Publish detailed performance metrics:
 ```python
 def publish_performance_metrics(duration_ms, memory_mb):
     cloudwatch.put_metric_data(
-        Namespace='AgentEvaluation/Performance',
+        Namespace="AgentEvaluation/Performance",
         MetricData=[
-            {
-                'MetricName': 'ProcessingDuration',
-                'Value': duration_ms,
-                'Unit': 'Milliseconds'
-            },
-            {
-                'MetricName': 'MemoryUsage',
-                'Value': memory_mb,
-                'Unit': 'Megabytes'
-            }
-        ]
+            {"MetricName": "ProcessingDuration", "Value": duration_ms, "Unit": "Milliseconds"},
+            {"MetricName": "MemoryUsage", "Value": memory_mb, "Unit": "Megabytes"},
+        ],
     )
 ```
 
@@ -416,7 +400,7 @@ for region in regions:
     DataPipelineStack(
         app,
         f"agent-eval-dev-data-pipeline-{region}",
-        env=cdk.Environment(account=account, region=region)
+        env=cdk.Environment(account=account, region=region),
     )
 ```
 

@@ -21,12 +21,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from agentic_evaluation.adapters.agentcore import make_task_fn  # noqa: E402
-from agentic_evaluation.run_experiment import run_all_layers  # noqa: E402
+from agentic_evaluation.run_experiment import evaluator_name, run_all_layers  # noqa: E402
 from agentic_evaluation.test_cases import (  # noqa: E402
     EvaluationLayer,
     TestCase,
@@ -78,6 +79,42 @@ def _smoke_cases() -> TestCaseRegistry:
         ),
     ]
     return TestCaseRegistry.from_config(cases)
+
+
+def _summarize(results: dict[str, Any]) -> dict[str, Any]:
+    """Reduce ``run_all_layers`` output to the JSON this script prints.
+
+    Kept separate from :func:`main` so it can be exercised without AWS
+    credentials: everything above it in ``main`` is identity verification, so an
+    error here would otherwise surface for the first time against a live
+    deployment, after the runtime had already been invoked and paid for.
+
+    Args:
+        results: Return value of
+            :func:`agentic_evaluation.run_experiment.run_all_layers`.
+
+    Returns:
+        ``all_passed`` plus, for each layer that ran, its verdict and one entry
+        per evaluator.
+    """
+    summary: dict[str, Any] = {"all_passed": results["all_passed"], "layers": {}}
+    for name in ("layer_1", "layer_2", "layer_3", "domain"):
+        info = results.get(name)
+        if info is None:
+            continue
+        summary["layers"][name] = {
+            "passed": bool(info.get("passed")),
+            "evaluators": [
+                {
+                    "name": evaluator_name(r),
+                    "score": r.overall_score,
+                    "test_passes": r.test_passes,
+                    "reasons": r.reasons,
+                }
+                for r in info["reports"]
+            ],
+        }
+    return summary
 
 
 def main() -> int:
@@ -140,25 +177,7 @@ def main() -> int:
         layers=layers,
     )
 
-    summary: dict = {"all_passed": results["all_passed"], "layers": {}}
-    for name in ("layer_1", "layer_2", "layer_3", "domain"):
-        info = results.get(name)
-        if info is None:
-            continue
-        summary["layers"][name] = {
-            "passed": bool(info.get("passed")),
-            "evaluators": [
-                {
-                    "name": r.evaluator_name,
-                    "score": r.overall_score,
-                    "test_passes": r.test_passes,
-                    "reasons": r.reasons,
-                }
-                for r in info["reports"]
-            ],
-        }
-
-    print(json.dumps(summary, indent=2, default=str))
+    print(json.dumps(_summarize(results), indent=2, default=str))
     return 0 if results["all_passed"] else 1
 
 

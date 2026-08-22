@@ -103,7 +103,7 @@ def _git_sha() -> str | None:
             capture_output=True,
             text=True,
         )
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         return None
     return result.stdout.strip() or None
 

@@ -96,19 +96,70 @@ uv pip compile requirements.txt --constraint constraints.txt \
   --generate-hashes --only-binary :all: --output-file requirements.lock
 ```
 
+This is not optional, and CI enforces it. `requirements.lock` is the file the runtime image
+installs (`pip install --require-hashes -r requirements.lock`), while Dependabot can only edit
+`requirements.txt` — it does not parse a `.lock` filename, and the floor-only `requirements.txt`
+yields no concrete version to match against an advisory range, so **that tree raises no
+Dependabot alerts at all**. The `Verify agent requirements.lock is in sync` step in
+`sdk-ci.yml` recompiles and diffs, so a floor bump that forgets the lock fails the build
+instead of shipping an unchanged image. `pip-audit` over `requirements.lock` is the control
+that actually covers the deployed artifact.
+
 ### Known Advisories
 
 | Package | CVE | Status | Impact |
 |---------|-----|--------|--------|
 | PyJWT | CVE-2026-32597 | Resolved: project pins 2.13.0 (fix landed in 2.12.0) | None: patched version in use; transitive dependency not used for JWT validation |
 | aiohttp | CVE-2026-69244, CVE-2026-69243, CVE-2026-59881 | Resolved: constrained to >=3.14.3 | None: patched version in use. Reached only transitively via `strands-agents-evals` -> `strands-agents-tools`; no first-party code imports aiohttp, and it is absent from the deployed agent image |
-| bedrock-agentcore | CVE-2026-16796 | Resolved: floor raised to >=1.18.1 | None: patched version in use. The affected Code Interpreter `install_packages()` path is not used by this project |
+| bedrock-agentcore | CVE-2026-16796 | Resolved: floor raised to >=1.21.0 (patched in 1.18.1); both trees resolve 1.22.0 | None: patched version in use. The affected Code Interpreter `install_packages()` path is not used by this project, and the published wheel does not depend on this package at all — it reaches AgentCore through the boto3 `bedrock-agentcore` service client. The floor guards the reference agent image and the test tree, which do import it |
 | cryptography | CVE-2026-69247 | Resolved: constrained to >=50.0.0 | None: patched version in use. Reached transitively via authlib, joserfc, `pyjwt[crypto]` and secretstorage; no PKCS#7 `EnvelopedData` decryption anywhere in the project |
 | Pillow | 13 advisories, including CVE-2026-59197, CVE-2026-59199, CVE-2026-59205 | Resolved: constrained to >=12.3.0 | None: patched version in use. Reached only transitively via `strands-agents-evals` -> `strands-agents-tools`; no first-party code imports Pillow, and it is absent from the deployed agent image |
-| mcp | CVE-2026-59950 | Resolved: floor raised to >=1.28.1 | None: patched version in use. The affected WebSocket server transport is unused: the agent consumes MCP only as a client, over SigV4-signed streamable HTTP to the AgentCore Gateway |
+| mcp | CVE-2026-59950 | Resolved: floor raised to >=1.29.0 (patched in 1.28.1) | None: patched version in use. The affected WebSocket server transport is unused: the agent consumes MCP only as a client, over SigV4-signed streamable HTTP to the AgentCore Gateway |
+| openssl (base image OS package) | CVE-2026-14456 | Accepted, no fix exists: recorded as a scoped exception in `SCAN_EXCEPTIONS` (`scripts/deploy_codebuild.py`), applied only while the package is below 3.5 | None: the vulnerable code is absent. Upstream states the flaw "is present since OpenSSL 3.5 when the QUIC server implementation was added"; the base image ships 3.0.20, which has no QUIC server, and the runtime serves plain HTTP on 8080. Debian marks every suite vulnerable — including bullseye's 1.1.1w, which predates QUIC entirely — and publishes no fixed version in bookworm, trixie, sid or unstable, so no upgrade clears it. Moving to trixie would install openssl 3.5.6, the series that actually contains the flaw |
 
 Transitive floors live in `[tool.uv] constraint-dependencies` (root `pyproject.toml`) and
 `examples/vehicle-auction-agent/agent/constraints.txt`, so they survive re-resolution.
+
+#### Base-image findings and the ECR scan exception
+
+The openssl row is the only entry not fixed by a floor, because it is not a Python dependency:
+it is an OS package in the Debian base image, reported by ECR scan-on-push rather than
+`pip-audit`. `scripts/deploy_codebuild.py` fails the deploy on any CRITICAL or HIGH image
+finding, so an unfixable one needs an explicit, auditable waiver rather than a lowered
+threshold. `SCAN_EXCEPTIONS` holds it as a record — CVE, package, version bound, and the
+written justification — and the gate logs that justification on every deploy it applies to.
+
+Two properties keep the waiver from decaying into a blanket suppression:
+
+- **It expires by construction.** The exception applies only while the scanned package is
+  *below* `unaffected_below` (3.5). A base-image bump to a series that actually contains the
+  QUIC listener makes the same CVE block again; nobody has to remember to revisit it.
+- **Unaccounted findings still block.** `findingSeverityCounts` stays authoritative for the
+  blocking total and the per-finding list is used only to identify excusable ones. Since that
+  list is paginated, a truncated page fails closed: the deploy proceeds only when every
+  counted CRITICAL/HIGH is individually accounted for.
+
+`tests/unit/test_deploy_codebuild_controls.py` carries the positive controls — an openssl
+3.5.6 finding, a different CVE on the same package, the same CVE on a different package, an
+unparseable version, and a truncated findings list all still fail the deploy.
+
+#### Scope of these floors
+
+Both mechanisms are **resolution inputs for this repository only**. Neither reaches a
+consumer of the published `agentic-evaluation` wheel:
+
+- `[tool.uv] constraint-dependencies` is a uv-specific input. It is absent from the built
+  wheel's `Requires-Dist` metadata, so `pip install agentic-evaluation` does not inherit the
+  `aiohttp`, `cryptography` or `pillow` floors. Those packages arrive through
+  `strands-agents-evals` -> `strands-agents-tools`, and `strands-agents-evals` *is* a core
+  dependency, so a consumer resolving today could land on versions older than the floors above.
+- `[dependency-groups] dev` is likewise never published (PEP 735).
+
+This is a property of Python packaging, not something a library can fix from its own metadata:
+transitive pinning belongs to whoever builds the final application. What we can do is not
+over-constrain consumers, keep the direct floors accurate in `[project]`, and audit our own
+resolution in CI — which is what the gates above do. **Downstream consumers should run
+`pip-audit` against their own lockfile.**
 
 ## Pre-Deployment Checklist
 

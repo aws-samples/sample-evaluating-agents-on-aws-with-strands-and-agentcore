@@ -62,6 +62,7 @@ import argparse
 import io
 import json
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -69,7 +70,7 @@ import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from botocore.exceptions import ClientError
 
@@ -114,6 +115,52 @@ AGENT_DIR = REPO_ROOT / "examples" / "vehicle-auction-agent" / "agent"
 BUILD_TIMEOUT_SECONDS = 1800
 IMAGE_SCAN_TIMEOUT_SECONDS = 600
 BLOCKING_IMAGE_SEVERITIES = ("CRITICAL", "HIGH")
+
+
+class ScanException(NamedTuple):
+    """One narrowly-scoped ECR finding the image-scan gate will not block on.
+
+    Every field has to match before a finding is excused, and the version bound
+    is what keeps the exception from outliving its justification: it applies
+    only while the scanned package sits below the release that introduced the
+    vulnerable code, so a future base image on an affected series blocks again
+    rather than inheriting a stale waiver.
+
+    Attributes:
+        cve: Exact finding name, as ECR reports it.
+        package: Exact package name the exception is limited to.
+        unaffected_below: Upstream version that first contained the vulnerable
+            code. Findings are excused only below this.
+        reason: Why the finding does not apply here, emitted on every deploy so
+            the waiver is visible in the log rather than buried in source.
+    """
+
+    cve: str
+    package: str
+    unaffected_below: str
+    reason: str
+
+
+# Deliberately tiny, and every entry needs the same standard of proof: an
+# upstream statement that the vulnerable code is absent from the version shipped
+# here, plus no available upgrade that would clear the finding instead.
+SCAN_EXCEPTIONS = (
+    ScanException(
+        cve="CVE-2026-14456",
+        package="openssl",
+        unaffected_below="3.5",
+        reason=(
+            "QUIC listener resource-exhaustion DoS. Upstream: the flaw 'is present "
+            "since OpenSSL 3.5 when the QUIC server implementation was added'; the "
+            "base image ships the 3.0 series, which has no QUIC server, and this "
+            "runtime serves plain HTTP on 8080. Debian reports every suite as "
+            "vulnerable -- including bullseye's 1.1.1w, which predates QUIC "
+            "entirely -- and lists no fixed version in bookworm, trixie, sid or "
+            "unstable, so no upgrade clears it. Moving to trixie would ship "
+            "openssl 3.5.6, the series that actually contains the flaw."
+        ),
+    ),
+)
 
 # Models the agent invokes. Kept in sync with agent/app.py (MODEL_ID and the
 # Amazon Titan embedding model) and with the Bedrock policy in
@@ -357,6 +404,93 @@ def _ensure_source_bucket(s3: Any, bucket: str, region: str) -> None:
     _ensure_source_bucket_policy(s3, bucket)
 
 
+def _upstream_release(version: str) -> tuple[int, ...] | None:
+    """Leading numeric components of a distro package version.
+
+    Hand-rolled because these are Debian versions, not PEP 440:
+    ``3.0.20-1~deb12u2`` makes ``packaging.version.parse`` raise, and
+    ``debian.debian_support`` is not a dependency of this repo. Only the
+    upstream release digits before the distro revision matter for deciding
+    whether a :class:`ScanException` version bound applies, so that is all this
+    parses -- anything it cannot read returns ``None`` so the caller keeps
+    blocking rather than guessing.
+
+    Args:
+        version: ``package_version`` as ECR reports it, optionally with a
+            Debian epoch and revision.
+
+    Returns:
+        The dot-separated leading integers, or ``None`` when the string does not
+        start with a numeric release.
+    """
+    match = re.match(r"(?:\d+:)?(\d+(?:\.\d+)*)", version)
+    if match is None:
+        return None
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def _matching_exception(name: str, package: str, version: str) -> ScanException | None:
+    """The :data:`SCAN_EXCEPTIONS` entry that excuses a finding, if any.
+
+    Args:
+        name: Finding name, e.g. ``CVE-2026-14456``.
+        package: Package the finding is reported against.
+        version: Version of that package in the scanned image.
+
+    Returns:
+        The matching exception, or ``None`` when the finding must block --
+        including when the version cannot be parsed or is at or above the
+        release that introduced the vulnerable code.
+    """
+    release = _upstream_release(version)
+    if release is None:
+        return None
+    for exception in SCAN_EXCEPTIONS:
+        if exception.cve != name or exception.package != package:
+            continue
+        bound = _upstream_release(exception.unaffected_below)
+        if bound is not None and release < bound:
+            return exception
+    return None
+
+
+def _partition_blocking_findings(
+    response: dict[str, Any],
+) -> tuple[list[str], list[ScanException]]:
+    """Split the CRITICAL/HIGH findings into what blocks and what is excused.
+
+    ``findingSeverityCounts`` tells an operator how many findings blocked the
+    image but not which ones, so triage meant a second, manual
+    ``describe-image-scan-findings`` call before any decision could be made.
+    Basic scan-on-push -- what :func:`_ensure_ecr_repo` enables -- reports the
+    per-finding detail under ``findings``.
+
+    Args:
+        response: ``describe_image_scan_findings`` response for the pushed image.
+
+    Returns:
+        ``(blocking, excused)``: one ``SEVERITY name (package version)`` string
+        per finding with no exception, and the exception matched for each
+        finding that has one.
+    """
+    blocking: list[str] = []
+    excused: list[ScanException] = []
+    for finding in response.get("imageScanFindings", {}).get("findings", []):
+        severity = finding.get("severity")
+        if severity not in BLOCKING_IMAGE_SEVERITIES:
+            continue
+        attributes = {a["key"]: a["value"] for a in finding.get("attributes", [])}
+        name = finding.get("name", "unnamed")
+        package = attributes.get("package_name", "unknown")
+        version = attributes.get("package_version", "unknown")
+        exception = _matching_exception(name, package, version)
+        if exception is not None:
+            excused.append(exception)
+            continue
+        blocking.append(f"{severity} {name} ({package} {version})")
+    return sorted(blocking), excused
+
+
 def _wait_for_image_scan(ecr: Any, repository_name: str, image_tag: str) -> dict[str, int]:
     """Block until the scan-on-push result is in, failing on CRITICAL/HIGH.
 
@@ -395,11 +529,34 @@ def _wait_for_image_scan(ecr: Any, repository_name: str, image_tag: str) -> dict
 
         counts = response.get("imageScanFindings", {}).get("findingSeverityCounts", {})
         blocking = {severity: counts.get(severity, 0) for severity in BLOCKING_IMAGE_SEVERITIES}
-        if any(blocking.values()):
-            raise RuntimeError(
-                f"ECR scan blocked {repository_name}:{image_tag}: "
-                + ", ".join(f"{severity}={count}" for severity, count in blocking.items())
-            )
+        total = sum(blocking.values())
+        if total:
+            described, excused = _partition_blocking_findings(response)
+            for exception in excused:
+                logger.warning(
+                    "ECR scan exception applied to %s:%s -- %s in %s is not blocking below %s. %s",
+                    repository_name,
+                    image_tag,
+                    exception.cve,
+                    exception.package,
+                    exception.unaffected_below,
+                    exception.reason,
+                )
+            # The counts are authoritative and ``findings`` is paginated, so a
+            # truncated page must not read as "everything left was excused":
+            # only a full, finding-by-finding account of the total clears it.
+            if described or len(excused) != total:
+                raise RuntimeError(
+                    f"ECR scan blocked {repository_name}:{image_tag}: "
+                    + ", ".join(f"{severity}={count}" for severity, count in blocking.items())
+                    + (f" -- {'; '.join(described)}" if described else "")
+                    + (
+                        f" -- {total} blocking finding(s) reported but only "
+                        f"{len(excused)} accounted for"
+                        if not described
+                        else ""
+                    )
+                )
         logger.info("ECR scan passed for %s:%s: %s", repository_name, image_tag, counts)
         return counts
 

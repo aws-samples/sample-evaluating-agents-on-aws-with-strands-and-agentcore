@@ -41,10 +41,12 @@ Three lines:
 ```python
 # 1. Replace the mock with a real adapter
 from agentic_evaluation.adapters.http import make_task_fn
+
 task_fn = make_task_fn(endpoint_url="https://your-agent.example.com/invoke")
 
 # 2. Point the runner at it
 from agentic_evaluation import run_all_layers
+
 results = run_all_layers(task_fn=task_fn)
 ```
 

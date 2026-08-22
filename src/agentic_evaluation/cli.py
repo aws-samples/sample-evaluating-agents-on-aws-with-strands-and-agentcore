@@ -28,6 +28,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from strands_evals.types.evaluation_report import EvaluationReport
+
 from agentic_evaluation.config import load_config
 from agentic_evaluation.exceptions import (
     ConfigError,
@@ -38,7 +40,11 @@ from agentic_evaluation.exceptions import (
 )
 from agentic_evaluation.judges import build_judge
 from agentic_evaluation.plugins import load_evaluator_plugin
-from agentic_evaluation.run_experiment import reset_config_cache, run_all_layers
+from agentic_evaluation.run_experiment import (
+    evaluator_name,
+    reset_config_cache,
+    run_all_layers,
+)
 
 logger = logging.getLogger("agentic_evaluation.cli")
 
@@ -152,35 +158,33 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0 if results.get("all_passed") else 1
 
 
-def _serialize_report(report: Any) -> dict[str, Any]:
-    """Convert an EvaluationReport into a JSON-friendly dict.
+def _serialize_report(report: EvaluationReport) -> dict[str, Any]:
+    """Convert one evaluator's EvaluationReport into a JSON-friendly dict.
 
-    Reports come from strands_evals and expose: ``evaluator_name``,
-    ``overall_score``, plus per-case lists ``cases``, ``scores``,
-    ``test_passes``, ``reasons``.
+    Args:
+        report: A single-evaluator report, as ``run_all_layers`` puts in each
+            layer's ``reports``.
+
+    Returns:
+        The evaluator's name and mean score plus one entry per case.
     """
-    name = getattr(report, "evaluator_name", "unknown")
-    overall = float(getattr(report, "overall_score", 0.0))
-    cases = getattr(report, "cases", []) or []
-    scores = getattr(report, "scores", []) or []
-    passes = getattr(report, "test_passes", []) or []
-    reasons = getattr(report, "reasons", []) or []
-
-    case_entries: list[dict[str, Any]] = []
-    for i, case in enumerate(cases):
-        if isinstance(case, dict):
-            case_id = case.get("name") or case.get("input") or f"case_{i}"
-        else:
-            case_id = str(case)
-        case_entries.append(
-            {
-                "id": str(case_id)[:200],
-                "score": float(scores[i]) if i < len(scores) else None,
-                "passed": bool(passes[i]) if i < len(passes) else None,
-                "reason": reasons[i] if i < len(reasons) else None,
-            }
-        )
-    return {"name": name, "overall": overall, "cases": case_entries}
+    case_entries = [
+        {
+            "id": str(case.get("name") or case.get("input") or f"case_{i}")[:200],
+            # `reasons` and the other row lists default to [] on
+            # EvaluationReport, so a report built by hand rather than by an
+            # Experiment can carry fewer of those rows than it has scores.
+            "score": float(report.scores[i]) if i < len(report.scores) else None,
+            "passed": bool(report.test_passes[i]) if i < len(report.test_passes) else None,
+            "reason": report.reasons[i] if i < len(report.reasons) else None,
+        }
+        for i, case in enumerate(report.cases)
+    ]
+    return {
+        "name": evaluator_name(report),
+        "overall": float(report.overall_score),
+        "cases": case_entries,
+    }
 
 
 def _build_output_payload(results: dict[str, Any], cfg: Any, detail: str) -> dict[str, Any]:

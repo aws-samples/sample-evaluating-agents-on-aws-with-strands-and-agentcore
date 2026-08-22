@@ -46,6 +46,7 @@ demo needs no LLM), and the domain layer evaluate a mock agent in seconds.
 from agentic_evaluation import run_all_layers, TaskFnResult
 from strands_evals.types.evaluation import EnvironmentState
 
+
 def task_fn(case) -> TaskFnResult:
     # Replace with your agent: Strands, AgentCore, LangChain, OpenAI, ...
     metrics = {"latency_ms": 420}
@@ -55,6 +56,7 @@ def task_fn(case) -> TaskFnResult:
         "environment_state": [EnvironmentState(name="metrics", state=metrics)],
         "metadata": metrics,  # Optional fallback for direct/static fixtures.
     }
+
 
 results = run_all_layers(task_fn=task_fn)
 print("All passed:", results["all_passed"])
@@ -272,7 +274,7 @@ cdk bootstrap \
 Deploy everything with the end-to-end script (run from the repository root):
 
 ```bash
-python scripts/deploy_stack.py \
+uv run python scripts/deploy_stack.py \
   --profile <profile> \
   --region eu-west-1 \
   --expected-account <12-digit-account-id>
@@ -439,6 +441,7 @@ aws bedrock-agentcore-control create-online-evaluation-config \
 from agentic_evaluation import run_all_layers
 from strands_evals.types.evaluation import EnvironmentState
 
+
 def agent_task(case):
     # Replace with your real agent call
     metrics = {"latency_ms": 100, "total_tokens": 10, "estimated_cost_usd": 0.001}
@@ -448,6 +451,7 @@ def agent_task(case):
         "environment_state": [EnvironmentState(name="metrics", state=metrics)],
         "metadata": metrics,
     }
+
 
 results = run_all_layers(task_fn=agent_task)
 print(f"All passed: {results['all_passed']}")

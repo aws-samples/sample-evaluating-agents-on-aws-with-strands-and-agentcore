@@ -28,6 +28,7 @@ from typing import Any
 import pytest
 from strands_evals import Case
 
+from agentic_evaluation import reports_by_evaluator
 from agentic_evaluation.adapters.agentcore import make_task_fn
 from agentic_evaluation.run_experiment import (
     build_cases_from_registry,
@@ -162,7 +163,7 @@ class TestRealLayer1:
         here is a real signal — not tautological and not zero-by-construction.
         """
         exp = build_layer1_experiment(cases)
-        reports = exp.run_evaluations(real_task_fn)
+        reports = reports_by_evaluator(exp.run_evaluations(real_task_fn))
 
         print("\n=== Layer 1: Tool Usage (Real Agent) ===")
         for report in reports:
@@ -189,7 +190,7 @@ class TestRealLayer2:
     def test_layer2_real_agent(self, cases, real_task_fn) -> None:
         """Run Layer 2 LLM evaluators against real agent responses."""
         exp = build_layer2_experiment(cases)
-        reports = exp.run_evaluations(real_task_fn)
+        reports = reports_by_evaluator(exp.run_evaluations(real_task_fn))
 
         print("\n=== Layer 2: Reasoning Quality (Real Agent) ===")
         for report in reports:
@@ -213,7 +214,7 @@ class TestRealLayer3:
     def test_layer3_real_agent(self, cases, real_task_fn) -> None:
         """Run Layer 3 LLM evaluators against real agent responses."""
         exp = build_layer3_experiment(cases)
-        reports = exp.run_evaluations(real_task_fn)
+        reports = reports_by_evaluator(exp.run_evaluations(real_task_fn))
 
         print("\n=== Layer 3: Output Quality (Real Agent) ===")
         for report in reports:
@@ -237,7 +238,7 @@ class TestRealDomain:
     def test_domain_real_agent(self, cases, real_task_fn) -> None:
         """Run domain evaluators (latency/cost/safety/freshness) on real metrics."""
         exp = build_domain_experiment(cases)
-        reports = exp.run_evaluations(real_task_fn)
+        reports = reports_by_evaluator(exp.run_evaluations(real_task_fn))
 
         print("\n=== Domain Evaluators (Real Agent) ===")
         for report in reports:

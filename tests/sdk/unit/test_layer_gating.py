@@ -14,11 +14,13 @@ from agentic_evaluation.run_experiment import _DETERMINISTIC_LAYERS, _layer_pass
 
 
 def _report(scores: list[float], test_passes: list[bool]) -> EvaluationReport:
+    # The evaluator is a per-row tag on `cases`, not a report-level field: an
+    # `evaluator_name=` kwarg here was silently dropped by pydantic and read as
+    # though it were setting something.
     return EvaluationReport(
-        evaluator_name="Fake",
         overall_score=sum(scores) / len(scores) if scores else 0.0,
         scores=scores,
-        cases=[{} for _ in scores],
+        cases=[{"evaluator": "Fake"} for _ in scores],
         test_passes=test_passes,
     )
 

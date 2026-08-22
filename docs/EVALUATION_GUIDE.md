@@ -45,6 +45,7 @@ results = run_all_layers(task_fn=your_agent_task)
 
 # Option B: Load test cases from YAML config
 from agentic_evaluation import load_config
+
 cfg = load_config("eval_config.yaml")
 registry = TestCaseRegistry.from_config(cfg.test_cases)
 results = run_all_layers(task_fn=your_agent_task, registry=registry)
@@ -95,6 +96,7 @@ Your task function receives a `Case` and returns a dict:
 from strands_evals import Case
 from typing import Any
 
+
 def agent_task(case: Case) -> dict[str, Any]:
     """Run your agent on a test case.
 
@@ -129,9 +131,16 @@ LLM-based evaluators (`HelpfulnessEvaluator`, `GoalSuccessRateEvaluator`) requir
 import uuid
 from datetime import datetime, timezone
 from strands_evals.types.trace import (
-    AgentInvocationSpan, Session, SpanInfo, Trace,
-    ToolCall, ToolConfig, ToolExecutionSpan, ToolResult,
+    AgentInvocationSpan,
+    Session,
+    SpanInfo,
+    Trace,
+    ToolCall,
+    ToolConfig,
+    ToolExecutionSpan,
+    ToolResult,
 )
+
 
 def build_mock_session(
     user_prompt: str,
@@ -160,28 +169,34 @@ def build_mock_session(
     # Build tool execution spans
     spans = []
     for tool_name in tool_names:
-        spans.append(ToolExecutionSpan(
-            span_info=make_span_info(),
-            tool_call=ToolCall(name=tool_name, arguments={}),
-            tool_result=ToolResult(content=f"Results from {tool_name}"),
-        ))
+        spans.append(
+            ToolExecutionSpan(
+                span_info=make_span_info(),
+                tool_call=ToolCall(name=tool_name, arguments={}),
+                tool_result=ToolResult(content=f"Results from {tool_name}"),
+            )
+        )
 
     # Build agent invocation span (required for LLM evaluators)
-    spans.append(AgentInvocationSpan(
-        span_info=make_span_info(),
-        user_prompt=user_prompt,
-        agent_response=agent_response,
-        available_tools=available_tools or [],
-    ))
+    spans.append(
+        AgentInvocationSpan(
+            span_info=make_span_info(),
+            user_prompt=user_prompt,
+            agent_response=agent_response,
+            available_tools=available_tools or [],
+        )
+    )
 
     return Session(
         session_id=session_id,
-        traces=[Trace(
-            trace_id=str(uuid.uuid4()),
-            start_time=now,
-            end_time=now,
-            spans=spans,
-        )],
+        traces=[
+            Trace(
+                trace_id=str(uuid.uuid4()),
+                start_time=now,
+                end_time=now,
+                spans=spans,
+            )
+        ],
     )
 ```
 
@@ -276,6 +291,7 @@ test_cases:
 Load with:
 ```python
 from agentic_evaluation.config import load_config
+
 cfg = load_config("eval_config.yaml")
 ```
 
@@ -362,14 +378,13 @@ All in `src/agentic_evaluation/evaluators.py`. No LLM calls.
 from strands_evals.evaluators.evaluator import Evaluator
 from strands_evals.types.evaluation import EvaluationData, EvaluationOutput, InputT, OutputT
 
+
 class MyCustomEvaluator(Evaluator[InputT, OutputT]):
     def __init__(self, my_threshold: float = 0.9):
         super().__init__()
         self.my_threshold = my_threshold
 
-    def evaluate(
-        self, evaluation_case: EvaluationData[InputT, OutputT]
-    ) -> list[EvaluationOutput]:
+    def evaluate(self, evaluation_case: EvaluationData[InputT, OutputT]) -> list[EvaluationOutput]:
         # Access test case data
         input_query = evaluation_case.input
         actual_output = evaluation_case.actual_output
@@ -381,11 +396,13 @@ class MyCustomEvaluator(Evaluator[InputT, OutputT]):
         # Your evaluation logic
         score = compute_score(actual_output, expected_output)
 
-        return [EvaluationOutput(
-            score=score,
-            test_pass=score >= self.my_threshold,
-            reason=f"Score: {score:.2f}",
-        )]
+        return [
+            EvaluationOutput(
+                score=score,
+                test_pass=score >= self.my_threshold,
+                reason=f"Score: {score:.2f}",
+            )
+        ]
 ```
 
 ## Running Evaluations
@@ -409,9 +426,11 @@ results = run_all_layers(
 
 # Gate on pass^k: all 5 trials must pass all layers
 for layer in ["layer_1", "layer_2", "layer_3", "domain"]:
-    print(f"{layer}: pass@5={results[layer]['pass_at_k']}, "
-          f"pass^5={results[layer]['pass_all_k']}, "
-          f"rate={results[layer]['pass_rate']:.0%}")
+    print(
+        f"{layer}: pass@5={results[layer]['pass_at_k']}, "
+        f"pass^5={results[layer]['pass_all_k']}, "
+        f"rate={results[layer]['pass_rate']:.0%}"
+    )
 
 if not results["all_passed"]:
     raise SystemExit("Evaluation gate failed")
@@ -426,15 +445,21 @@ from agentic_evaluation import (
     build_layer2_experiment,
     build_layer3_experiment,
     build_domain_experiment,
+    evaluator_name,
+    reports_by_evaluator,
 )
 
 cases = build_cases_from_registry()
 
 # Run only Layer 1 (fast, no LLM calls)
 exp = build_layer1_experiment(cases)
-reports = exp.run_evaluations(agent_task)
-for report in reports:
-    print(f"Score: {report.overall_score:.2f}")
+
+# run_evaluations() returns ONE report whose rows are evaluators x cases, and
+# whose overall_score is the mean across all of them. reports_by_evaluator()
+# splits it into one report per evaluator, which is the shape the layer gate
+# uses — see "EvaluationReport fields" below.
+for report in reports_by_evaluator(exp.run_evaluations(agent_task)):
+    print(f"{evaluator_name(report)}: {report.overall_score:.2f}")
 ```
 
 ## Test Case Management
@@ -470,15 +495,17 @@ test_cases:
 from agentic_evaluation.test_cases import TestCase, TestCategory, EvaluationLayer, TestCaseRegistry
 
 registry = TestCaseRegistry()
-registry.add_test_case(TestCase(
-    id="custom_001",
-    query="My custom test query",
-    category=TestCategory.HAPPY_PATH,
-    expected_tools=["search"],
-    expected_behavior="Should search and return results",
-    evaluation_layers=[EvaluationLayer.LAYER_1_TOOL_USAGE],
-    tags=["custom"],
-))
+registry.add_test_case(
+    TestCase(
+        id="custom_001",
+        query="My custom test query",
+        category=TestCategory.HAPPY_PATH,
+        expected_tools=["search"],
+        expected_behavior="Should search and return results",
+        evaluation_layers=[EvaluationLayer.LAYER_1_TOOL_USAGE],
+        tags=["custom"],
+    )
+)
 ```
 
 ## Metadata Flow
@@ -508,22 +535,48 @@ Set via `judge_model` in `eval_config.yaml` or `JUDGE_MODEL_ID` env var.
 
 ### EvaluationReport fields
 
-When processing results from `experiment.run_evaluations()`:
+`experiment.run_evaluations()` returns a **single** report, not a list. Its rows
+are the cross product of evaluators and cases, and every parallel list below is
+indexed the same way:
 
 ```python
-reports = experiment.run_evaluations(task_fn)
-for report in reports:
-    report.evaluator_name   # str: which evaluator produced this report
-    report.overall_score    # float: aggregate (mean) score
-    report.scores           # list[float]: per-case scores
-    report.cases            # list[Case]: the test cases
-    report.test_passes      # list[bool]: per-case pass/fail
-    report.reasons          # list[str]: per-case explanations
+report = experiment.run_evaluations(task_fn)  # one report, not a list
 ```
 
-Note: `evaluator_name` availability can vary by `strands_evals` version, so the
-CLI reads it defensively via `getattr(report, "evaluator_name", "unknown")`.
-There is no `detailed_results` or `case_results` field.
+| Field | Type | Meaning |
+|-------|------|---------|
+| `overall_score` | `float` | Mean across every evaluator **and** every case |
+| `scores` | `list[float]` | One score per row |
+| `cases` | `list[dict]` | One dumped `Case` per row, tagged with its evaluator |
+| `test_passes` | `list[bool]` | One pass/fail per row |
+| `reasons` | `list[str]` | One explanation per row |
+| `detailed_results` | `list[list[EvaluationOutput]]` | The evaluator's own output for each row |
+| `diagnoses` | `list[dict \| None]` | One per row; `None` unless the evaluator produced one |
+| `recommendations` | `list[str \| None]` | One per row; `None` unless the evaluator produced one |
+
+There is no `report.evaluator_name`: the evaluator is a **per-row tag**, at
+`report.cases[i]["evaluator"]` (with `["evaluator_type"]` alongside it). Reading
+it off the report itself does not raise — it silently yields nothing — so use
+the SDK's reader:
+
+```python
+from agentic_evaluation import evaluator_name, reports_by_evaluator
+
+for report in reports_by_evaluator(experiment.run_evaluations(task_fn)):
+    print(evaluator_name(report), report.overall_score)
+```
+
+`reports_by_evaluator()` is worth going through rather than grouping by hand for
+one reason beyond convenience: it recomputes each `overall_score` with the
+library's own aggregation, which excludes rows an evaluator declined to judge
+(`EvaluationOutput(label=NOT_APPLICABLE)`). A plain mean over `scores` would
+count those declined rows as real zeros and report the run as worse than it was.
+
+This is also why `run_all_layers()` never gates on the flat report directly: a
+mean over every evaluator lets a passing one average away a failing one. It
+applies one threshold per evaluator instead, from the `thresholds` block of
+`eval_config.yaml`, and for the deterministic layers it also requires every
+per-case `test_pass` — so a single safety violation fails the layer.
 
 ### File structure
 
@@ -556,6 +609,7 @@ agent = Agent(
     model="eu.anthropic.claude-sonnet-4-6",
     tools=[search_tool, analyze_tool],
 )
+
 
 def agent_task(case):
     result = agent(case.input)

@@ -261,13 +261,15 @@ For production deployments, integrate AWS Secrets Manager for sensitive configur
 import boto3
 import json
 
+
 def get_secret(secret_name, region):
-    client = boto3.client('secretsmanager', region_name=region)
+    client = boto3.client("secretsmanager", region_name=region)
     response = client.get_secret_value(SecretId=secret_name)
-    return json.loads(response['SecretString'])
+    return json.loads(response["SecretString"])
+
 
 # Usage for a real third-party data source
-data_source_credentials = get_secret('data-source-credentials', 'eu-west-1')
+data_source_credentials = get_secret("data-source-credentials", "eu-west-1")
 ```
 
 ### Secret Rotation

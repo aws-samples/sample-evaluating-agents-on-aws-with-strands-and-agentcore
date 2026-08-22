@@ -44,7 +44,7 @@ class SensitiveFieldFilter(logging.Filter):
             try:
                 record.msg = record.msg % record.args
                 record.args = None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 # A caller's args do not match its format string. Leave both
                 # alone: the stdlib handler will surface the same error, and
                 # logging from inside a filter would recurse.

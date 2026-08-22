@@ -89,12 +89,14 @@ class EvaluationThresholds:
             goal_success >= self.goal_success_rate and output_quality >= self.output_quality_score
         )
 
-    # PLR0913 (6 > 5 args): the three layers measure two scores each, and every
-    # call site passes them by name. Grouping them into per-layer tuples would
-    # satisfy the rule but hide which number is which at the call site, so the
-    # six named floats are kept deliberately.
-    def validate_all_layers(  # noqa: PLR0913
+    # The three layers measure two scores each. Grouping them into per-layer
+    # tuples to shorten the signature would hide which number is which at the
+    # call site, so the six named floats are kept deliberately -- and made
+    # keyword-only, because six same-typed floats in a row is precisely the
+    # signature where a positional call silently swaps two scores.
+    def validate_all_layers(  # noqa: PLR0913 - counts keyword-only args; PLR0917 is satisfied
         self,
+        *,
         tool_accuracy: float,
         param_accuracy: float,
         helpfulness: float,

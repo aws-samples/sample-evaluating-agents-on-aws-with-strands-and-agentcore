@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from strands_evals import Case, Experiment
 from strands_evals.types.evaluation import EnvironmentState
 
+from agentic_evaluation import reports_by_evaluator
 from agentic_evaluation.adapters._session import build_session
 from agentic_evaluation.evaluators import (
     CostEvaluator,
@@ -24,7 +25,7 @@ def test_missing_freshness_fails() -> None:
     report = Experiment(
         cases=[Case(name="missing", input="query")],
         evaluators=[DataFreshnessEvaluator()],
-    ).run_evaluations(_task_without_metrics)[0]
+    ).run_evaluations(_task_without_metrics)
     assert report.test_passes == [False]
     assert "unavailable" in report.reasons[0]
 
@@ -33,7 +34,7 @@ def test_missing_latency_fails() -> None:
     report = Experiment(
         cases=[Case(name="missing", input="query")],
         evaluators=[LatencyEvaluator()],
-    ).run_evaluations(_task_without_metrics)[0]
+    ).run_evaluations(_task_without_metrics)
     assert report.test_passes == [False]
     assert "unavailable" in report.reasons[0]
 
@@ -42,7 +43,7 @@ def test_missing_cost_fails() -> None:
     report = Experiment(
         cases=[Case(name="missing", input="query")],
         evaluators=[CostEvaluator()],
-    ).run_evaluations(_task_without_metrics)[0]
+    ).run_evaluations(_task_without_metrics)
     assert report.test_passes == [False]
     assert "unavailable" in report.reasons[0]
 
@@ -67,10 +68,12 @@ def test_complete_metrics_pass() -> None:
             ],
         }
 
-    reports = Experiment(
-        cases=[Case(name="complete", input="query")],
-        evaluators=[DataFreshnessEvaluator(), LatencyEvaluator(), CostEvaluator()],
-    ).run_evaluations(task)
+    reports = reports_by_evaluator(
+        Experiment(
+            cases=[Case(name="complete", input="query")],
+            evaluators=[DataFreshnessEvaluator(), LatencyEvaluator(), CostEvaluator()],
+        ).run_evaluations(task)
+    )
     assert all(report.test_passes == [True] for report in reports)
 
 
@@ -105,6 +108,6 @@ def test_tool_parameter_mismatch_fails() -> None:
     report = Experiment(
         cases=[case],
         evaluators=[ToolParameterGrader(threshold=0.95)],
-    ).run_evaluations(task)[0]
+    ).run_evaluations(task)
     assert report.test_passes == [False]
     assert report.scores == [0.5]

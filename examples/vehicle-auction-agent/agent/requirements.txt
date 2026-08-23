@@ -2,9 +2,9 @@
 # integration for Strands (bedrock_agentcore.memory.integrations.strands).
 # Floor is a security minimum: < 1.18.1 is vulnerable to CVE-2026-16796
 # (argument injection in Code Interpreter install_packages()).
-bedrock-agentcore[strands-agents]>=1.21.0
+bedrock-agentcore[strands-agents]>=1.22.0
 strands-agents>=1.52.0
-boto3>=1.43.71
+boto3>=1.43.75
 # Exact pin kept in lockstep with the `dev` dependency group in the repository
 # root pyproject.toml, so the LanceDB reader under test is the one that deploys.
 lancedb==0.37.1
